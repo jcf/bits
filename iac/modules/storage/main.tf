@@ -80,6 +80,14 @@ resource "aws_iam_user_policy" "app_s3_access" {
           aws_s3_bucket.content.arn,
           "${aws_s3_bucket.content.arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
       }
     ]
   })
