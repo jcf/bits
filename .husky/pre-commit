@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Skip in CI
+if [ "$CI" = "true" ]; then
+  exit 0
+fi
+
+# Try to run lint-staged if pnpm is available
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm exec lint-staged
+else
+  echo "⚠️  pnpm not found - skipping pre-commit hooks"
+  echo "   Run 'devenv shell' to enable linting"
+fi

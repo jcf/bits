@@ -11,6 +11,7 @@
   env.PORT = "4444";
   env.S3_BUCKET = "bits-dev-content";
   env.WEB_URL = "http://localhost:5173";
+  env.SES_FROM_EMAIL = "noreply@bits-please.com";
 
   # Development-only secrets (will be overridden by 1Password in production)
   env.JWT_SECRET = "dev-jwt-secret-change-in-production";
@@ -146,30 +147,20 @@
 
     # Create email configuration in 1Password
     create-email-config.exec = ''
-      echo "Enter SMTP configuration for magic links:"
-      echo "SMTP Host (e.g., smtp.gmail.com):"
-      read SMTP_HOST
-
-      echo "SMTP Port (e.g., 587):"
-      read SMTP_PORT
-
-      echo "SMTP Username (your email):"
-      read SMTP_USER
-
-      echo "SMTP Password (app-specific password for Gmail):"
-      read -s SMTP_PASS
-      echo
+      echo "Enter SES configuration for magic links:"
+      echo "From email address (must be verified in SES):"
+      read FROM_EMAIL
 
       op item create \
         --category="Login" \
         --title="Bits Dev Email" \
         --vault="Bits" \
-        "hostname=$SMTP_HOST" \
-        "port=$SMTP_PORT" \
-        "username=$SMTP_USER" \
-        "password=$SMTP_PASS"
+        "from_email=$FROM_EMAIL"
 
       echo "Email configuration stored in 1Password!"
+      echo
+      echo "Note: Make sure this email is verified in AWS SES"
+      echo "https://console.aws.amazon.com/ses/home?region=eu-west-2#verified-senders-email:"
     '';
 
     # Setup all secrets at once
