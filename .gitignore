@@ -1,2 +1,24 @@
 /.devenv.flake.nix
 /node_modules
+dist/
+build/
+.env
+.env.local
+.DS_Store
+*.log
+.pnpm-debug.log*
+coverage/
+.nyc_output/
+.turbo/
+*.tsbuildinfo
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+!terraform.tfvars
+
+# 1Password
+.op/
