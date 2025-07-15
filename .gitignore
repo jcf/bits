@@ -22,3 +22,8 @@ coverage/
 
 # 1Password
 .op/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
