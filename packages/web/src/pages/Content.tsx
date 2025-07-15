@@ -29,7 +29,7 @@ export default function Content() {
     try {
       const { data } = await axios.get<ContentType>(`/api/content/${id}`);
       setContent(data);
-      
+
       if (isAuthenticated) {
         checkPurchaseStatus();
       }
@@ -59,14 +59,14 @@ export default function Content() {
     try {
       const response = await fetch(content.encryptedUrl);
       const encryptedData = await response.arrayBuffer();
-      
+
       const key = await importKey(keyString);
       const iv = decodeIv(ivString);
-      
+
       const decrypted = await decryptData(encryptedData, key, iv);
       const blob = new Blob([decrypted]);
       const url = URL.createObjectURL(blob);
-      
+
       setDecryptedUrl(url);
     } catch (error) {
       console.error('Failed to decrypt content:', error);
@@ -84,7 +84,7 @@ export default function Content() {
     setError('');
 
     try {
-      const { data: paymentIntent } = await axios.post('/api/purchase/intent', {
+      await axios.post('/api/purchase/intent', {
         contentId: id
       });
 
@@ -129,13 +129,9 @@ export default function Content() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {content.previewUrl && !isPurchased && (
-          <img
-            src={content.previewUrl}
-            alt={content.title}
-            className="w-full h-96 object-cover"
-          />
+          <img src={content.previewUrl} alt={content.title} className="w-full h-96 object-cover" />
         )}
-        
+
         {isPurchased && decryptedUrl && (
           <div className="w-full">
             {content.encryptedUrl.includes('.mp4') || content.encryptedUrl.includes('.webm') ? (
@@ -162,24 +158,22 @@ export default function Content() {
         <div className="p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{content.title}</h1>
           <p className="text-gray-700 mb-6">{content.description}</p>
-          
+
           {!isPurchased && content.priceCents && (
             <div className="border-t pt-6">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-2xl font-bold text-gray-900">
                   ${(content.priceCents / 100).toFixed(2)}
                 </span>
-                <span className="text-sm text-gray-500">
-                  One-time purchase
-                </span>
+                <span className="text-sm text-gray-500">One-time purchase</span>
               </div>
-              
+
               {error && (
                 <div className="mb-4 rounded-md bg-red-50 p-4">
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
-              
+
               <button
                 onClick={handlePurchase}
                 disabled={isPurchasing}
@@ -189,13 +183,11 @@ export default function Content() {
               </button>
             </div>
           )}
-          
+
           {isPurchased && (
             <div className="border-t pt-6">
               <div className="rounded-md bg-green-50 p-4">
-                <p className="text-sm text-green-800">
-                  You have purchased this content. Enjoy!
-                </p>
+                <p className="text-sm text-green-800">You have purchased this content. Enjoy!</p>
               </div>
             </div>
           )}

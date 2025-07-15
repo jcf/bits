@@ -1,8 +1,22 @@
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
-import { createTables, createContent, getAllContent, getContentById, createPurchase, hasPurchased, getContentKey } from './db.js';
-import { sendMagicLink, verifyMagicLink, authenticateWallet, generateAuthToken, authMiddleware } from './auth.js';
+import {
+  createTables,
+  createContent,
+  getAllContent,
+  getContentById,
+  createPurchase,
+  hasPurchased,
+  getContentKey
+} from './db.js';
+import {
+  sendMagicLink,
+  verifyMagicLink,
+  authenticateWallet,
+  generateAuthToken,
+  authMiddleware
+} from './auth.js';
 import { generateUploadUrl, getPublicUrl } from './storage.js';
 import { createPaymentIntent } from './payments.js';
 import { handleStripeWebhook } from './webhooks.js';
@@ -11,10 +25,12 @@ import type { User } from '@bits/shared';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({
-  origin: process.env.WEB_URL || 'http://localhost:5173',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.WEB_URL || 'http://localhost:5173',
+    credentials: true
+  })
+);
 
 // Stripe webhook needs raw body
 app.post('/webhook/stripe', express.raw({ type: 'application/json' }), handleStripeWebhook);
@@ -65,10 +81,12 @@ app.post('/auth/wallet', async (req, res) => {
 // Content endpoints
 app.post('/content/upload-url', authMiddleware as any, async (req: AuthRequest, res) => {
   try {
-    const { fileName, contentType } = z.object({
-      fileName: z.string(),
-      contentType: z.string()
-    }).parse(req.body);
+    const { fileName, contentType } = z
+      .object({
+        fileName: z.string(),
+        contentType: z.string()
+      })
+      .parse(req.body);
 
     const { uploadUrl, key } = await generateUploadUrl(fileName, contentType);
     res.json({ uploadUrl, key });
@@ -79,16 +97,18 @@ app.post('/content/upload-url', authMiddleware as any, async (req: AuthRequest, 
 
 app.post('/content', authMiddleware as any, async (req: AuthRequest, res) => {
   try {
-    const data = z.object({
-      title: z.string(),
-      description: z.string(),
-      previewKey: z.string().optional(),
-      encryptedKey: z.string(),
-      encryptionKey: z.string(),
-      encryptionIv: z.string(),
-      priceCents: z.number().optional(),
-      priceUsdc: z.number().optional()
-    }).parse(req.body);
+    const data = z
+      .object({
+        title: z.string(),
+        description: z.string(),
+        previewKey: z.string().optional(),
+        encryptedKey: z.string(),
+        encryptionKey: z.string(),
+        encryptionIv: z.string(),
+        priceCents: z.number().optional(),
+        priceUsdc: z.number().optional()
+      })
+      .parse(req.body);
 
     const content = await createContent({
       creatorId: req.user!.id,
@@ -133,7 +153,7 @@ app.get('/content/:id', async (req, res) => {
 app.post('/purchase/intent', authMiddleware as any, async (req: AuthRequest, res) => {
   try {
     const { contentId } = z.object({ contentId: z.string().uuid() }).parse(req.body);
-    
+
     const content = await getContentById(contentId);
     if (!content || !content.priceCents) {
       return res.status(404).json({ error: 'Content not found or not for sale' });
@@ -144,11 +164,7 @@ app.post('/purchase/intent', authMiddleware as any, async (req: AuthRequest, res
       return res.status(400).json({ error: 'Already purchased' });
     }
 
-    const paymentIntent = await createPaymentIntent(
-      content.priceCents,
-      contentId,
-      req.user!.id
-    );
+    const paymentIntent = await createPaymentIntent(content.priceCents, contentId, req.user!.id);
 
     res.json(paymentIntent);
   } catch (error) {
@@ -158,10 +174,12 @@ app.post('/purchase/intent', authMiddleware as any, async (req: AuthRequest, res
 
 app.post('/purchase/confirm', authMiddleware as any, async (req: AuthRequest, res) => {
   try {
-    const { contentId, paymentIntentId } = z.object({
-      contentId: z.string().uuid(),
-      paymentIntentId: z.string()
-    }).parse(req.body);
+    const { contentId, paymentIntentId } = z
+      .object({
+        contentId: z.string().uuid(),
+        paymentIntentId: z.string()
+      })
+      .parse(req.body);
 
     const content = await getContentById(contentId);
     if (!content) {
@@ -185,7 +203,7 @@ app.post('/purchase/confirm', authMiddleware as any, async (req: AuthRequest, re
 app.get('/content/:id/key', authMiddleware as any, async (req: AuthRequest, res) => {
   try {
     const contentId = req.params.id;
-    
+
     const purchased = await hasPurchased(req.user!.id, contentId);
     if (!purchased) {
       return res.status(403).json({ error: 'Content not purchased' });
@@ -203,5 +221,20 @@ app.get('/content/:id/key', authMiddleware as any, async (req: AuthRequest, res)
 });
 
 app.listen(PORT, () => {
-  console.log(`API server running on port ${PORT}`);
+  console.log('🚀 Bits API Server Started!');
+  console.log('================================');
+  console.log(`API:      http://localhost:${PORT}`);
+  console.log(`Web App:  http://localhost:5173`);
+  console.log('================================');
+  console.log('📝 Test endpoints:');
+  console.log(`POST http://localhost:${PORT}/auth/magic-link`);
+  console.log(`GET  http://localhost:${PORT}/content`);
+  console.log('================================');
+  if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('sk_test_...')) {
+    console.log('⚠️  Stripe not configured - run: create-stripe-secrets');
+  }
+  if (!process.env.AWS_ACCESS_KEY_ID) {
+    console.log('⚠️  AWS not configured - run: tf-apply && tf-store-secrets');
+  }
+  console.log('');
 });

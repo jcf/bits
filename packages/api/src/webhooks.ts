@@ -13,11 +13,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      webhookSecret
-    );
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -25,12 +21,12 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
   // Handle the event
   switch (event.type) {
-    case 'payment_intent.succeeded':
+    case 'payment_intent.succeeded': {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      
+
       // Extract metadata
       const { contentId, buyerId } = paymentIntent.metadata;
-      
+
       if (contentId && buyerId) {
         try {
           // Create purchase record
@@ -41,7 +37,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
             paymentMethod: 'stripe',
             transactionId: paymentIntent.id
           });
-          
+
           console.log(`Purchase recorded for content ${contentId} by user ${buyerId}`);
         } catch (error) {
           console.error('Failed to record purchase:', error);
@@ -49,6 +45,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
         }
       }
       break;
+    }
 
     default:
       console.log(`Unhandled event type ${event.type}`);
