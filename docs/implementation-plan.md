@@ -14,7 +14,7 @@ This plan outlines the complete rewrite of Bits as a truly decentralized, end-to
 
 ## Technical Architecture
 
-### Phase 1: Foundation (Weeks 1-2)
+### Phase 1: Foundation
 
 #### 1.1 Rust Node Implementation
 
@@ -56,7 +56,7 @@ bits-node/
 - Content registry (metadata only, not content)
 - Governance for network parameters
 
-### Phase 2: P2P Network (Weeks 3-4)
+### Phase 2: P2P Network
 
 #### 2.1 Distributed Hash Table (DHT)
 
@@ -82,7 +82,7 @@ bits-node/
   - 2% to node operators
   - 95% to content creators
 
-### Phase 3: Client Applications (Weeks 5-6)
+### Phase 3: Client Applications
 
 #### 3.1 Web Application
 
@@ -104,7 +104,7 @@ bits-node/
 - Simplified node (relay only)
 - Focus on content consumption
 
-### Phase 4: Advanced Features (Weeks 7-8)
+### Phase 4: Advanced Features
 
 #### 4.1 Privacy Enhancements
 
@@ -159,35 +159,35 @@ bits-node/
 
 ## Development Roadmap
 
-### Week 1-2: Core Node
+### Core Node
 
 - [ ] Basic Rust node structure
 - [ ] P2P networking with libp2p
 - [ ] Local storage implementation
 - [ ] Simple CLI interface
 
-### Week 3-4: Blockchain Integration
+### Blockchain Integration
 
 - [ ] Smart contract development
 - [ ] Web3 integration in Rust
 - [ ] DID implementation
 - [ ] Payment processing
 
-### Week 5-6: Storage Network
+### Storage Network
 
 - [ ] DHT implementation
 - [ ] Content replication
 - [ ] Storage proofs
 - [ ] Incentive distribution
 
-### Week 7-8: Client Development
+### Client Development
 
 - [ ] Web UI with WASM
 - [ ] Wallet integration
 - [ ] Content upload/download
 - [ ] Payment flows
 
-### Week 9-10: Testing & Launch
+### Testing & Launch
 
 - [ ] Testnet deployment
 - [ ] Security audit
