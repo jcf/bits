@@ -1,11 +1,15 @@
 use anyhow::Result;
+use futures::StreamExt;
 use libp2p::{
-    core::upgrade,
-    gossipsub, identity, kad, mdns, noise, tcp, yamux,
-    swarm::{NetworkBehaviour, SwarmBuilder, SwarmEvent},
-    PeerId, Transport,
+    gossipsub, identity, kad, mdns, noise,
+    swarm::{NetworkBehaviour, SwarmEvent},
+    yamux, PeerId, Swarm,
 };
-use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}, time::Duration};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    time::Duration,
+};
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
@@ -41,54 +45,54 @@ impl Network {
         let local_peer_id = PeerId::from(local_key.public());
         info!("Local peer id: {}", local_peer_id);
 
-        // Create transport
-        let transport = tcp::tokio::Transport::default()
-            .upgrade(upgrade::Version::V1)
-            .authenticate(noise::Config::new(&local_key)?)
-            .multiplex(yamux::Config::default())
-            .boxed();
+        // Build the Swarm using the new builder pattern
+        let mut swarm = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
+            .with_tokio()
+            .with_tcp(
+                Default::default(),
+                noise::Config::new,
+                yamux::Config::default,
+            )?
+            .with_behaviour(|key| {
+                // Configure gossipsub
+                let message_id_fn = |message: &gossipsub::Message| {
+                    let mut hasher = DefaultHasher::new();
+                    message.data.hash(&mut hasher);
+                    gossipsub::MessageId::from(hasher.finish().to_string())
+                };
 
-        // Configure gossipsub
-        let message_id_fn = |message: &gossipsub::Message| {
-            let mut hasher = DefaultHasher::new();
-            message.data.hash(&mut hasher);
-            gossipsub::MessageId::from(hasher.finish().to_string())
-        };
+                let gossipsub_config = gossipsub::ConfigBuilder::default()
+                    .heartbeat_interval(Duration::from_secs(1))
+                    .validation_mode(gossipsub::ValidationMode::Strict)
+                    .message_id_fn(message_id_fn)
+                    .build()
+                    .expect("Valid config");
 
-        let gossipsub_config = gossipsub::ConfigBuilder::default()
-            .heartbeat_interval(Duration::from_secs(1))
-            .validation_mode(gossipsub::ValidationMode::Strict)
-            .message_id_fn(message_id_fn)
-            .build()
-            .expect("Valid config");
+                let mut gossipsub = gossipsub::Behaviour::new(
+                    gossipsub::MessageAuthenticity::Signed(key.clone()),
+                    gossipsub_config,
+                )
+                .map_err(|e| anyhow::anyhow!("Failed to create gossipsub: {}", e))?;
 
-        let mut gossipsub = gossipsub::Behaviour::new(
-            gossipsub::MessageAuthenticity::Signed(local_key.clone()),
-            gossipsub_config,
-        )?;
+                // Subscribe to content topic
+                gossipsub.subscribe(&gossipsub::IdentTopic::new("bits/content/1.0.0"))?;
 
-        // Subscribe to content topic
-        gossipsub.subscribe(&gossipsub::IdentTopic::new("bits/content/1.0.0"))?;
+                // Configure Kademlia
+                let peer_id = PeerId::from(key.public());
+                let mut kademlia =
+                    kad::Behaviour::new(peer_id, kad::store::MemoryStore::new(peer_id));
+                kademlia.set_mode(Some(kad::Mode::Server));
 
-        // Configure Kademlia
-        let mut kademlia = kad::Behaviour::new(
-            local_peer_id,
-            kad::store::MemoryStore::new(local_peer_id),
-        );
-        kademlia.set_mode(Some(kad::Mode::Server));
+                // Configure mDNS for local discovery
+                let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), peer_id)?;
 
-        // Configure mDNS for local discovery
-        let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), local_peer_id)?;
-
-        // Create combined behaviour
-        let behaviour = BitsNetworkBehaviour {
-            gossipsub,
-            kademlia,
-            mdns,
-        };
-
-        // Build swarm
-        let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id)
+                Ok(BitsNetworkBehaviour {
+                    gossipsub,
+                    kademlia,
+                    mdns,
+                })
+            })?
+            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
             .build();
 
         // Listen on all interfaces
@@ -96,7 +100,7 @@ impl Network {
 
         // Connect to bootstrap nodes
         for addr in bootstrap_nodes {
-            match addr.parse() {
+            match addr.parse::<libp2p::Multiaddr>() {
                 Ok(multiaddr) => {
                     swarm.dial(multiaddr)?;
                     info!("Dialing bootstrap node: {}", addr);
@@ -144,27 +148,27 @@ impl Network {
     }
 }
 
-async fn handle_swarm_event(event: SwarmEvent<BitsNetworkBehaviour>) {
+async fn handle_swarm_event(event: SwarmEvent<BitsNetworkBehaviourEvent>) {
     match event {
         SwarmEvent::NewListenAddr { address, .. } => {
             info!("Listening on {}", address);
         }
-        SwarmEvent::Behaviour(BitsNetworkBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
-            for (peer_id, _multiaddr) in list {
-                debug!("mDNS discovered peer: {}", peer_id);
+        SwarmEvent::Behaviour(event) => match event {
+            BitsNetworkBehaviourEvent::Mdns(mdns::Event::Discovered(list)) => {
+                for (peer_id, _multiaddr) in list {
+                    debug!("mDNS discovered peer: {}", peer_id);
+                }
             }
-        }
-        SwarmEvent::Behaviour(BitsNetworkBehaviourEvent::Kademlia(kad::Event::RoutingUpdated { peer, .. })) => {
-            debug!("Routing updated for peer: {}", peer);
-        }
+            BitsNetworkBehaviourEvent::Kademlia(kad::Event::RoutingUpdated { peer, .. }) => {
+                debug!("Routing updated for peer: {}", peer);
+            }
+            _ => {}
+        },
         _ => {}
     }
 }
 
-async fn handle_network_command(
-    swarm: &mut libp2p::Swarm<BitsNetworkBehaviour>,
-    command: NetworkCommand,
-) {
+async fn handle_network_command(swarm: &mut Swarm<BitsNetworkBehaviour>, command: NetworkCommand) {
     match command {
         NetworkCommand::PublishContent { cid, metadata } => {
             let topic = gossipsub::IdentTopic::new("bits/content/1.0.0");
@@ -181,7 +185,10 @@ async fn handle_network_command(
                 publisher: None,
                 expires: None,
             };
-            let _ = swarm.behaviour_mut().kademlia.put_record(record, kad::Quorum::One);
+            let _ = swarm
+                .behaviour_mut()
+                .kademlia
+                .put_record(record, kad::Quorum::One);
             debug!("Stored chunk with key: {:?}", key);
         }
         _ => {}

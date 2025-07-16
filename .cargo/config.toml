@@ -1,0 +1,5 @@
+[build]
+target-dir = "target"
+
+[target.'cfg(target_os = "macos")']
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]

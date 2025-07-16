@@ -12,33 +12,33 @@ impl Storage {
     pub async fn new(data_dir: &str) -> Result<Self> {
         // Create data directory if it doesn't exist
         std::fs::create_dir_all(data_dir)?;
-        
+
         let db_path = Path::new(data_dir).join("node.db");
-        let db_url = format!("sqlite:{}", db_path.display());
-        
+        let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
+
         // Create connection pool
         let pool = SqlitePool::connect(&db_url).await?;
-        
-        // Run migrations
-        sqlx::migrate!("./migrations")
-            .run(&pool)
+
+        // Run migrations manually for now
+        sqlx::query(include_str!("../../migrations/20250116_initial.sql"))
+            .execute(&pool)
             .await?;
-        
+
         info!("Database initialized at: {}", db_path.display());
-        
+
         Ok(Storage { pool })
     }
 
     pub async fn store_chunk(&self, key: &[u8], data: &[u8]) -> Result<()> {
         sqlx::query(
             "INSERT INTO chunks (key, data, created_at) VALUES (?, ?, datetime('now'))
-             ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated_at = datetime('now')"
+             ON CONFLICT(key) DO UPDATE SET data = excluded.data, updated_at = datetime('now')",
         )
         .bind(key)
         .bind(data)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 
@@ -47,7 +47,7 @@ impl Storage {
             .bind(key)
             .fetch_optional(&self.pool)
             .await?;
-        
+
         Ok(result.map(|row| row.get("data")))
     }
 
@@ -61,7 +61,7 @@ impl Storage {
     ) -> Result<()> {
         sqlx::query(
             "INSERT INTO content (cid, creator, size, price, encrypted_key, created_at)
-             VALUES (?, ?, ?, ?, ?, datetime('now'))"
+             VALUES (?, ?, ?, ?, ?, datetime('now'))",
         )
         .bind(cid)
         .bind(creator)
@@ -70,7 +70,7 @@ impl Storage {
         .bind(encrypted_key)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
 
@@ -81,11 +81,11 @@ impl Storage {
                 SUM(LENGTH(data)) as total_size,
                 COUNT(DISTINCT creator) as creator_count
              FROM chunks
-             LEFT JOIN content ON 1=1"
+             LEFT JOIN content ON 1=1",
         )
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(StorageStats {
             chunk_count: row.get("chunk_count"),
             total_size: row.get("total_size"),

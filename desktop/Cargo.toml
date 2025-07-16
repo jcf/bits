@@ -1,0 +1,13 @@
+[package]
+name = "desktop"
+version = "0.1.0"
+edition = "2021"
+authors = ["Bits Contributors"]
+license = "MIT OR Apache-2.0"
+
+# Desktop app will be implemented later
+[[bin]]
+name = "bits-desktop"
+path = "src/main.rs"
+
+[dependencies]

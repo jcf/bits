@@ -1,0 +1,12 @@
+[package]
+name = "web"
+version = "0.1.0"
+edition = "2021"
+authors = ["Bits Contributors"]
+license = "MIT OR Apache-2.0"
+
+# Web client will be implemented later
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]

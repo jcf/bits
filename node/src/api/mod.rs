@@ -1,6 +1,5 @@
 use crate::{blockchain, p2p, storage};
 use anyhow::Result;
-use std::sync::Arc;
 use tracing::info;
 
 #[derive(Clone)]
@@ -28,13 +27,13 @@ impl Server {
 
     pub async fn run(self) -> Result<()> {
         info!("API server starting on port {}", self.port);
-        
+
         // TODO: Implement HTTP/WebSocket API
         // - Upload content
         // - Download content
         // - List available content
         // - Node statistics
-        
+
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
         }

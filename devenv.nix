@@ -1,14 +1,14 @@
 {pkgs, ...}: {
   packages = with pkgs; [
-    # Rust development
-    rustup
+    # Rust development (these work with Nix-managed Rust)
     cargo-watch
     cargo-nextest
     cargo-audit
     cargo-deny
+    cargo-edit
 
     # Smart contract development
-    foundry
+    foundry # and not foundry-bin as the latter does not exist!
 
     # Infrastructure
     terraform
@@ -27,12 +27,13 @@
   env.RUST_BACKTRACE = "1";
   env.DATABASE_URL = "sqlite:node/data/node.db";
 
-  # Enable Rust with stable toolchain
+  # Enable Rust with stable toolchain (Nix-managed)
   languages.rust = {
     enable = true;
     channel = "stable";
   };
 
+  # Process management for development
   process.manager.implementation = "process-compose";
   process.managers.process-compose.tui.enable = true;
 
@@ -101,17 +102,20 @@
     '';
   };
 
+  # git-hooks and NOT pre-commit -- the latter is deprecated.
   git-hooks.hooks = {
     rustfmt = {
       enable = true;
-      entry = "cargo fmt --all -- --check";
+      entry = "${pkgs.rustfmt}/bin/rustfmt --edition 2021 --check";
       files = "\.rs$";
+      pass_filenames = true;
     };
 
     clippy = {
-      enable = true;
-      entry = "cargo clippy --all-targets --all-features -- -D warnings";
-      files = "\.rs$";
+      enable = false; # Disabled for now as it's slow on pre-commit
     };
   };
+
+  # Use cachix for faster builds
+  cachix.enable = false;
 }
