@@ -24,28 +24,36 @@ This plan outlines the complete rewrite of Bits as a truly decentralized, end-to
 - Blockchain integration for identity and payments
 - WebRTC for real-time communication
 
-#### 1.2 Core Components
+#### 1.2 Project Structure
 
 ```
-bits-node/
-├── src/
-│   ├── main.rs              # Node entry point
-│   ├── p2p/                 # P2P networking
-│   │   ├── discovery.rs     # Peer discovery
-│   │   ├── routing.rs       # Content routing
-│   │   └── transport.rs     # Data transport
-│   ├── storage/             # Distributed storage
-│   │   ├── chunks.rs        # Content chunking
-│   │   ├── encryption.rs    # E2E encryption
-│   │   └── replication.rs   # Data redundancy
-│   ├── blockchain/          # Chain integration
-│   │   ├── identity.rs      # DID management
-│   │   ├── payments.rs      # Transaction handling
-│   │   └── contracts.rs     # Smart contracts
-│   └── api/                 # Client API
-│       ├── http.rs          # REST endpoints
-│       └── websocket.rs     # Real-time updates
-├── Cargo.toml
+bits/                        # Monorepo root
+├── node/                    # P2P node implementation
+│   ├── src/
+│   │   ├── main.rs         # Node entry point
+│   │   ├── p2p/            # P2P networking
+│   │   ├── storage/        # Distributed storage
+│   │   ├── blockchain/     # Chain integration
+│   │   └── api/            # Client API
+│   └── Cargo.toml
+├── contracts/               # Smart contracts
+│   ├── src/
+│   │   ├── Identity.sol    # DID registry
+│   │   ├── Payments.sol    # Revenue distribution
+│   │   └── Governance.sol  # Network parameters
+│   ├── foundry.toml
+│   └── README.md
+├── desktop/                 # Tauri desktop app
+│   ├── src/
+│   └── Cargo.toml
+├── web/                     # WASM web client
+│   ├── src/
+│   └── Cargo.toml
+├── mobile/                  # React Native app
+│   └── README.md
+├── devenv.nix              # Development environment
+├── devenv.yaml
+├── Cargo.toml              # Workspace root
 └── README.md
 ```
 
@@ -226,13 +234,33 @@ bits-node/
 - **Jurisdiction**: Truly decentralized operation
 - **Compliance**: Community governance for policies
 
+## Development Environment
+
+### Using devenv and Nix
+
+- All dependencies managed through devenv.nix
+- Consistent tooling across all developers
+- Integrated PostgreSQL for development (may be used for indexing)
+- Rust toolchain with cargo, rustfmt, clippy
+- Foundry for smart contract development
+- IPFS node for local testing
+
+### Scripts
+
+- `bin/dev` - Start development environment
+- `bin/test` - Run all tests
+- `bin/build` - Build release binaries
+- `bin/deploy` - Deploy contracts to testnet
+
 ## Next Steps
 
-1. Set up new Rust project structure
-2. Implement basic P2P node
-3. Deploy test smart contracts
-4. Build MVP with core features
-5. Launch closed alpha with early adopters
+1. Clean existing TypeScript codebase
+2. Set up Rust workspace structure
+3. Configure devenv for Rust development
+4. Implement basic P2P node
+5. Deploy test smart contracts
+6. Build MVP with core features
+7. Launch closed alpha with early adopters
 
 ## Inspiration & References
 
