@@ -94,7 +94,7 @@ impl Storage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
 pub struct StorageStats {
     pub chunk_count: i64,
     pub total_size: i64,

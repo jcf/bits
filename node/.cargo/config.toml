@@ -1,6 +1,0 @@
-[target.'cfg(all())']
-rustflags = ["-C", "link-arg=-fuse-ld=lld"]
-
-[build]
-# Use cargo-nextest by default
-cargo-wrapper = "cargo-nextest"

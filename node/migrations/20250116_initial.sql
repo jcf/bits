@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS config (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_chunks_created_at ON chunks(created_at);
-CREATE INDEX idx_content_creator ON content(creator);
-CREATE INDEX idx_content_price ON content(price);
-CREATE INDEX idx_peers_last_seen ON peers(last_seen);
+CREATE INDEX IF NOT EXISTS idx_chunks_created_at ON chunks(created_at);
+CREATE INDEX IF NOT EXISTS idx_content_creator ON content(creator);
+CREATE INDEX IF NOT EXISTS idx_content_price ON content(price);
+CREATE INDEX IF NOT EXISTS idx_peers_last_seen ON peers(last_seen);
