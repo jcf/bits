@@ -1,29 +1,13 @@
-/.devenv.flake.nix
-node_modules/
-dist/
-build/
-.env
-.env.local
-.DS_Store
+*.db
 *.log
-.pnpm-debug.log*
-coverage/
-.nyc_output/
-.turbo/
-*.tsbuildinfo
-
-# Terraform
 *.tfstate
 *.tfstate.*
-.terraform/
-.terraform.lock.hcl
-*.tfvars
-!terraform.tfvars
-
-# 1Password
+.devenv.flake.nix
+.env
+.env.local
 .op/
-
-# Playwright
-test-results/
-playwright-report/
-playwright/.cache/
+.pre-commit-config.yaml
+.terraform.lock.hcl
+.terraform/
+data/
+target/
