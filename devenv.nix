@@ -33,9 +33,9 @@
     channel = "stable";
   };
 
-  # Process management for development
+  # Keep it simple -- disable TUI of process-compose.
   process.manager.implementation = "process-compose";
-  process.managers.process-compose.tui.enable = true;
+  process.managers.process-compose.tui.enable = false;
 
   processes = {
     node = {
