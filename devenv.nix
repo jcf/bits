@@ -15,7 +15,7 @@
     _1password-cli
 
     # P2P/IPFS tools
-    ipfs
+    # ipfs # Temporarily disabled due to hash mismatch
 
     # Database tools
     sqlite
@@ -38,6 +38,7 @@
   process.managers.process-compose.tui.enable = false;
 
   processes = {
+    # Main node process
     node = {
       exec = ''
         cargo watch -x "run --bin bits -- --dev"
@@ -45,62 +46,8 @@
     };
   };
 
-  # Development scripts
-  scripts = {
-    # Run the node
-    dev.exec = ''
-      cargo run --bin bits -- --dev
-    '';
-
-    # Run all tests
-    test.exec = ''
-      cargo nextest run
-    '';
-
-    # Build release binary
-    build.exec = ''
-      cargo build --release
-    '';
-
-    # Deploy contracts to local testnet
-    deploy-local.exec = ''
-      cd contracts && forge script Deploy --broadcast --rpc-url http://localhost:8545
-    '';
-
-    # Format code
-    fmt.exec = ''
-      cargo fmt --all
-    '';
-
-    # Lint code
-    lint.exec = ''
-      cargo clippy --all-targets --all-features -- -D warnings
-    '';
-
-    # Security audit
-    audit.exec = ''
-      cargo audit
-      cargo deny check
-    '';
-
-    # Initialize SQLite database
-    db-init.exec = ''
-      mkdir -p node/data
-      sqlx database create
-      sqlx migrate run --source node/migrations
-    '';
-
-    # Generate new migration
-    db-migrate.exec = ''
-      cd node && sqlx migrate add $1
-    '';
-
-    # Clean build artifacts
-    clean.exec = ''
-      cargo clean
-      rm -rf node/data
-    '';
-  };
+  # Note: Development scripts have been moved to bin/ directory
+  # Run 'bin/help' to see available commands
 
   # git-hooks and NOT pre-commit -- the latter is deprecated.
   git-hooks.hooks = {

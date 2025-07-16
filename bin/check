@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/check
+#
+# Runs all checks before committing:
+# - Builds the project
+# - Runs all tests
+# - Auto-formats code
+# - Runs clippy
+#
+# This is the recommended command to run before pushing changes.
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Running all checks..."
+
+# Build
+info "Building project..."
+if cargo build --all-targets; then
+  success "Build successful"
+else
+  error "Build failed"
+  exit 1
+fi
+
+info "Running tests..."
+if command -v cargo-nextest &>/dev/null; then
+  if cargo nextest run; then
+    success "Tests passed"
+  else
+    error "Tests failed"
+    exit 1
+  fi
+else
+  if cargo test; then
+    success "Tests passed"
+  else
+    error "Tests failed"
+    exit 1
+  fi
+fi
+
+info "Formatting code..."
+if cargo fmt --all 2>&1 | grep -q "error: unknown print request"; then
+  warn "Formatting skipped (rustfmt version issue)"
+else
+  cargo fmt --all
+  success "Code formatted"
+fi
+
+info "Running clippy..."
+if cargo clippy --all-targets --all-features -- -D warnings; then
+  success "Clippy passed"
+else
+  error "Clippy found issues"
+  exit 1
+fi
+
+success "All checks passed!"

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/clean
+#
+# Removes all build artifacts and local data:
+# - Cargo build artifacts (target/)
+# - Local database files (data/)
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Cleaning build artifacts..."
+cargo clean
+rm -rf data/
+success "Clean complete"

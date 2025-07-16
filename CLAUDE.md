@@ -1,218 +1,162 @@
-# Bits - Project Context for Claude
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-Bits is an encrypted content marketplace where creators can upload encrypted content and users pay for access. Think "Web3 OnlyFans" but democratized and encrypted. The project is built as a TypeScript monorepo using pnpm workspaces.
+Bits is a decentralized, end-to-end encrypted content marketplace built in Rust. It enables creators to monetize content directly through P2P networking without intermediaries, censorship, or centralized control.
 
-## Current Architecture
+## Architecture
 
-### Tech Stack
+### Core Components
 
-- **Frontend**: React with Vite, Tailwind CSS, Zustand for state
-- **Backend**: Express.js with TypeScript
-- **Database**: PostgreSQL (managed by devenv)
-- **Storage**: AWS S3 (invetica-bits account)
-- **Payments**: Stripe (fiat) - crypto coming soon
-- **Encryption**: Web Crypto API (AES-GCM)
-- **Auth**: Magic links and wallet signatures
-- **Secrets**: 1Password CLI integration
-- **Infrastructure**: Terraform for AWS resources
+- **P2P Node** (`/node`) - Rust implementation using libp2p for networking
+- **Smart Contracts** (`/contracts`) - Ethereum L2 contracts for payments and governance
+- **Desktop App** (`/desktop`) - Tauri-based native application (planned)
+- **Web Client** (`/web`) - WASM-based web interface (planned)
 
-### Project Structure
+### Technology Stack
 
-```
-bits/
-├── packages/
-│   ├── shared/         # Shared types and crypto functions
-│   ├── api/           # Express backend
-│   └── web/           # React frontend
-├── iac/               # Terraform infrastructure
-├── devenv.nix         # Development environment
-└── .env.1password     # Secret mappings
-```
+- **Language**: Rust (memory safety, performance, single binary deployment)
+- **Networking**: libp2p (Kademlia DHT, Gossipsub, mDNS discovery)
+- **Storage**: SQLite (embedded, zero-config) + content-addressed P2P storage
+- **Encryption**: ChaCha20-Poly1305 (content), Ed25519 (signatures)
+- **Blockchain**: Ethereum L2 for payments and identity
+- **Development**: Nix/devenv for reproducible environments
 
-### Key Features Implemented
+## Development Commands
 
-- ✅ Client-side encryption before upload
-- ✅ Encrypted content storage in S3
-- ✅ Magic link authentication
-- ✅ Stripe payment integration
-- ✅ Content browsing and purchase flow
-- ✅ Webhook handling for payment confirmation
-- ✅ 1Password integration for all secrets
-
-## Infrastructure Details
-
-### AWS Resources (invetica-bits account)
-
-- S3 bucket: `bits-dev-content` (encrypted, versioned)
-- IAM user: `bits-dev-app` (minimal permissions)
-- DynamoDB table: `terraform-state-lock` (for Terraform state)
-- Backend state bucket: `invetica-bits-terraform-state`
-
-### 1Password Vault Structure
-
-All secrets are stored in the "Bits" vault:
-
-- `Bits Dev AWS` - AWS credentials from Terraform
-- `Bits Dev Stripe` - Stripe API keys and webhook secret
-- `Bits Dev Email` - SMTP configuration
-- `Bits Dev Secrets` - JWT and magic link secrets
-
-## Development Workflow
-
-### Running the Application
+### Core Commands (in `/bin`)
 
 ```bash
-devenv shell        # Enter development environment
-devenv up          # Start all services (PostgreSQL, API, Web)
+bin/setup    # Initial environment setup and database initialization
+bin/test     # Run tests (prefers cargo-nextest)
+bin/build    # Build release binaries
+bin/fmt      # Format code with rustfmt
+bin/lint     # Lint with clippy
+bin/check    # Type checking
+bin/clean    # Clean build artifacts
 ```
 
-### Terraform Commands
+### Development Workflow
 
 ```bash
-tf-init           # Initialize Terraform
-tf-plan           # Review infrastructure changes
-tf-apply          # Deploy infrastructure
-tf-store-secrets  # Save AWS credentials to 1Password
+devenv shell                    # Enter Nix development environment
+devenv up                       # Start node with auto-reload (cargo-watch)
+cargo run --bin bits -- --dev   # Run node directly in dev mode
 ```
 
-### Secret Management
+### Testing
 
 ```bash
-setup-secrets         # Set up all secrets interactively
-create-stripe-secrets # Add Stripe credentials
-create-app-secrets    # Generate JWT secrets
-create-email-config   # Configure SMTP
+cargo test                      # Run all tests
+cargo nextest run              # Better test output (if available)
+cargo test -p node             # Test specific package
 ```
 
-## Future Roadmap: Decentralization & E2EE
+## High-Level Architecture
 
-### Phase 1: Stablecoin Integration (Next Priority)
+### P2P Network Design
 
-- [ ] Add USDC payment option alongside Stripe
-- [ ] Integrate wagmi/viem for wallet connections
-- [ ] Smart contract for payment escrow
-- [ ] Multi-chain support (Ethereum, Polygon, Arbitrum)
+The node implements a distributed hash table (DHT) for content discovery without central servers:
 
-### Phase 2: Enhanced E2EE
+1. **Discovery** (`node/src/p2p/discovery.rs`) - mDNS for local peers, Kademlia for global
+2. **Routing** (`node/src/p2p/routing.rs`) - Content-addressed routing
+3. **Transport** (`node/src/p2p/transport.rs`) - Encrypted P2P connections
 
-- [ ] Implement key exchange protocol
-- [ ] Add group encryption for shared access
-- [ ] Client-side key derivation from wallet signatures
-- [ ] Zero-knowledge proofs for purchase verification
+### Storage Architecture
 
-### Phase 3: Decentralized Storage
+- Content is chunked, encrypted, and distributed across the network
+- Nodes earn tokens for storing and serving content
+- Automatic replication based on demand
+- SQLite for local node metadata and indexes
 
-- [ ] IPFS integration for content storage
-- [ ] Filecoin for long-term archival
-- [ ] Content addressing with CIDs
-- [ ] P2P content delivery
+### Economic Model
 
-### Phase 4: Full Decentralization
+Revenue distribution enforced by smart contracts:
+- 95% to content creators
+- 3% to protocol developers
+- 2% to node operators
 
-- [ ] DAO governance for platform decisions
-- [ ] Decentralized identity (DID) integration
-- [ ] Content moderation through community consensus
-- [ ] Revenue sharing smart contracts
+### API Design
 
-## Technical Decisions & Rationale
+The node exposes a local API (port 8080) for client applications:
+- `/api/content` - Upload/download encrypted content
+- `/api/peers` - P2P network status
+- `/api/identity` - DID management
 
-### Why Web Crypto API?
+## Key Development Principles
 
-- Browser-native, no dependencies
-- Secure key generation and storage
-- Good performance for large files
-- Works with both web and React Native
+1. **Decentralization First** - No AWS, no Stripe, no central servers
+2. **Privacy by Design** - E2E encryption before any network transmission
+3. **Economic Incentives** - Everyone in the network earns
+4. **Single Binary** - Easy deployment for node operators
+5. **Progressive Enhancement** - Start simple, add features incrementally
 
-### Why PostgreSQL for MVP?
+## Testing Approach
 
-- Fast development with familiar tooling
-- Easy migration path to decentralized storage
-- Good for metadata while content is encrypted
+- Unit tests for cryptographic operations
+- Integration tests for P2P networking
+- Property-based testing for distributed algorithms
+- Testnet deployment before mainnet
 
-### Why Stripe First?
+## Migration Status
 
-- Fastest path to revenue
-- Users familiar with card payments
-- Crypto can be added as alternative
+The project has pivoted from a centralized TypeScript/React app to a fully decentralized Rust implementation. Any references to AWS, Stripe, PostgreSQL, or npm packages are outdated and should be removed.
 
-### Why 1Password?
+## Common Tasks
 
-- Secure secret management
-- Team sharing capabilities
-- CLI integration for automation
-- Audit trail for compliance
+### Running a Local Network
 
-## Security Considerations
+```bash
+# Terminal 1 - Bootstrap node
+cargo run --bin bits -- --dev --port 9000
 
-1. **Encryption Keys**: Never stored on server, only transmitted after payment
-2. **Content Access**: Server never sees decrypted content
-3. **Payment Security**: Stripe handles PCI compliance
-4. **AWS Access**: IAM user has minimal S3 permissions only
-5. **Database**: No sensitive content stored, only metadata
+# Terminal 2 - Peer node
+cargo run --bin bits -- --dev --port 9001 --bootstrap /ip4/127.0.0.1/tcp/9000
+```
 
-## Known Issues & TODOs
+### Database Operations
 
-### Immediate Fixes Needed
+```bash
+# Initialize new database
+sqlite3 data/node.db < node/migrations/20250116_initial.sql
 
-- [ ] Add proper error handling for S3 uploads
-- [ ] Implement retry logic for failed payments
-- [ ] Add content type validation
-- [ ] Set up email provider (currently SMTP not configured)
+# View node data
+sqlite3 data/node.db "SELECT * FROM peers;"
+```
 
-### Performance Optimizations
+### Smart Contract Development
 
-- [ ] Implement chunked upload for large files
-- [ ] Add CDN for content delivery
-- [ ] Cache decryption keys in IndexedDB
-- [ ] Optimize bundle size with code splitting
+```bash
+cd contracts
+forge test          # Run contract tests
+forge build         # Compile contracts
+```
 
-### User Experience
+## Important Notes
 
-- [ ] Add upload progress indicators
-- [ ] Implement content previews
-- [ ] Add creator profiles
-- [ ] Build analytics dashboard
+- Focus on P2P and decentralization - this is NOT a web2 app with blockchain payments
+- The goal is to empower individuals and redistribute control of digital content
+- Node operators are first-class citizens, not just users
+- Every design decision should support censorship resistance and user sovereignty
 
-## Local Development Tips
+## Development Practices
 
-1. **Stripe Webhooks**: Use `stripe listen --forward-to localhost:4444/webhook/stripe`
-2. **S3 Alternative**: Can use MinIO locally if needed
-3. **Email Testing**: Use MailHog or similar for local SMTP
-4. **Database Access**: `psql postgresql://bits:please@localhost:5432/bits_dev`
+### Git Workflow
+- **Commit frequently** - Make atomic commits with clear messages
+- **Test before commit** - Run `bin/test` before committing changes
+- **Lint your code** - Run `bin/lint` and `bin/fmt` before commits
+- **Verify it runs** - Ensure `cargo run --bin bits -- --dev` works before committing
+- **Clean working tree** - Don't leave unstaged changes; commit or stash regularly
 
-## Deployment Considerations
-
-- Frontend: Vercel or Cloudflare Pages
-- Backend: Railway or Fly.io
-- Database: Supabase or Neon
-- Consider edge functions for decryption key delivery
-
-## Business Model Evolution
-
-Current: 10% platform fee on all transactions
-
-Future considerations:
-
-- Creator staking for reduced fees
-- Governance token for platform decisions
-- NFT receipts for purchases
-- Subscription tiers for creators
-
-## Integration Points
-
-Ready for:
-
-- Wallet connections (MetaMask, WalletConnect)
-- IPFS pinning services (Pinata, Web3.Storage)
-- ENS/Lens Protocol for creator profiles
-- Push Protocol for notifications
-
-## Remember
-
-- All secrets go through 1Password
-- Never commit sensitive data
-- Use atomic commits with clear messages
-- Test encryption/decryption thoroughly
-- Keep decentralization as north star
+### Pre-commit Checklist
+```bash
+bin/fmt      # Format code
+bin/lint     # Run clippy
+bin/test     # Run tests
+cargo build  # Ensure it compiles
+cargo run --bin bits -- --dev  # Verify it runs
+git add -p   # Stage changes selectively
+git commit   # Commit with descriptive message
+```

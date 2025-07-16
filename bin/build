@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/build
+#
+# Builds a release binary optimized for production.
+# The binary will be located at: target/release/bits
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Building release binary..."
+cargo build --release
+success "Release binary built at: target/release/bits"

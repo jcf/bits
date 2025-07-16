@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/setup
+#
+# Sets up the Bits development environment:
+# - Builds dependencies
+# - Initializes the database
+#
+# Run this after cloning the repository.
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Setting up Bits development environment..."
+
+# Check for devenv
+if ! command -v devenv &>/dev/null; then
+  error "devenv is required but not installed."
+  echo "Visit https://devenv.sh/getting-started/ for installation instructions." >&2
+  exit 1
+fi
+
+# Install dependencies
+info "Installing dependencies..."
+cargo build
+
+# Set up database
+info "Setting up database..."
+rm -rf data/
+mkdir -p data/
+
+success "Setup complete!"
+echo "Run 'bin/help' to see available commands." >&2

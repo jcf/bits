@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/test
+#
+# Runs all tests using cargo-nextest if available, otherwise cargo test.
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Running tests..."
+if command -v cargo-nextest &> /dev/null; then
+    cargo nextest run
+else
+    cargo test
+fi

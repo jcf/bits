@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/lint
+#
+# Runs linters and auto-formats code:
+# - Formats code with rustfmt
+# - Runs clippy with all warnings as errors
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Running linters..."
+
+info "Formatting code..."
+if cargo fmt --all 2>&1 | grep -q "error: unknown print request"; then
+  warn "Formatting skipped (rustfmt version issue)"
+else
+  cargo fmt --all
+  success "Code formatted"
+fi
+
+info "Running clippy..."
+if cargo clippy --all-targets --all-features -- -D warnings; then
+  success "Clippy passed"
+else
+  error "Clippy found issues"
+  exit 1
+fi
+
+success "All lints passed!"

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# Usage:
+#     bin/fmt
+#
+# Formats all Rust code using rustfmt.
+
+set -euo pipefail
+
+source "$(dirname "$0")/../libexec/common.sh"
+
+info "Formatting code..."
+if cargo fmt --all 2>&1 | grep -q "error: unknown print request"; then
+    warn "Formatting skipped (rustfmt version issue)"
+    echo "Please run this command inside devenv shell" >&2
+else
+    cargo fmt --all
+    success "Code formatted"
+fi
