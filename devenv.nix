@@ -6,17 +6,17 @@
     cargo-nextest
     cargo-audit
     cargo-deny
-    
+
     # Smart contract development
-    foundry-bin
-    
+    foundry
+
     # Infrastructure
     terraform
     _1password-cli
-    
+
     # P2P/IPFS tools
     ipfs
-    
+
     # Database tools
     sqlite
     sqlx-cli
@@ -31,12 +31,6 @@
   languages.rust = {
     enable = true;
     channel = "stable";
-  };
-
-  # IPFS node for local testing
-  services.ipfs = {
-    enable = true;
-    startWhenNeeded = true;
   };
 
   process.manager.implementation = "process-compose";
@@ -107,16 +101,15 @@
     '';
   };
 
-  # Git hooks
-  pre-commit.hooks = {
+  git-hooks.hooks = {
     rustfmt = {
       enable = true;
       entry = "cargo fmt --all -- --check";
       files = "\.rs$";
     };
-    
+
     clippy = {
-      enable = true; 
+      enable = true;
       entry = "cargo clippy --all-targets --all-features -- -D warnings";
       files = "\.rs$";
     };
