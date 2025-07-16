@@ -11,7 +11,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await axios.post('/api/auth/magic-link', { email });
+      await axios.post('/auth/magic-link', { email });
       setMessage('Check your email for the magic link!');
     } catch (error) {
       setMessage('Failed to send magic link. Please try again.');

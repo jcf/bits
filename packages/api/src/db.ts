@@ -48,18 +48,12 @@ export async function createTables() {
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
-  const result = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [email]
-  );
+  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
   return result.rows[0] || null;
 }
 
 export async function findUserByWallet(walletAddress: string): Promise<User | null> {
-  const result = await pool.query(
-    'SELECT * FROM users WHERE wallet_address = $1',
-    [walletAddress]
-  );
+  const result = await pool.query('SELECT * FROM users WHERE wallet_address = $1', [walletAddress]);
   return result.rows[0] || null;
 }
 
@@ -88,9 +82,15 @@ export async function createContent(data: {
       encryption_key, encryption_iv, price_cents, price_usdc
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
-      data.creatorId, data.title, data.description, data.previewUrl,
-      data.encryptedUrl, data.encryptionKey, data.encryptionIv,
-      data.priceCents, data.priceUsdc
+      data.creatorId,
+      data.title,
+      data.description,
+      data.previewUrl,
+      data.encryptedUrl,
+      data.encryptionKey,
+      data.encryptionIv,
+      data.priceCents,
+      data.priceUsdc
     ]
   );
   return result.rows[0];
@@ -104,10 +104,7 @@ export async function getAllContent(): Promise<Content[]> {
 }
 
 export async function getContentById(id: string): Promise<Content | null> {
-  const result = await pool.query(
-    'SELECT * FROM content WHERE id = $1',
-    [id]
-  );
+  const result = await pool.query('SELECT * FROM content WHERE id = $1', [id]);
   return result.rows[0] || null;
 }
 
@@ -135,7 +132,9 @@ export async function hasPurchased(buyerId: string, contentId: string): Promise<
   return result.rows.length > 0;
 }
 
-export async function getContentKey(contentId: string): Promise<{ key: string; iv: string } | null> {
+export async function getContentKey(
+  contentId: string
+): Promise<{ key: string; iv: string } | null> {
   const result = await pool.query(
     'SELECT encryption_key, encryption_iv FROM content WHERE id = $1',
     [contentId]

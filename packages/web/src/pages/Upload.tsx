@@ -34,23 +34,23 @@ export default function Upload() {
       const encryptedBlob = new Blob([encrypted], { type: file.type });
 
       // Get upload URLs
-      const { data: mainUpload } = await axios.post('/api/content/upload-url', {
+      const { data: mainUpload } = await axios.post('/content/upload-url', {
         fileName: file.name,
         contentType: file.type
       });
 
       let previewKey = undefined;
       if (preview) {
-        const { data: previewUpload } = await axios.post('/api/content/upload-url', {
+        const { data: previewUpload } = await axios.post('/content/upload-url', {
           fileName: preview.name,
           contentType: preview.type
         });
-        
+
         // Upload preview file
         await axios.put(previewUpload.uploadUrl, preview, {
           headers: { 'Content-Type': preview.type }
         });
-        
+
         previewKey = previewUpload.key;
       }
 
@@ -60,7 +60,7 @@ export default function Upload() {
       });
 
       // Create content record
-      const { data: content } = await axios.post('/api/content', {
+      const { data: content } = await axios.post('/content', {
         title,
         description,
         previewKey,
@@ -82,7 +82,7 @@ export default function Upload() {
   return (
     <div className="max-w-2xl mx-auto mt-8 px-4">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Upload Content</h1>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">

@@ -24,6 +24,7 @@ iac/
 ## Backend State
 
 Terraform state is stored in S3 with the following configuration:
+
 - Bucket: `invetica-bits-terraform-state`
 - Key: `bits/terraform.tfstate`
 - Region: `eu-west-2`
@@ -61,6 +62,7 @@ tf-apply   # Create resources
 ## Resources Created
 
 ### Storage Module
+
 - S3 bucket for content storage (encrypted, versioned)
 - IAM user with minimal permissions for S3 access
 - CORS configuration for browser uploads

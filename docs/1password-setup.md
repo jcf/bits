@@ -5,6 +5,7 @@ This document outlines the 1Password entries needed for the Bits application.
 ## Required 1Password Entries
 
 ### 1. AWS Credentials (Auto-created by Terraform)
+
 - **Title**: `Bits Dev AWS`
 - **Category**: API Credential
 - **Vault**: Bits
@@ -14,14 +15,16 @@ This document outlines the 1Password entries needed for the Bits application.
   - `S3_BUCKET`: (Created by terraform)
 
 ### 2. Stripe API Keys
+
 - **Title**: `Bits Dev Stripe`
 - **Category**: API Credential
 - **Vault**: Bits
 - **Fields**:
-  - `secret_key`: Your Stripe secret key (sk_test_...)
-  - `webhook_secret`: Your Stripe webhook secret (whsec_...)
+  - `secret_key`: Your Stripe secret key (sk*test*...)
+  - `webhook_secret`: Your Stripe webhook secret (whsec\_...)
 
 ### 3. Email/SMTP Configuration
+
 - **Title**: `Bits Dev Email`
 - **Category**: Login
 - **Vault**: Bits
@@ -32,6 +35,7 @@ This document outlines the 1Password entries needed for the Bits application.
   - `password`: Your SMTP password
 
 ### 4. Application Secrets
+
 - **Title**: `Bits Dev Secrets`
 - **Category**: Secure Note
 - **Vault**: Bits
@@ -84,6 +88,7 @@ devenv up
 ## Production Considerations
 
 For production, create separate 1Password entries:
+
 - `Bits Prod AWS`
 - `Bits Prod Stripe`
 - `Bits Prod Email`

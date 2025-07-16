@@ -15,7 +15,7 @@ export async function exportKey(key: CryptoKey): Promise<string> {
 }
 
 export async function importKey(keyString: string): Promise<CryptoKey> {
-  const keyData = Uint8Array.from(atob(keyString), c => c.charCodeAt(0));
+  const keyData = Uint8Array.from(atob(keyString), (c) => c.charCodeAt(0));
   return await crypto.subtle.importKey(
     'raw',
     keyData,
@@ -64,5 +64,5 @@ export function encodeIv(iv: Uint8Array): string {
 }
 
 export function decodeIv(ivString: string): Uint8Array {
-  return Uint8Array.from(atob(ivString), c => c.charCodeAt(0));
+  return Uint8Array.from(atob(ivString), (c) => c.charCodeAt(0));
 }

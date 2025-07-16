@@ -23,6 +23,7 @@ A decentralized content marketplace where creators can upload encrypted content 
 ### AWS Setup
 
 Configure aws-vault for the invetica-bits account:
+
 ```bash
 aws-vault add invetica-bits
 # Enter your AWS access key and secret key for the invetica-bits account
@@ -31,6 +32,7 @@ aws-vault add invetica-bits
 ### Infrastructure Setup
 
 1. Deploy the AWS infrastructure:
+
 ```bash
 devenv shell
 tf-init    # Initialize Terraform
@@ -39,6 +41,7 @@ tf-apply   # Create resources
 ```
 
 2. Store AWS credentials in 1Password:
+
 ```bash
 tf-store-secrets  # Automatically saves Terraform outputs to 1Password
 ```
@@ -46,6 +49,7 @@ tf-store-secrets  # Automatically saves Terraform outputs to 1Password
 ### Application Setup
 
 1. Clone and enter the dev environment:
+
 ```bash
 git clone <repo>
 cd bits
@@ -53,17 +57,20 @@ devenv shell
 ```
 
 2. Set up 1Password entries (see `docs/1password-setup.md`):
+
 ```bash
 # Create required 1Password entries for Stripe, Email, and Secrets
 op item create --category="API Credential" --title="Bits Dev Stripe" ...
 ```
 
 3. Start all services:
+
 ```bash
 devenv up
 ```
 
 This will start:
+
 - PostgreSQL database
 - API server on http://localhost:4444
 - Web frontend on http://localhost:5173
@@ -101,6 +108,7 @@ pnpm typecheck
 ### Database
 
 PostgreSQL is automatically configured by devenv with:
+
 - Database: `bits_dev`
 - User: `bits`
 - Password: `please`

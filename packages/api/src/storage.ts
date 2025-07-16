@@ -12,9 +12,12 @@ const s3Client = new S3Client({
 
 const BUCKET_NAME = process.env.S3_BUCKET || 'bits-content';
 
-export async function generateUploadUrl(fileName: string, contentType: string): Promise<{ uploadUrl: string; key: string }> {
+export async function generateUploadUrl(
+  fileName: string,
+  contentType: string
+): Promise<{ uploadUrl: string; key: string }> {
   const key = `content/${uuidv4()}/${fileName}`;
-  
+
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
@@ -22,7 +25,7 @@ export async function generateUploadUrl(fileName: string, contentType: string): 
   });
 
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-  
+
   return { uploadUrl, key };
 }
 

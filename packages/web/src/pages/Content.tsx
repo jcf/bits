@@ -27,7 +27,7 @@ export default function Content() {
 
   const fetchContent = async () => {
     try {
-      const { data } = await axios.get<ContentType>(`/api/content/${id}`);
+      const { data } = await axios.get<ContentType>(`/content/${id}`);
       setContent(data);
 
       if (isAuthenticated) {
@@ -43,7 +43,7 @@ export default function Content() {
 
   const checkPurchaseStatus = async () => {
     try {
-      const { data } = await axios.get(`/api/content/${id}/key`);
+      const { data } = await axios.get(`/content/${id}/key`);
       if (data.key) {
         setIsPurchased(true);
         await decryptContent(data.key, data.iv);
@@ -84,7 +84,7 @@ export default function Content() {
     setError('');
 
     try {
-      await axios.post('/api/purchase/intent', {
+      await axios.post('/purchase/intent', {
         contentId: id
       });
 
@@ -95,7 +95,7 @@ export default function Content() {
 
       // In a real app, you'd use Stripe Elements here
       // For MVP, we'll simulate a successful payment
-      await axios.post('/api/purchase/confirm', {
+      await axios.post('/purchase/confirm', {
         contentId: id,
         paymentIntentId: 'simulated_payment_' + Date.now()
       });

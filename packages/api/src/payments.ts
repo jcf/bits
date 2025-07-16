@@ -18,7 +18,7 @@ export async function createPaymentIntent(
     metadata: {
       contentId,
       buyerId,
-      platformFee: Math.floor(amount * PLATFORM_FEE_PERCENT / 100)
+      platformFee: Math.floor((amount * PLATFORM_FEE_PERCENT) / 100)
     }
   });
 
