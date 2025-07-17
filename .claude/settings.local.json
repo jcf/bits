@@ -6,7 +6,8 @@
       "Bash(chmod:*)",
       "Bash(devenv:*)",
       "Bash(op run:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(./bin/:*)"
     ],
     "deny": []
   }

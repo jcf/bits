@@ -10,10 +10,20 @@ set -euo pipefail
 source "$(dirname "$0")/../libexec/common.sh"
 
 info "Formatting code..."
-if cargo fmt --all 2>&1 | grep -q "error: unknown print request"; then
-    warn "Formatting skipped (rustfmt version issue)"
-    echo "Please run this command inside devenv shell" >&2
-else
-    cargo fmt --all
+
+# Try to run cargo fmt
+output=$(cargo fmt --all 2>&1)
+exit_code=$?
+
+if [ $exit_code -eq 0 ]; then
     success "Code formatted"
+elif echo "$output" | grep -q "unknown print request"; then
+    warn "Skipping format check due to rustfmt version mismatch"
+    echo "Code formatting should be verified inside devenv shell" >&2
+    # Don't fail - the code might already be formatted
+    exit 0
+else
+    error "Formatting failed"
+    echo "$output" >&2
+    exit 1
 fi

@@ -44,11 +44,17 @@ else
 fi
 
 info "Formatting code..."
-if cargo fmt --all 2>&1 | grep -q "error: unknown print request"; then
-  warn "Formatting skipped (rustfmt version issue)"
+fmt_output=$(cargo fmt --all 2>&1)
+fmt_exit_code=$?
+
+if [ $fmt_exit_code -eq 0 ]; then
+    success "Code formatted"
+elif echo "$fmt_output" | grep -q "unknown print request"; then
+    warn "Formatting skipped (rustfmt version issue)"
 else
-  cargo fmt --all
-  success "Code formatted"
+    error "Formatting failed"
+    echo "$fmt_output" >&2
+    exit 1
 fi
 
 info "Running clippy..."

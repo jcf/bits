@@ -31,5 +31,4 @@ info "Setting up database..."
 rm -rf data/
 mkdir -p data/
 
-success "Setup complete!"
-echo "Run 'bin/help' to see available commands." >&2
+success "Setup complete!" >&2
