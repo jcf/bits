@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     chain::{Blockchain, Transaction, TransactionData},
+    config::ChainConfig,
     registry::UsernameRegistry,
     token::{Token, TokenEconomics},
 };
@@ -13,14 +14,20 @@ pub struct ConsensusService {
     registry: Arc<UsernameRegistry>,
     token: Arc<Token>,
     economics: Arc<TokenEconomics>,
+    config: ChainConfig,
 }
 
 impl ConsensusService {
-    /// Create a new consensus service
+    /// Create a new consensus service with local config
     pub fn new(genesis_validator: Did) -> Self {
+        Self::with_config(ChainConfig::local(genesis_validator))
+    }
+    
+    /// Create a new consensus service with specific config
+    pub fn with_config(config: ChainConfig) -> Self {
         let economics = Arc::new(TokenEconomics::default());
         let registry = Arc::new(UsernameRegistry::new(economics.username_base_fee));
-        let blockchain = Arc::new(Blockchain::new(genesis_validator));
+        let blockchain = Arc::new(Blockchain::with_config(config.clone()));
         let token = Arc::new(Token::default());
 
         Self {
@@ -28,7 +35,13 @@ impl ConsensusService {
             registry,
             token,
             economics,
+            config,
         }
+    }
+    
+    /// Create a testnet consensus service
+    pub fn testnet() -> Self {
+        Self::with_config(ChainConfig::testnet())
     }
 
     /// Register a new username
@@ -190,8 +203,100 @@ impl ConsensusService {
                 "username_base_fee": self.economics.username_base_fee,
                 "validator_fee_share": self.economics.validator_fee_share,
                 "burn_rate": self.economics.burn_rate,
+            },
+            "chain": {
+                "name": self.config.name,
+                "id": self.config.chain_id,
             }
         })
+    }
+
+    /// Faucet - allocate test tokens (only works on testnet/local chains with faucet)
+    pub async fn faucet(&self, recipient: &Did, amount: u64) -> Result<String> {
+        // Check if we have a faucet account with balance
+        let faucet_did = Did("did:key:testnet-faucet".to_string());
+        let faucet_balance = self.blockchain.get_balance(&faucet_did).await;
+
+        if faucet_balance == 0 {
+            return Err(PlatformError::Consensus(
+                "No faucet available on this chain".into()
+            ));
+        }
+
+        if faucet_balance < amount {
+            return Err(PlatformError::Consensus(
+                format!("Faucet has insufficient funds. Available: {}", faucet_balance)
+            ));
+        }
+
+        // Create a faucet transaction
+        let tx = Transaction::new(
+            faucet_did.clone(),
+            TransactionData::Transfer {
+                to: recipient.clone(),
+                amount,
+            },
+        );
+
+        // Add transaction and mine block
+        self.blockchain.add_transaction(tx.clone()).await?;
+        self.blockchain.mine_block(faucet_did).await?;
+
+        Ok(tx.id)
+    }
+
+    /// Get transaction history for a DID
+    pub async fn get_transaction_history(&self, did: &Did) -> Vec<serde_json::Value> {
+        let blocks = self.blockchain.get_all_blocks().await;
+        let mut transactions = Vec::new();
+
+        for block in blocks {
+            for tx in block.transactions {
+                // Check if this DID is involved in the transaction
+                let involved = tx.from == *did || match &tx.data {
+                    TransactionData::Transfer { to, .. } => to == did,
+                    TransactionData::TransferUsername { to, .. } => to == did,
+                    _ => false,
+                };
+
+                if involved {
+                    transactions.push(serde_json::json!({
+                        "id": tx.id,
+                        "block": block.index,
+                        "timestamp": tx.timestamp,
+                        "from": tx.from.0,
+                        "data": tx.data,
+                    }));
+                }
+            }
+        }
+
+        transactions
+    }
+
+    /// Get all recent transactions
+    pub async fn get_recent_transactions(&self, limit: usize) -> Vec<serde_json::Value> {
+        let blocks = self.blockchain.get_all_blocks().await;
+        let mut transactions = Vec::new();
+
+        // Iterate blocks in reverse order (most recent first)
+        for block in blocks.iter().rev() {
+            for tx in &block.transactions {
+                transactions.push(serde_json::json!({
+                    "id": tx.id,
+                    "block": block.index,
+                    "timestamp": tx.timestamp,
+                    "from": tx.from.0,
+                    "data": tx.data,
+                }));
+
+                if transactions.len() >= limit {
+                    return transactions;
+                }
+            }
+        }
+
+        transactions
     }
 }
 

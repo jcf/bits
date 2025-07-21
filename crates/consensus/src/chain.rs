@@ -6,6 +6,8 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 
+use crate::config::ChainConfig;
+
 /// A block in the blockchain
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
@@ -70,27 +72,32 @@ pub struct Blockchain {
     chain: Arc<RwLock<Vec<Block>>>,
     pending_transactions: Arc<RwLock<Vec<Transaction>>>,
     balances: Arc<RwLock<HashMap<Did, u64>>>,
-    difficulty: u32,
+    config: ChainConfig,
 }
 
 impl Blockchain {
-    /// Create a new blockchain with genesis block
+    /// Create a new blockchain with default local config
     pub fn new(genesis_validator: Did) -> Self {
+        Self::with_config(ChainConfig::local(genesis_validator))
+    }
+    
+    /// Create blockchain with specific configuration
+    pub fn with_config(config: ChainConfig) -> Self {
         let blockchain = Self {
             chain: Arc::new(RwLock::new(Vec::new())),
             pending_transactions: Arc::new(RwLock::new(Vec::new())),
             balances: Arc::new(RwLock::new(HashMap::new())),
-            difficulty: 2, // For demo, use easy difficulty
+            config: config.clone(),
         };
 
         // Create genesis block
         let genesis = Block {
             index: 0,
-            timestamp: Self::current_timestamp(),
+            timestamp: config.genesis.timestamp,
             transactions: vec![],
             previous_hash: "0".to_string(),
             hash: "".to_string(),
-            validator: genesis_validator.clone(),
+            validator: config.genesis.validator.clone(),
             nonce: 0,
         };
 
@@ -98,14 +105,17 @@ impl Blockchain {
         let mut genesis = genesis;
         genesis.hash = genesis_hash;
 
-        // Initialize with some tokens for the genesis validator
+        // Initialize genesis block and balances
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let mut chain = blockchain.chain.write().await;
                 chain.push(genesis);
-                
+
                 let mut balances = blockchain.balances.write().await;
-                balances.insert(genesis_validator, 1_000_000); // 1M BITS
+                // Initialize balances from genesis allocations
+                for (did, balance) in &config.genesis.allocations {
+                    balances.insert(did.clone(), *balance);
+                }
             })
         });
 
@@ -116,7 +126,7 @@ impl Blockchain {
     pub async fn add_transaction(&self, transaction: Transaction) -> Result<()> {
         // Verify transaction signature
         // TODO: Implement signature verification
-        
+
         let mut pending = self.pending_transactions.write().await;
         pending.push(transaction);
         Ok(())
@@ -142,12 +152,12 @@ impl Blockchain {
         };
 
         // Simple proof of work
-        while !Self::is_valid_proof(&block, self.difficulty) {
+        while !Self::is_valid_proof(&block, self.config.consensus.difficulty) {
             block.nonce += 1;
         }
 
         block.hash = Self::calculate_hash(&block);
-        
+
         // Process transactions and update state
         self.process_block(&block).await?;
 
@@ -183,7 +193,7 @@ impl Blockchain {
                         return Err(PlatformError::Consensus("Insufficient balance for fee".into()));
                     }
                     balances.insert(tx.from.clone(), balance - fee);
-                    
+
                     // Fee goes to validator
                     let validator_balance = balances.get(&block.validator).copied().unwrap_or(0);
                     balances.insert(block.validator.clone(), validator_balance + fee);
@@ -220,6 +230,17 @@ impl Blockchain {
         chain.len() as u64
     }
 
+    /// Get blockchain configuration
+    pub fn get_config(&self) -> &ChainConfig {
+        &self.config
+    }
+
+    /// Get all blocks (for transaction history)
+    pub async fn get_all_blocks(&self) -> Vec<Block> {
+        let chain = self.chain.read().await;
+        chain.clone()
+    }
+
     /// Calculate hash for a block
     fn calculate_hash(block: &Block) -> String {
         let mut hasher = Hasher::new();
@@ -227,12 +248,12 @@ impl Blockchain {
         hasher.update(&block.timestamp.to_le_bytes());
         hasher.update(block.previous_hash.as_bytes());
         hasher.update(&block.nonce.to_le_bytes());
-        
+
         // Include transaction data
         for tx in &block.transactions {
             hasher.update(tx.id.as_bytes());
         }
-        
+
         hasher.finalize().to_hex().to_string()
     }
 
@@ -285,7 +306,7 @@ mod tests {
     async fn test_blockchain_creation() {
         let validator = Did("validator".to_string());
         let blockchain = Blockchain::new(validator.clone());
-        
+
         assert_eq!(blockchain.get_height().await, 1);
         assert_eq!(blockchain.get_balance(&validator).await, 1_000_000);
     }

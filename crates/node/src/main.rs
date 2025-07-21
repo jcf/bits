@@ -72,7 +72,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Identity loaded: {} ({})", username, identity.did);
     
     // Create consensus service with identity as genesis validator
-    let consensus_service = Arc::new(ConsensusService::new(identity.did.clone()));
+    // Use testnet config if --testnet flag is provided (we'll add this later)
+    let consensus_service = if std::env::var("BITS_TESTNET").is_ok() {
+        Arc::new(ConsensusService::testnet())
+    } else {
+        Arc::new(ConsensusService::new(identity.did.clone()))
+    };
     info!("Consensus service initialized");
     
     // Create shared state
@@ -87,6 +92,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(home_handler))
         .route("/profile/:username", get(profile_handler))
         .route("/marketplace", get(marketplace_handler))
+        .route("/wallet", get(wallet_handler))
+        .route("/explorer", get(explorer_handler))
         
         // API routes
         .route("/api/identity", get(get_identity))
@@ -96,12 +103,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Blockchain/marketplace API routes
         .route("/api/blockchain/info", get(get_blockchain_info))
         .route("/api/wallet/balance/:did", get(get_balance))
+        .route("/api/wallet/history/:did", get(get_transaction_history))
         .route("/api/username/register", post(register_username))
         .route("/api/username/:username", get(get_username_info))
         .route("/api/username/list", post(list_username))
         .route("/api/username/transfer", post(transfer_username))
         .route("/api/marketplace/listings", get(get_marketplace_listings))
         .route("/api/marketplace/search", get(search_usernames))
+        .route("/api/transactions/recent", get(get_recent_transactions))
+        .route("/api/faucet", post(faucet_request))
         
         // Add state and middleware
         .with_state(state)
@@ -125,43 +135,78 @@ async fn home_handler(State(state): State<AppState>) -> impl IntoResponse {
     match service.current().await {
         Ok(identity) => {
             let username = generate_username(&identity.did);
+            let balance = state.consensus_service.get_balance(&identity.did).await;
+            let chain_info = state.consensus_service.get_blockchain_info().await;
+            
             let html = format!(
                 r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Bits Identity Service</title>
+    <title>Bits - Decentralized Identity & Marketplace</title>
     <style>
-        body {{ font-family: system-ui; max-width: 800px; margin: 40px auto; padding: 0 20px; }}
-        .container {{ background: #f5f5f5; padding: 30px; border-radius: 10px; }}
-        h1 {{ color: #333; }}
-        .info {{ background: white; padding: 20px; border-radius: 5px; margin: 20px 0; }}
-        .username {{ font-size: 24px; font-weight: bold; color: #5e72e4; }}
-        .did {{ font-family: monospace; font-size: 14px; color: #666; word-break: break-all; }}
-        a {{ color: #5e72e4; text-decoration: none; }}
-        a:hover {{ text-decoration: underline; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        .identity {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; }}
+        .did {{ font-family: monospace; font-size: 14px; opacity: 0.9; word-break: break-all; }}
+        h1 {{ color: #333; margin-bottom: 10px; }}
+        .username {{ font-size: 32px; font-weight: bold; margin-bottom: 10px; }}
+        .balance {{ font-size: 24px; margin: 10px 0; }}
+        .features {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }}
+        .feature-card {{ background: #f8f9fa; padding: 25px; border-radius: 8px; text-align: center; transition: transform 0.2s; }}
+        .feature-card:hover {{ transform: translateY(-5px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }}
+        .feature-card h3 {{ margin-bottom: 10px; color: #333; }}
+        .feature-card a {{ display: inline-block; margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 6px; }}
+        .feature-card a:hover {{ background: #0056b3; }}
+        .chain-badge {{ display: inline-block; background: #28a745; color: white; padding: 4px 12px; border-radius: 20px; font-size: 14px; }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔐 Bits Identity Service</h1>
-        <div class="info">
-            <p>Your identity:</p>
-            <p class="username">{}</p>
-            <p class="did">{}</p>
-            <p><a href="/profile/{}">View your profile →</a></p>
+        <h1>🌐 Welcome to Bits</h1>
+        <p>Decentralized Identity, Username Marketplace & Content Platform</p>
+        
+        <div class="identity">
+            <div class="username">{}</div>
+            <div class="did">{}</div>
+            <div class="balance">{} BITS</div>
+            <div style="margin-top: 15px;">
+                <span class="chain-badge">{} Network</span>
+            </div>
         </div>
-        <div class="info">
-            <h3>API Endpoints</h3>
-            <ul>
-                <li><code>GET /api/identity</code> - Get identity information</li>
-                <li><code>POST /api/identity/sign</code> - Sign a message</li>
-                <li><code>POST /api/identity/backup</code> - Create encrypted backup</li>
-            </ul>
+        
+        <div class="features">
+            <div class="feature-card">
+                <h3>👤 Your Profile</h3>
+                <p>View and manage your decentralized identity</p>
+                <a href="/profile/{}">View Profile</a>
+            </div>
+            
+            <div class="feature-card">
+                <h3>💰 Wallet</h3>
+                <p>Manage your BITS tokens and transactions</p>
+                <a href="/wallet">Open Wallet</a>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🛍️ Marketplace</h3>
+                <p>Register and trade unique usernames</p>
+                <a href="/marketplace">Browse Marketplace</a>
+            </div>
+            
+            <div class="feature-card">
+                <h3>🔍 Explorer</h3>
+                <p>View blockchain transactions and stats</p>
+                <a href="/explorer">Explore Chain</a>
+            </div>
         </div>
     </div>
 </body>
 </html>"#,
-                username, identity.did, username
+                username,
+                identity.did,
+                balance as f64 / 1e18,
+                chain_info["chain"]["name"].as_str().unwrap_or("unknown"),
+                username
             );
             Html(html)
         }
@@ -191,17 +236,26 @@ async fn profile_handler(
 <head>
     <title>{} - Bits Profile</title>
     <style>
-        body {{ font-family: system-ui; max-width: 800px; margin: 40px auto; padding: 0 20px; }}
-        .profile {{ background: #f5f5f5; padding: 30px; border-radius: 10px; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
         h1 {{ color: #333; margin-bottom: 5px; }}
         .did {{ font-family: monospace; font-size: 14px; color: #666; word-break: break-all; }}
-        .info-box {{ background: white; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+        .info-box {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
         .key {{ font-family: monospace; font-size: 12px; color: #888; }}
         .created {{ color: #666; font-size: 14px; }}
+        .nav-links {{ margin-bottom: 20px; }}
+        .nav-links a {{ margin-right: 20px; color: #007bff; text-decoration: none; }}
+        .nav-links a:hover {{ text-decoration: underline; }}
     </style>
 </head>
 <body>
-    <div class="profile">
+    <div class="container">
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/marketplace">Marketplace</a>
+            <a href="/wallet">Wallet</a>
+            <a href="/explorer">Explorer</a>
+        </div>
         <h1>@{}</h1>
         <p class="did">{}</p>
         <p class="created">Member since {}</p>
@@ -689,5 +743,277 @@ async fn marketplace_handler(
 </html>
     "#);
     
+    Html(html).into_response()
+}
+
+async fn get_transaction_history(
+    State(state): State<AppState>,
+    Path(did): Path<String>,
+) -> impl IntoResponse {
+    let did = Did(did);
+    let history = state.consensus_service.get_transaction_history(&did).await;
+    Json(history)
+}
+
+async fn get_recent_transactions(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let transactions = state.consensus_service.get_recent_transactions(50).await;
+    Json(transactions)
+}
+
+/// Faucet request
+#[derive(Deserialize)]
+struct FaucetRequest {
+    amount: Option<u64>,
+}
+
+async fn faucet_request(
+    State(state): State<AppState>,
+    Json(payload): Json<FaucetRequest>,
+) -> impl IntoResponse {
+    // Get current identity as recipient
+    let identity_service = state.identity_service.read().await;
+    let identity = match identity_service.current().await {
+        Ok(id) => id,
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+                "error": format!("Failed to get identity: {}", e)
+            }))).into_response()
+        }
+    };
+
+    let recipient = identity.did.clone();
+    let amount = payload.amount.unwrap_or(1000); // Default 1000 BITS
+
+    match state.consensus_service.faucet(&recipient, amount).await {
+        Ok(tx_id) => {
+            Json(serde_json::json!({
+                "success": true,
+                "transaction_id": tx_id,
+                "amount": amount,
+                "recipient": recipient.0,
+            })).into_response()
+        }
+        Err(e) => {
+            (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+                "error": e.to_string()
+            }))).into_response()
+        }
+    }
+}
+
+async fn wallet_handler(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    // Get current identity
+    let identity_service = state.identity_service.read().await;
+    let identity = match identity_service.current().await {
+        Ok(id) => id,
+        Err(e) => {
+            error!("Failed to get identity: {}", e);
+            return Html("<h1>Error loading wallet</h1>".to_string()).into_response()
+        }
+    };
+
+    let did = identity.did.clone();
+    let balance = state.consensus_service.get_balance(&did).await;
+    let history = state.consensus_service.get_transaction_history(&did).await;
+    let chain_info = state.consensus_service.get_blockchain_info().await;
+
+    let mut html = format!(r#"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bits Wallet</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        h1 {{ color: #333; margin-bottom: 10px; }}
+        .wallet-card {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; }}
+        .wallet-address {{ font-family: monospace; font-size: 14px; opacity: 0.9; word-break: break-all; }}
+        .balance {{ font-size: 48px; font-weight: bold; margin: 20px 0; }}
+        .chain-info {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 30px; }}
+        .transaction {{ border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; border-radius: 8px; }}
+        .transaction:hover {{ background: #f8f9fa; }}
+        .tx-id {{ font-family: monospace; font-size: 12px; color: #666; }}
+        .faucet-section {{ background: #e3f2fd; padding: 20px; border-radius: 8px; margin-bottom: 30px; }}
+        .faucet-button {{ background: #2196f3; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; }}
+        .faucet-button:hover {{ background: #1976d2; }}
+        .nav-links {{ margin-bottom: 20px; }}
+        .nav-links a {{ margin-right: 20px; color: #007bff; text-decoration: none; }}
+        .nav-links a:hover {{ text-decoration: underline; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/marketplace">Marketplace</a>
+            <a href="/wallet">Wallet</a>
+            <a href="/explorer">Explorer</a>
+        </div>
+
+        <h1>💰 Your Wallet</h1>
+
+        <div class="wallet-card">
+            <div class="wallet-address">{}</div>
+            <div class="balance">{} BITS</div>
+            <div>Chain: {} (ID: {})</div>
+        </div>
+
+        <div class="faucet-section" id="faucet">
+            <h3>Test Faucet</h3>
+            <p>Get free test tokens for development</p>
+            <button class="faucet-button" onclick="requestFaucet()">Request 1000 BITS</button>
+            <div id="faucet-result"></div>
+        </div>
+
+        <h2>Transaction History</h2>
+        <div id="transactions">
+"#, did, balance as f64 / 1e18, chain_info["chain"]["name"], chain_info["chain"]["id"]);
+
+    if history.is_empty() {
+        html.push_str("<p>No transactions yet.</p>");
+    } else {
+        for tx in history {
+            html.push_str(&format!(r#"
+            <div class="transaction">
+                <div class="tx-id">TX: {}</div>
+                <div>Block: {}</div>
+                <div>From: {}</div>
+                <div>Type: {:?}</div>
+            </div>
+            "#,
+            tx["id"], tx["block"], tx["from"], tx["data"]
+            ));
+        }
+    }
+
+    html.push_str(r#"
+        </div>
+    </div>
+
+    <script>
+        async function requestFaucet() {
+            const resultDiv = document.getElementById('faucet-result');
+            
+            try {
+                const response = await fetch('/api/faucet', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({amount: 1000})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p style="color: green;">✅ Received ${data.amount} BITS!</p>`;
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ ${data.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        // Hide faucet section if not on testnet/local
+        const chainName = "]] + &chain_info["chain"]["name"].as_str().unwrap_or("local") + r#"";
+        if (chainName === "mainnet") {
+            document.getElementById('faucet').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+    "#);
+
+    Html(html).into_response()
+}
+
+async fn explorer_handler(
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    let chain_info = state.consensus_service.get_blockchain_info().await;
+    let recent_txs = state.consensus_service.get_recent_transactions(20).await;
+
+    let mut html = format!(r#"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bits Blockchain Explorer</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        h1 {{ color: #333; margin-bottom: 10px; }}
+        .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }}
+        .stat-card {{ background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }}
+        .stat-value {{ font-size: 32px; font-weight: bold; color: #007bff; }}
+        .stat-label {{ color: #666; margin-top: 5px; }}
+        .transaction {{ border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 10px; border-radius: 8px; font-family: monospace; font-size: 14px; }}
+        .transaction:hover {{ background: #f8f9fa; }}
+        .nav-links {{ margin-bottom: 20px; }}
+        .nav-links a {{ margin-right: 20px; color: #007bff; text-decoration: none; }}
+        .nav-links a:hover {{ text-decoration: underline; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/marketplace">Marketplace</a>
+            <a href="/wallet">Wallet</a>
+            <a href="/explorer">Explorer</a>
+        </div>
+
+        <h1>🔍 Blockchain Explorer</h1>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{}</div>
+                <div class="stat-label">Block Height</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{}</div>
+                <div class="stat-label">Chain ID</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{}</div>
+                <div class="stat-label">Total Supply</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{}</div>
+                <div class="stat-label">Network</div>
+            </div>
+        </div>
+
+        <h2>Recent Transactions</h2>
+        <div id="transactions">
+"#, chain_info["height"], chain_info["chain"]["id"],
+    chain_info["token"]["total_supply"], chain_info["chain"]["name"]);
+
+    if recent_txs.is_empty() {
+        html.push_str("<p>No transactions yet.</p>");
+    } else {
+        for tx in recent_txs {
+            html.push_str(&format!(r#"
+            <div class="transaction">
+                <div>TX: {}</div>
+                <div>Block: {} | From: {}</div>
+                <div>Data: {:?}</div>
+            </div>
+            "#,
+            tx["id"], tx["block"], tx["from"], tx["data"]
+            ));
+        }
+    }
+
+    html.push_str(r#"
+        </div>
+    </div>
+</body>
+</html>
+    "#);
+
     Html(html).into_response()
 }
