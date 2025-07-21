@@ -543,6 +543,7 @@ dependencies = [
  "bits-rpc",
  "bits-storage",
  "clap",
+ "hex",
  "tokio",
  "tracing",
  "tracing-subscriber",

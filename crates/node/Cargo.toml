@@ -22,3 +22,4 @@ tracing.workspace = true
 
 # CLI
 clap = { version = "4.4", features = ["derive", "env"] }
+hex = "0.4"
