@@ -5,15 +5,38 @@ edition.workspace = true
 
 [dependencies]
 bits-core = { path = "../core" }
-bits-crypto = { path = "../crypto" }
 
-anyhow.workspace = true
-ed25519-dalek.workspace = true
-serde.workspace = true
-thiserror.workspace = true
-tracing.workspace = true
+# Async
+tokio = { workspace = true, features = ["sync", "fs"] }
+async-trait = { workspace = true }
 
-# DID specific
-bs58 = "0.5"
+# Cryptography
+ed25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+blake3 = { workspace = true }
+argon2 = { workspace = true }
+rand = { workspace = true }
+zeroize = { version = "1.7", features = ["derive"] }
+chacha20poly1305 = "0.10"
+
+# DID/VC
 did-key = "0.2"
-ssi = "0.7"
+ssi = { version = "0.7", features = ["ed25519"] }
+serde_json = { workspace = true }
+serde = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Encoding
+bs58 = "0.5"
+base64 = "0.21"
+hex = "0.4"
+
+# Storage
+sled = "0.34"
+
+# Errors
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Logging
+tracing = { workspace = true }

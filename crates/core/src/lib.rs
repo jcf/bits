@@ -33,11 +33,26 @@ pub enum PlatformError {
     #[error("Storage error: {0}")]
     Storage(String),
 
+    #[error("Identity error: {0}")]
+    Identity(String),
+
+    #[error("Crypto error: {0}")]
+    Crypto(String),
+
     #[error("Invalid signature")]
     InvalidSignature,
 
     #[error("Insufficient stake")]
     InsufficientStake,
+
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+}
+
+impl From<serde_json::Error> for PlatformError {
+    fn from(err: serde_json::Error) -> Self {
+        PlatformError::Serialization(err.to_string())
+    }
 }
 
 /// Result type alias
