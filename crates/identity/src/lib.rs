@@ -3,10 +3,12 @@
 mod did;
 mod keys;
 mod store;
+mod username;
 
 pub use did::{Did, DidDocument, DidMethod};
 pub use keys::{KeyPair, PublicKey};
 pub use store::{IdentityStore, StoredIdentity};
+pub use username::{generate_username, parse_username};
 
 use async_trait::async_trait;
 use bits_core::{Component, PlatformError, Result};

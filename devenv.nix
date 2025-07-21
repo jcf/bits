@@ -25,4 +25,10 @@
 
   process.manager.implementation = "process-compose";
   process.managers.process-compose.tui.enable = false;
+
+  processes = {
+    node = {
+      exec = "cargo watch -x 'run --bin bits' -w crates/";
+    };
+  };
 }
