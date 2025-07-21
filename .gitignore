@@ -1,4 +1,5 @@
 .devenv.flake.nix
 .direnv/
-/target/
 /data/
+/node_modules/
+/target/

@@ -18,6 +18,11 @@
   env.RUST_BACKTRACE = "1";
   env.RUST_LOG = "debug";
 
+  languages.javascript = {
+    enable = true;
+    pnpm.enable = true;
+  };
+
   languages.rust = {
     enable = true;
     channel = "stable";
