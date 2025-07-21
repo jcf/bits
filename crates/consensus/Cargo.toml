@@ -21,3 +21,6 @@ anyhow.workspace = true
 tracing.workspace = true
 bytes.workspace = true
 futures.workspace = true
+
+# Consensus dependencies
+blake3 = "1.5"

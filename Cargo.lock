@@ -572,6 +572,7 @@ dependencies = [
  "bits-core",
  "bits-crypto",
  "bits-network",
+ "blake3",
  "bytes",
  "futures",
  "serde",

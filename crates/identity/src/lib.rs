@@ -5,7 +5,8 @@ mod keys;
 mod store;
 mod username;
 
-pub use did::{Did, DidDocument, DidMethod};
+pub use bits_core::Did;
+pub use did::{DidDocument, DidExt, DidMethod};
 pub use keys::{KeyPair, PublicKey};
 pub use store::{IdentityStore, StoredIdentity};
 pub use username::{generate_username, parse_username};
@@ -83,7 +84,7 @@ impl IdentityService {
         let keys = IdentityKeys::generate();
 
         // Create DID
-        let did = Did::from_key(&keys.master.public);
+        let did = <Did as DidExt>::from_key(&keys.master.public);
 
         // Build DID document
         let document = DidDocument::new(did.clone())

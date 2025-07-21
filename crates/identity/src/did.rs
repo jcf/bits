@@ -1,9 +1,5 @@
+use bits_core::Did;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-
-/// Decentralized Identifier
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Did(String);
 
 /// DID methods supported by Bits
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -12,15 +8,33 @@ pub enum DidMethod {
     Bits, // did:bits - future on-chain method
 }
 
-impl Did {
+/// Extension trait for Did operations specific to identity
+pub trait DidExt {
     /// Create a did:key from a public key
-    pub fn from_key(public_key: &crate::PublicKey) -> Self {
+    fn from_key(public_key: &crate::PublicKey) -> Did;
+    
+    /// Parse a DID string
+    fn parse(s: &str) -> Result<Did, DidError>;
+    
+    /// Get the DID method
+    fn method(&self) -> Result<DidMethod, DidError>;
+    
+    /// Get the method-specific identifier
+    fn method_specific_id(&self) -> &str;
+    
+    /// Encode a public key for did:key
+    fn encode_key(public_key: &crate::PublicKey) -> String;
+}
+
+impl DidExt for Did {
+    /// Create a did:key from a public key
+    fn from_key(public_key: &crate::PublicKey) -> Did {
         let multibase = Self::encode_key(public_key);
         Did(format!("did:key:{}", multibase))
     }
 
     /// Parse a DID string
-    pub fn parse(s: &str) -> Result<Self, DidError> {
+    fn parse(s: &str) -> Result<Did, DidError> {
         if !s.starts_with("did:") {
             return Err(DidError::InvalidFormat);
         }
@@ -38,14 +52,19 @@ impl Did {
     }
 
     /// Get the method of this DID
-    pub fn method(&self) -> DidMethod {
+    fn method(&self) -> Result<DidMethod, DidError> {
         if self.0.starts_with("did:key:") {
-            DidMethod::Key
+            Ok(DidMethod::Key)
         } else if self.0.starts_with("did:bits:") {
-            DidMethod::Bits
+            Ok(DidMethod::Bits)
         } else {
-            panic!("Invalid DID method")
+            Err(DidError::UnsupportedMethod)
         }
+    }
+    
+    /// Get the method-specific identifier
+    fn method_specific_id(&self) -> &str {
+        self.0.split(':').nth(2).unwrap_or("")
     }
 
     /// Encode a public key for did:key
@@ -59,11 +78,6 @@ impl Did {
     }
 }
 
-impl fmt::Display for Did {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 /// DID Document - the core identity metadata
 #[derive(Clone, Debug, Serialize, Deserialize)]

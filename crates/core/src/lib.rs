@@ -8,8 +8,14 @@ use thiserror::Error;
 pub struct NodeId(pub [u8; 32]);
 
 /// Decentralized identifier
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Did(pub String);
+
+impl std::fmt::Display for Did {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Resource contribution types
 #[derive(Clone, Debug, Serialize, Deserialize)]

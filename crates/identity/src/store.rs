@@ -1,4 +1,4 @@
-use crate::{Identity, IdentityKeys, KeyPair, Did, DidDocument};
+use crate::{Identity, IdentityKeys, KeyPair, Did, DidDocument, DidExt};
 use bits_core::{PlatformError, Result};
 use serde::{Serialize, Deserialize};
 use sled::Db;
