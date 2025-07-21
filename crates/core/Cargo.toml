@@ -1,0 +1,11 @@
+[package]
+name = "bits-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+blake3.workspace = true
+bytes.workspace = true
+serde.workspace = true
+thiserror.workspace = true

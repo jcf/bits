@@ -1,0 +1,60 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/node",
+    "crates/core",
+    "crates/network",
+    "crates/consensus",
+    "crates/identity",
+    "crates/crypto",
+    "crates/storage",
+    "crates/rpc",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["James Conroy-Finn <jcf@invetica.team>"]
+license = "AGPL"
+repository = "https://git.invetica.team/bits"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Cryptography
+ed25519-dalek = "2.1"
+x25519-dalek = "2.0"
+blake3 = "1.5"
+argon2 = "0.5"
+rand = "0.8"
+
+# Common utilities
+bytes = "1.5"
+futures = "0.3"
+pin-project = "1.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[profile.dev]
+opt-level = 0
+
+[profile.test]
+opt-level = 0

@@ -1,0 +1,12 @@
+allowUnfree: true
+
+inputs:
+  devenv:
+    url: github:cachix/devenv
+  nixpkgs:
+    url: nixpkgs/master
+  rust-overlay:
+    url: github:oxalica/rust-overlay
+    inputs:
+      nixpkgs:
+        follows: nixpkgs

@@ -1,0 +1,24 @@
+[package]
+name = "bits-node"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "bits"
+path = "src/main.rs"
+
+[dependencies]
+bits-core = { path = "../core" }
+bits-network = { path = "../network" }
+bits-consensus = { path = "../consensus" }
+bits-identity = { path = "../identity" }
+bits-storage = { path = "../storage" }
+bits-rpc = { path = "../rpc" }
+
+anyhow.workspace = true
+tokio.workspace = true
+tracing-subscriber.workspace = true
+tracing.workspace = true
+
+# CLI
+clap = { version = "4.4", features = ["derive", "env"] }

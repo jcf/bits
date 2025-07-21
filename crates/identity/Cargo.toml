@@ -1,0 +1,19 @@
+[package]
+name = "bits-identity"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bits-core = { path = "../core" }
+bits-crypto = { path = "../crypto" }
+
+anyhow.workspace = true
+ed25519-dalek.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+# DID specific
+bs58 = "0.5"
+did-key = "0.2"
+ssi = "0.7"

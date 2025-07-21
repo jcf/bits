@@ -1,0 +1,23 @@
+[package]
+name = "bits-consensus"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+bits-core = { path = "../core" }
+bits-crypto = { path = "../crypto" }
+bits-network = { path = "../network" }
+
+# Workspace dependencies
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+bytes.workspace = true
+futures.workspace = true

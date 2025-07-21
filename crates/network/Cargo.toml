@@ -1,0 +1,28 @@
+[package]
+name = "bits-network"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bits-core = { path = "../core" }
+bits-identity = { path = "../identity" }
+
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# P2P networking
+libp2p = { version = "0.53", features = [
+    "tcp",
+    "noise",
+    "yamux",
+    "kad",
+    "identify",
+    "gossipsub",
+    "mdns",
+    "request-response",
+    "macros"
+]}

@@ -1,0 +1,20 @@
+[package]
+name = "bits-crypto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace crypto dependencies
+ed25519-dalek.workspace = true
+x25519-dalek.workspace = true
+blake3.workspace = true
+argon2.workspace = true
+rand.workspace = true
+
+# Other workspace dependencies
+serde.workspace = true
+thiserror.workspace = true
+bytes.workspace = true
