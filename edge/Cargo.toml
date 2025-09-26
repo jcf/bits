@@ -1,0 +1,14 @@
+[package]
+name = "bits-edge"
+version = "0.1.0"
+authors = []
+edition = "2021"
+publish = false
+
+[profile.release]
+debug = 1
+codegen-units = 1
+lto = "fat"
+
+[dependencies]
+fastly = "0.11.0"

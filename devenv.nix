@@ -7,6 +7,7 @@
 
   packages = with pkgs; [
     # Development
+    fastly
     just
 
     # SSL

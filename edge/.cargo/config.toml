@@ -1,0 +1,11 @@
+[build]
+target = "wasm32-wasip1"
+
+[target.wasm32-wasi]
+rustflags = []
+
+[target.wasm32-wasip1]
+rustflags = []
+
+[term]
+color = "always"
