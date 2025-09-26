@@ -32,8 +32,14 @@ tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
 serde_json.workspace = true
 
 # Templates
-askama = { version = "0.12", features = ["with-axum"] }
-askama_axum = "0.4"
+maud = { version = "0.26", features = ["axum"] }
 
 # Encoding
 base64 = "0.21"
+
+# Static assets
+static-files = "0.2"
+mime_guess = "2"
+
+[build-dependencies]
+static-files = "0.2"

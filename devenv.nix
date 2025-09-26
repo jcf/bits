@@ -35,5 +35,8 @@
     node = {
       exec = "cargo watch -x 'run --bin bits' -w crates/";
     };
+    css = {
+      exec = "tailwindcss -i crates/node/static/styles.css -o crates/node/static/dist/app.css --watch --content 'crates/node/src/**/*.rs'";
+    };
   };
 }

@@ -1,0 +1,215 @@
+#+title:   Bits
+#+startup: content
+
+* Overview
+Bits is a decentralized identity and marketplace platform featuring:
+
+- Self-sovereign identity using DIDs (Decentralized Identifiers)
+- Human-readable usernames derived from cryptographic keys
+- Username marketplace with blockchain-based ownership
+- BITS token for platform economics
+- Built-in wallet and blockchain explorer
+
+* Quick Start
+** Running the Node
+*** Local Mode (default)
+#+begin_src sh
+cargo run --bin bits
+#+end_src
+
+This gives you 1 billion BITS tokens for testing on a local blockchain.
+
+*** Testnet Mode
+#+begin_src sh
+BITS_TESTNET=1 cargo run --bin bits
+#+end_src
+
+This connects to a testnet configuration with a faucet for getting test tokens.
+
+* Features
+** Web Interface
+Once running, visit these URLs:
+
+- [[http://127.0.0.1:3000/][Homepage]] - Dashboard with your identity and balance
+- [[http://127.0.0.1:3000/wallet][Wallet]] - Manage BITS tokens and view transactions
+- [[http://127.0.0.1:3000/marketplace][Marketplace]] - Register and trade usernames
+- [[http://127.0.0.1:3000/explorer][Explorer]] - View blockchain statistics
+
+** Username System
+Usernames are 6-word human-readable identifiers derived from DIDs:
+- Format: ~adjective-material-creature-action-concept-element~
+- Example: ~ancient-amber-phoenix-soaring-cosmos-aurora~
+- Over 1 billion unique combinations
+
+*** Registration Fees
+- 3 characters: 100,000 BITS
+- 4 characters: 10,000 BITS  
+- 5 characters: 1,000 BITS
+- 6+ characters: 100 BITS
+
+*** Username Rules
+- 3-30 characters
+- Lowercase letters, numbers, and hyphens only
+- Cannot start or end with a hyphen
+- No consecutive hyphens
+
+* API Endpoints
+** Identity
+Get current identity:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/identity
+#+end_src
+
+Sign a message:
+
+#+begin_src sh
+curl -X POST http://127.0.0.1:3000/api/identity/sign \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, Bits!"}'
+#+end_src
+
+Create backup:
+
+#+begin_src sh
+curl -X POST http://127.0.0.1:3000/api/identity/backup \
+  -H "Content-Type: application/json" \
+  -d '{"password": "secretpass"}'
+#+end_src
+
+** Blockchain & Wallet
+Get blockchain info:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/blockchain/info
+#+end_src
+
+Check balance (replace DID with yours from homepage):
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/wallet/balance/did:key:z6Mkj2zZXtj4o7L4NG2LW1aeXsqGEnDQuv1K3Hc2cGCBsjyx
+#+end_src
+
+Get transaction history:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/wallet/history/did:key:z6Mkj2zZXtj4o7L4NG2LW1aeXsqGEnDQuv1K3Hc2cGCBsjyx
+#+end_src
+
+Request faucet tokens (testnet/local only):
+
+#+begin_src sh
+curl -X POST http://127.0.0.1:3000/api/faucet \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 1000}'
+#+end_src
+
+** Username Marketplace
+Register a username:
+
+#+begin_src sh
+curl -X POST http://127.0.0.1:3000/api/username/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice"}'
+#+end_src
+
+Get username info:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/username/alice
+#+end_src
+
+List username for sale:
+
+#+begin_src sh
+curl -X POST http://127.0.0.1:3000/api/username/list \
+  -H "Content-Type: application/json" \
+  -d '{"username": "alice", "price": 5000}'
+#+end_src
+
+Get marketplace listings:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/marketplace/listings
+#+end_src
+
+Search available usernames:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/marketplace/search?q=cool
+#+end_src
+
+** Transactions
+Get recent transactions:
+
+#+begin_src sh
+curl http://127.0.0.1:3000/api/transactions/recent
+#+end_src
+
+* Chain Configurations
+
+** Local (default)
+- Chain ID: 31337
+- Genesis allocation: 1 billion BITS
+- Block time: 1 second
+- Difficulty: 1 (minimal)
+- Transaction fees: 0
+
+** Testnet
+- Chain ID: 42
+- Faucet: 100 million BITS available
+- Test accounts with pre-allocated funds
+- Block time: 5 seconds
+- Difficulty: 2
+- Transaction fees: 0
+
+** Mainnet (future)
+- Chain ID: 1
+- Real value tokens
+- Block time: 10 seconds
+- Difficulty: 4
+- Transaction fees: Required
+
+* Architecture
+** Core Components
+- ~bits-core~ - Common types and traits
+- ~bits-identity~ - DID and key management
+- ~bits-consensus~ - Blockchain and token economics
+- ~bits-storage~ - Persistent data storage
+- ~bits-network~ - P2P networking (future)
+- ~bits-node~ - Web service and API
+
+** Key Technologies
+- DIDs using ~did:key~ method
+- Ed25519 cryptographic signatures
+- Sled embedded database
+- Axum web framework
+- Proof-of-Work consensus (demo)
+
+* Development
+** Building
+#+begin_src sh
+cargo build --release
+#+end_src
+
+** Testing
+#+begin_src sh
+cargo test
+#+end_src
+
+** Running with auto-reload
+#+begin_src sh
+cargo install cargo-watch
+#+end_src
+
+#+begin_src sh
+cargo watch -x 'run --bin bits'
+#+end_src
+
+* Future Roadmap
+- [ ] Proof-of-Stake consensus
+- [ ] P2P network implementation
+- [ ] Content marketplace for music/art
+- [ ] Smart contract support
+- [ ] Mobile wallet app
+- [ ] IPFS integration for content storage
