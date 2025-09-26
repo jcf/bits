@@ -2,10 +2,8 @@
   "name": "@bits/shared",
   "type": "module",
   "version": "0.0.1",
-  "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./components": "./src/components/index.ts"
+    "./components/Layout.astro": "./src/components/Layout.astro"
   },
   "dependencies": {
     "astro": "catalog:"

@@ -1,3 +1,4 @@
+*.pem
 .astro
 /.claude/settings.json
 /.devenv.flake.nix

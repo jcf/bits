@@ -1,10 +1,33 @@
 ---
 import Layout from '@bits/shared/components/Layout.astro';
+
+const { tenant, subdomain, invalidTenant } = Astro.locals;
+
+// Handle invalid tenant
+if (invalidTenant) {
+  Astro.response.status = 404;
+}
 ---
 
-<Layout title="Bits Page">
+<Layout title={tenant ? tenant.name : "Bits Page"}>
   <main>
-    <h1>bits.page</h1>
-    <p>Welcome to the Bits page application.</p>
+    {invalidTenant ? (
+      <>
+        <h1>Tenant Not Found</h1>
+        <p>The site <strong>{subdomain}</strong> does not exist.</p>
+        <p><a href="/">Visit the main site</a></p>
+      </>
+    ) : tenant ? (
+      <>
+        <h1>{tenant.name}</h1>
+        <p>Welcome to the {tenant.name} site (subdomain: {subdomain})</p>
+      </>
+    ) : (
+      <>
+        <h1>bits.page</h1>
+        <p>Welcome to the Bits page application.</p>
+        <p>Try visiting <a href="https://foo.page.invetica.dev">foo.page.invetica.dev</a> or <a href="https://bar.page.invetica.dev">bar.page.invetica.dev</a></p>
+      </>
+    )}
   </main>
 </Layout>
