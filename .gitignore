@@ -1,2 +1,4 @@
+.astro
 /.claude/settings.json
 /.devenv.flake.nix
+node_modules/

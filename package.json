@@ -1,0 +1,17 @@
+{
+  "name": "bits",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev:page": "pnpm --filter @bits/page dev",
+    "dev:edit": "pnpm --filter @bits/edit dev",
+    "build:page": "pnpm --filter @bits/page build",
+    "build:edit": "pnpm --filter @bits/edit build",
+    "build": "pnpm --recursive build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2"
+  },
+  "packageManager": "pnpm@9.12.3"
+}
