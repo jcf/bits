@@ -1,0 +1,7 @@
+allowUnfree: true
+
+inputs:
+  nixpkgs:
+    url: "nixpkgs/master"
+  devenv:
+    url: "github:cachix/devenv"

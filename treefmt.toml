@@ -1,0 +1,24 @@
+[formatter.javascript]
+command = "prettier"
+options = ["--write"]
+includes = ["*.js", "*.jsx", "*.ts", "*.tsx", "*.json", "*.md", "*.yaml", "*.yml"]
+excludes = ["node_modules/**", "pnpm-lock.yaml"]
+
+[formatter.just]
+command = "just"
+options = ["--unstable", "--fmt", "--justfile"]
+includes = ["justfile"]
+
+[formatter.nix]
+command = "alejandra"
+includes = ["*.nix"]
+
+[formatter.toml]
+command = "taplo"
+options = ["fmt", "-"]
+includes = ["*.toml"]
+
+[formatter.shell]
+command = "shfmt"
+options = ["-i", "2", "-ci", "-s", "-w"]
+includes = ["*.sh", "*.bash"]
