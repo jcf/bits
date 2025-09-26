@@ -19,6 +19,8 @@
   processes.edit.exec = "pnpm dev:edit";
   processes.page.exec = "pnpm dev:page";
 
+  process.manager.implementation = "process-compose";
+  process.managers.process-compose.tui.enable = false;
   process.managers.process-compose.settings.processes = {
     edit = {
       environment = [
