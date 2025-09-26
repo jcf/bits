@@ -1,13 +1,35 @@
-#+title: Bits
+#+title:   Bits
+#+startup: content
 
 Bits helps creators leverage technology to reach and cultivate their audiences
 and monetize their creations.
 
+I recommend using OrbStack to develop Bits as this enables greater isolation
+between your development machine and the large amounts of untrusted code you'll
+be executing without thought.
+
 * What's in the box?
+** OrbStack machines
+If you don't already have a NixOS VM, please consider creating one.
+
+#+begin_src sh :results output verbatim
+orb list | grep nix
+#+end_src
+
+#+results:
+: nix   running  nixos      unstable  arm64  52.3 GB   192.168.139.211
+
+** Dev tasks
 #+begin_src sh :results output verbatim
 just
 #+end_src
 
 #+results:
 : Available recipes:
+:     [host]
 :     fmt
+:     run *args
+:
+:     [vm]
+:     dev
+:     setup
