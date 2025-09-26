@@ -1,0 +1,13 @@
+#+title: Bits
+
+Bits helps creators leverage technology to reach and cultivate their audiences
+and monetize their creations.
+
+* What's in the box?
+#+begin_src sh :results output verbatim
+just
+#+end_src
+
+#+results:
+: Available recipes:
+:     fmt
