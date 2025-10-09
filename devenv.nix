@@ -45,6 +45,8 @@ in {
   services.nginx = {
     enable = true;
     httpConfig = ''
+      error_log stderr error;
+
       upstream edit {
         server localhost:${toString dev.ports.edit};
       }
