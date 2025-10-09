@@ -1,8 +1,8 @@
 import { defineConfig } from "astro/config";
 import vercel from "@astrojs/vercel";
+import tailwindcss from "@tailwindcss/vite";
 
 const site = process.env.ASTRO_SITE ?? "https://bits.page";
-
 const pageDomain = process.env.DOMAIN_PAGE;
 const allowedHosts = [pageDomain, `.${pageDomain}`];
 
@@ -14,6 +14,7 @@ export default defineConfig({
     ssr: {
       noExternal: ["@bits/shared"],
     },
+
     server: {
       allowedHosts,
       strictPort: true,
@@ -22,5 +23,7 @@ export default defineConfig({
         protocol: "wss",
       },
     },
+
+    plugins: [tailwindcss()],
   },
 });

@@ -1,7 +1,7 @@
 import { defineConfig } from "astro/config";
+import tailwindcss from "@tailwindcss/vite";
 
 const site = process.env.ASTRO_SITE ?? "https://edit.usebits.app";
-
 const allowedHosts = [process.env.DOMAIN_EDIT];
 
 export default defineConfig({
@@ -10,6 +10,7 @@ export default defineConfig({
     ssr: {
       noExternal: ["@bits/shared"],
     },
+
     server: {
       allowedHosts,
       strictPort: true,
@@ -18,5 +19,7 @@ export default defineConfig({
         protocol: "wss",
       },
     },
+
+    plugins: [tailwindcss()],
   },
 });

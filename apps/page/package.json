@@ -12,7 +12,9 @@
   "dependencies": {
     "@astrojs/vercel": "^8.2.8",
     "@bits/shared": "workspace:*",
-    "astro": "catalog:"
+    "@tailwindcss/vite": "catalog:",
+    "astro": "catalog:",
+    "tailwindcss": "catalog:"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",

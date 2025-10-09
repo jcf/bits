@@ -2,9 +2,7 @@
   "name": "@bits/shared",
   "type": "module",
   "version": "0.0.1",
-  "exports": {
-    "./components/Layout.astro": "./src/components/Layout.astro"
-  },
+  "exports": {},
   "dependencies": {
     "astro": "catalog:"
   },
