@@ -1,0 +1,22 @@
+#+title:    Python-style environment variables
+#+author:   James Conroy-Finn <james@invetica.co.uk>
+#+date:     2025-10-09
+#+property: header-args:sh :dir ..
+
+We have a series of related environment variables for specifying things like
+ports and domain names. While my preference is often for code that reads much
+like prose, there are solid reasons for reversing order.
+
+#+begin_src sh :results output verbatim
+env | rg DOMAIN
+#+end_src
+
+#+results:
+: DOMAIN_EDIT=edit.invetica.dev
+: DOMAIN_PAGE=page.invetica.dev
+: DOMAIN_WWW=land.invetica.dev
+
+Python uses a similar approach where a common prefix groups related entities.
+This makes listing and grouping entities easier. Code completion might require a
+little more effort to reach the common base, but with the right bindings in
+place, it becomes a lesser inconvenience.
