@@ -14,6 +14,9 @@
     "zzz": "echo 🙈 Trailing commas are a delight, so is sorting arbitrary data."
   },
   "devDependencies": {
-    "@types/node": "^24.7.0"
+    "@types/node": "^24.7.1",
+    "prettier": "^3.6.2",
+    "prettier-plugin-astro": "^0.14.1",
+    "prettier-plugin-tailwindcss": "^0.6.14"
   }
 }
