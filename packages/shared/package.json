@@ -2,9 +2,13 @@
   "name": "@bits/shared",
   "type": "module",
   "version": "0.0.1",
-  "exports": {},
+  "exports": {
+    "./config": "./src/config.ts",
+    "./components/*": "./src/components/*.astro"
+  },
   "dependencies": {
-    "astro": "catalog:"
+    "astro": "catalog:",
+    "tailwind-merge": "catalog:"
   },
   "devDependencies": {
     "typescript": "catalog:"

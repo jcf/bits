@@ -13,6 +13,7 @@
     "@bits/shared": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "astro": "catalog:",
+    "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:"
   },
   "devDependencies": {

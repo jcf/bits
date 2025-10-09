@@ -1,33 +1,38 @@
 ---
+import config from "@bits/shared/config";
+import Link from '@bits/shared/components/Link';
+
 import Layout from '@/layouts/Layout.astro';
 
 const { tenant, subdomain, invalidTenant } = Astro.locals;
 
-// Handle invalid tenant
 if (invalidTenant) {
   Astro.response.status = 404;
 }
 ---
 
 <Layout title={tenant ? tenant.name : "Bits Page"}>
-  <main>
-    {invalidTenant ? (
-      <>
-        <h1>Tenant Not Found</h1>
-        <p>The site <strong>{subdomain}</strong> does not exist.</p>
-        <p><a href="/">Visit the main site</a></p>
-      </>
-    ) : tenant ? (
-      <>
-        <h1>{tenant.name}</h1>
-        <p>Welcome to the {tenant.name} site (subdomain: {subdomain})</p>
-      </>
-    ) : (
-      <>
-        <h1>bits.page</h1>
-        <p>Welcome to the Bits page application.</p>
-        <p>Try visiting <a href="https://foo.page.invetica.dev">foo.page.invetica.dev</a> or <a href="https://bar.page.invetica.dev">bar.page.invetica.dev</a></p>
-      </>
-    )}
-  </main>
+  {invalidTenant ? (
+  <>
+    <h1>Tenant Not Found</h1>
+    <p>The site <strong>{subdomain}</strong> does not exist.</p>
+    <p><Link href={config.apps.www.url}>Visit the main site</Link></p>
+  </>
+  ) : tenant ? (
+  <>
+    <h1>{tenant.name}</h1>
+    <p>Welcome to the {tenant.name} site (subdomain: {subdomain})</p>
+  </>
+  ) : (
+  <>
+    <h1>bits.page</h1>
+    <p>Welcome to the Bits page application.</p>
+    <p>
+      Try visiting
+      <Link href="https://foo.page.invetica.dev">foo.page.invetica.dev</Link>
+      or
+      <Link href="https://bar.page.invetica.dev">bar.page.invetica.dev</Link>
+    </p>
+  </>
+  )}
 </Layout>

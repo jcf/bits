@@ -1,4 +1,4 @@
-import { defineConfig } from "astro/config";
+import { defineConfig, envField } from "astro/config";
 import vercel from "@astrojs/vercel";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -10,6 +10,13 @@ export default defineConfig({
   site,
   output: "server", // SSR mode for dynamic tenant loading
   adapter: vercel(),
+  env: {
+    schema: {
+      DOMAIN_EDIT: envField.string({ context: "client", access: "public" }),
+      DOMAIN_PAGE: envField.string({ context: "client", access: "public" }),
+      DOMAIN_WWW: envField.string({ context: "client", access: "public" }),
+    },
+  },
   vite: {
     ssr: {
       noExternal: ["@bits/shared"],
