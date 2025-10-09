@@ -1,0 +1,65 @@
+#+title:  Get the message out
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2025-10-09
+
+There are multitudinal decisions to make at the early stages of any (tech)
+journey. Already I've made the following decisions:
+
+- Use Emacs and Org-mode for documentation
+- Git for version control
+- GitHub for sharing code publicly (mirrored from my Forgejo instance)
+- Use devenv for managing local development environment
+- Build on macOS; deploy to Linux
+- Web before mobile
+- Terraform for infrastructure
+- 1Password for secrets
+- Cloudflare for DNS and some hosting
+- Bootstrap with a lean team
+- Open source so creators can own both their data and their compute
+- Monetize through one-click hosted offering and (dog food[fn:1]) sponsorship
+- Build in the open
+- Sensibilities:
+  - Verbs over nouns
+  - Functional over object orientated
+  - Data over functions over macros
+
+Based on professional experience, the priority is learning. That means
+engaging with a community of interested individuals as early as possible to test
+hypotheses and create value as quickly as possible.
+
+Rather than diving into architecture and programming immediately, I will deploy
+a static web page with a call to action for interested parties that describes
+the vision and values that might warrant interest.
+
+I'll use Astro to generate the web page and deploy it to Cloudflare Pages using
+existing Terraform configuration from websites hosted by Invetica.
+
+The act of writing down the values and vision, and committing to a roadmap
+publicly will increase accountability and deliver on the all important activity
+of learning.
+
+I would like to link to https://jcf.bits.page/ from the https://www.usebits.app/
+landing page, so will fast-follow the landing page with a bare bones page just
+for me and my work on Bits.
+
+The decision around people who have more than one passion, and therefore need
+more than one page, can wait. We'll either need to support paths or require
+separate domains (something that needs to take into account the desirable
+outcome of the individual).
+
+We're getting product requirements at this point, which is something that will
+justify a tool before long.
+
+* Success criteria
+- Email routeable to jcf@usebits.app
+- Traffic to https://www.usebits.app/ visible in Plausible.
+- Validation from someone other than me that the message makes sense.
+
+**Stretch goal:** an email from someone who'd like to contribute or preferably
+use and pay for the product.
+
+* Footnotes
+[fn:1] Dog fooding refers to the idea of using your own product, i.e. dog food
+makers eating the dog food they make. The choice of dog food implies a
+willingness to do something somewhat unpleasant in the name of bettering your
+product.

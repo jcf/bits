@@ -8,6 +8,7 @@
   packages = with pkgs; [
     # Development
     fastly
+    fd
     just
 
     # SSL

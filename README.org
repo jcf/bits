@@ -1,23 +1,14 @@
 #+title:   Bits
 #+startup: content
 
-Bits helps creators leverage technology to reach and cultivate their audiences
-and monetize their creations.
-
-I recommend using OrbStack to develop Bits as this enables greater isolation
-between your development machine and the large amounts of untrusted code you'll
-be executing without thought.
-
 * What's in the box?
-** OrbStack machines
-If you don't already have a NixOS VM, please consider creating one.
-
-#+begin_src sh :results output verbatim
-orb list | grep nix
+** Decision
+#+begin_src sh :results output list
+fd --type file '\.org$' decisions | xargs head -1 | cut -d ":" -f2-
 #+end_src
 
 #+results:
-: nix   running  nixos      unstable  arm64  52.3 GB   192.168.139.211
+: - Get the message out
 
 ** Dev tasks
 #+begin_src sh :results output verbatim
@@ -26,10 +17,27 @@ just
 
 #+results:
 : Available recipes:
-:     [host]
-:     fmt
-:     run *args
-:
-:     [vm]
+:     decide +title
 :     dev
+:     fmt
+:     mkcert
 :     setup
+
+* Development
+I would recommend installing [[https://devenv.sh][=devenv=]] to simplify setting up a working
+development environment. With =devenv= installed, one can spin up a development
+environment with a single command:
+
+#+begin_src sh :eval never
+devenv up
+#+end_src
+
+As we make use of the =invetica.dev= domain during development and generate
+self-signed SSL certificates via =mkcert=, you'll want to run =just setup= the
+first time you fire things up.
+
+With a running development environment, one has access to the following:
+
+1. [[https://land.invetica.dev][land.invetica.dev]]: Landing page where people can find out more about Bits.
+1. [[https://edit.invetica.dev/][edit.invetica.dev]]: Admin panel for customizing your page.
+2. [[https://*.page.invetica.dev/][*.page.invetica.dev]]: The Bits experience.
