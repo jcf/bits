@@ -1,6 +1,8 @@
 import { defineConfig } from "astro/config";
 
-const site = process.env.ASTRO_SITE ?? "https://usebits.app";
+const site = process.env.ASTRO_SITE ?? "https://edit.usebits.app";
+
+const allowedHosts = [process.env.DOMAIN_EDIT];
 
 export default defineConfig({
   site,
@@ -9,7 +11,8 @@ export default defineConfig({
       noExternal: ["@bits/shared"],
     },
     server: {
-      allowedHosts: ["edit.invetica.dev"],
+      allowedHosts,
+      strictPort: true,
       hmr: {
         clientPort: 443,
         protocol: "wss",

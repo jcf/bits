@@ -1,9 +1,9 @@
 {
-  "name": "@bits/edit",
+  "name": "@bits/www",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev --port ${PORT:-3060}",
+    "dev": "astro dev --port ${PORT:-3000}",
     "start": "astro dev",
     "build": "astro check && astro build",
     "preview": "astro preview",

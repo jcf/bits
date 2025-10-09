@@ -1,15 +1,11 @@
 import { defineConfig } from "astro/config";
-import vercel from "@astrojs/vercel";
 
-const site = process.env.ASTRO_SITE ?? "https://bits.page";
+const site = process.env.ASTRO_SITE ?? "https://www.usebits.app";
 
-const pageDomain = process.env.DOMAIN_PAGE;
-const allowedHosts = [pageDomain, `.${pageDomain}`];
+const allowedHosts = [process.env.DOMAIN_WWW];
 
 export default defineConfig({
   site,
-  output: "server", // SSR mode for dynamic tenant loading
-  adapter: vercel(),
   vite: {
     ssr: {
       noExternal: ["@bits/shared"],

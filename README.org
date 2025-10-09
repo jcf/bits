@@ -3,12 +3,16 @@
 
 * What's in the box?
 ** Decision
-#+begin_src sh :results output list
-fd --type file '\.org$' decisions | xargs head -1 | cut -d ":" -f2-
+#+begin_src sh :results output raw :exports output
+fd --type file '\.org$' decisions | while read -r file; do
+  title=$(awk -F':[[:space:]]*' 'NR==1 { print $2 }' "$file")
+  echo "- [[file:$file][$title]]"
+done
 #+end_src
 
 #+results:
-: - Get the message out
+- [[file:decisions/20251009133634-get-the-message-out.org][Get the message out]]
+- [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
 
 ** Dev tasks
 #+begin_src sh :results output verbatim
@@ -41,3 +45,27 @@ With a running development environment, one has access to the following:
 1. [[https://land.invetica.dev][land.invetica.dev]]: Landing page where people can find out more about Bits.
 1. [[https://edit.invetica.dev/][edit.invetica.dev]]: Admin panel for customizing your page.
 2. [[https://*.page.invetica.dev/][*.page.invetica.dev]]: The Bits experience.
+
+* Tests
+** Development URLs
+#+begin_src zsh :results output verbatim
+urls=(
+  https://edit.invetica.dev
+  https://land.invetica.dev
+  https://page.invetica.dev
+)
+
+for url in $urls; do
+  http_code="$(curl --silent --output /dev/null --write-out "%{http_code}" "$url")"
+  if [ "$http_code" -eq 200 ]; then
+    echo "✅ $url"
+  else
+    echo "❌ $url ($http_code)"
+  fi
+done
+#+end_src
+
+#+results:
+: ✅ https://edit.invetica.dev
+: ✅ https://land.invetica.dev
+: ✅ https://page.invetica.dev
