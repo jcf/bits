@@ -1,11 +1,14 @@
 import { defineConfig, envField } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
 
+import mdx from "@astrojs/mdx";
+
 const site = process.env.ASTRO_SITE ?? "https://www.usebits.app";
 const allowedHosts = [process.env.DOMAIN_WWW];
 
 export default defineConfig({
   site,
+
   env: {
     schema: {
       DOMAIN_EDIT: envField.string({ context: "client", access: "public" }),
@@ -13,6 +16,7 @@ export default defineConfig({
       DOMAIN_WWW: envField.string({ context: "client", access: "public" }),
     },
   },
+
   vite: {
     ssr: {
       noExternal: ["@bits/shared"],
@@ -29,4 +33,6 @@ export default defineConfig({
 
     plugins: [tailwindcss()],
   },
+
+  integrations: [mdx()],
 });

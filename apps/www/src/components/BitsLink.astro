@@ -1,0 +1,11 @@
+---
+import { subURL } from "@bits/shared/utils/page";
+import Link from "@bits/shared/components/Link";
+
+const { sub } = Astro.props;
+const href = subURL(sub);
+---
+
+<Link href={href}>
+  <slot />
+</Link>

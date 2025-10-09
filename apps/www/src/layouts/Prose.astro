@@ -1,0 +1,57 @@
+---
+import "@/styles/global.css";
+
+import Container from "@bits/shared/components/Container";
+import Link from "@bits/shared/components/Link";
+
+import Body from "@/components/Body.astro";
+import Footer from "@/components/Footer.astro";
+import Head from "@/components/Head.astro";
+import Html from "@/components/Html.astro";
+import Main from "@/components/Main.astro";
+
+const { title } = Astro.props.frontmatter;
+---
+
+<Html>
+  <Head {...Astro.props.frontmatter} />
+  <Body>
+    <header class="mb-4 py-4 text-neutral-900 dark:text-neutral-100">
+      <Container>
+        <div class="mx-auto max-w-[65ch]">
+          <Link class="font-semibold" href="/">Bits</Link>
+        </div>
+      </Container>
+    </header>
+
+    <Main>
+      <Container>
+        <article
+          class:list={[
+            "prose",
+            "prose-neutral",
+            "dark:prose-invert",
+            "prose-a:underline",
+            "prose-a:underline-offset-2",
+            "prose-a:decoration-2",
+            "prose-a:decoration-orange-400",
+            "mx-auto",
+          ]}
+        >
+          <h1>{title}</h1>
+          <slot />
+        </article>
+      </Container>
+    </Main>
+
+    <footer class="mt-4 py-4 text-neutral-900 dark:text-neutral-100">
+      <Container>
+        <div class="mx-auto max-w-[65ch]">
+          <div class="text-sm">
+            <p class="font-semibold">Bits, please.</p>
+          </div>
+        </div>
+      </Container>
+    </footer>
+  </Body>
+</Html>

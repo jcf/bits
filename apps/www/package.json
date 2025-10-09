@@ -10,6 +10,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/mdx": "^4.3.7",
     "@bits/shared": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "astro": "catalog:",
@@ -18,6 +19,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",
+    "@tailwindcss/typography": "catalog:",
     "typescript": "catalog:"
   }
 }
