@@ -76,10 +76,7 @@ resource "cloudflare_pages_project" "main" {
   }
 
   lifecycle {
-    ignore_changes = [
-      source,
-      deployment_configs,
-    ]
+    ignore_changes = [source]
   }
 }
 
