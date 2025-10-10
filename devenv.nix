@@ -14,9 +14,10 @@ in {
   claude.code.enable = true;
 
   env = {
-    DOMAIN_WWW = "land.invetica.dev";
+    CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
     DOMAIN_EDIT = "edit.invetica.dev";
     DOMAIN_PAGE = "page.invetica.dev";
+    DOMAIN_WWW = "land.invetica.dev";
   };
 
   packages = with pkgs; [

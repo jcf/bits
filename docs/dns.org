@@ -1,0 +1,22 @@
+#+title:   DNS
+#+startup: content
+
+* Name servers
+#+begin_src zsh :results output verbatim :wrap src json
+just output dns -json |
+  jq '.cloudflare_zone.value | with_entries({key: .key, value: .value.name_servers})'
+#+end_src
+
+#+results:
+#+begin_src json
+{
+  "bits.page": [
+    "keyla.ns.cloudflare.com",
+    "mustafa.ns.cloudflare.com"
+  ],
+  "usebits.app": [
+    "keyla.ns.cloudflare.com",
+    "mustafa.ns.cloudflare.com"
+  ]
+}
+#+end_src

@@ -20,12 +20,24 @@ just
 #+end_src
 
 #+results:
-: Available recipes:
-:     decide +title
-:     dev
-:     fmt
-:     mkcert
-:     setup
+#+begin_example
+Available recipes:
+    [dev]
+    dev
+    fmt
+
+    [docs]
+    decide +title
+
+    [iac]
+    apply dir
+    output dir *args
+    plan dir
+
+    [setup]
+    mkcert
+    setup
+#+end_example
 
 * Development
 I would recommend installing [[https://devenv.sh][=devenv=]] to simplify setting up a working

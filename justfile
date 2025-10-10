@@ -1,6 +1,9 @@
+plan_dir := justfile_directory() / ".terraform-plans"
+
 _default:
     @just --list
 
+[group('setup')]
 mkcert:
     #!/usr/bin/env zsh
     mkcert -install
@@ -19,11 +22,13 @@ mkcert:
 
     echo >&2 "🔒 Wildcard certificates ready!"
 
+[group('setup')]
 setup:
     @just mkcert
     devenv shell echo "🚀 Development environment ready!"
     pnpm install
 
+[group('docs')]
 decide +title:
     #!/usr/bin/env bash
     timestamp=$(date +%Y%m%d%H%M%S)
@@ -38,8 +43,32 @@ decide +title:
     EOF
     echo "🎯 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
 
+[group('dev')]
 fmt:
     treefmt
 
+[group('dev')]
 dev:
     pnpm dev
+
+[group('iac')]
+_terraform dir *args:
+    op run -- terraform -chdir={{ justfile_directory() }}/iac/{{ dir }} {{ args }}
+
+[group('iac')]
+init dir *args:
+    @just _terraform {{ dir }} init {{ args }}
+
+[group('iac')]
+plan dir:
+    @mkdir -p {{ plan_dir }}
+    @just _terraform {{ dir }} plan -out {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
+
+[group('iac')]
+apply dir:
+    @just _terraform {{ dir }} apply {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
+    rm {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
+
+[group('iac')]
+output dir *args:
+    @just _terraform {{ dir }} output {{ args }}

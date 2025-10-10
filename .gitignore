@@ -11,6 +11,7 @@
 .terraformrc
 /.claude/settings.json
 /.devenv.flake.nix
+/.terraform-plans/
 dist/
 node_modules/
 override.tf
