@@ -24,6 +24,7 @@ in {
     fastly
     fd
     just
+    postgresql
     zsh
 
     # SSL

@@ -1,0 +1,212 @@
+#+title:   Terraform
+#+startup: content
+
+* State in PostgreSQL
+We'll be making use of a staging area that needs to exist.
+
+#+begin_src sh :results silent :dir /ssh:compute:
+mkdir -p ~/postgres-certs
+#+end_src
+
+** Create server certificate
+:properties:
+:header-args: :dir /ssh:compute:~/postgres-certs
+:end:
+*** Generate certificate authority
+#+begin_src sh :results silent
+sudo openssl req -new -x509 -days 3650 -nodes -text \
+  -out ca.crt \
+  -keyout ca.key \
+  -subj "/CN=Compute-Postgres-CA"
+#+end_src
+
+*** Fix permissions
+#+begin_src sh :results silent
+sudo chmod 644 ca.crt
+sudo chmod 600 ca.key
+#+end_src
+
+*** Verify our work
+#+begin_src sh :results output verbatim
+ls -alh
+#+end_src
+
+#+results:
+#+begin_example
+total 53K
+drwxr-xr-x  2 jcf  users    9 Oct  9 23:39 .
+drwx------ 10 jcf  users   17 Oct  9 23:29 ..
+-rw-r--r--  1 root root  4.1K Oct  9 23:39 ca.crt
+-rw-------  1 root root  1.7K Oct  9 23:39 ca.key
+#+end_example
+
+*** Generate certificate signing request
+#+begin_src sh :results silent
+openssl req -new -nodes -text \
+  -out server.csr \
+  -keyout server.key \
+  -subj "/CN=compute"
+#+end_src
+
+*** Generate certificate
+#+begin_src sh :results silent
+sudo openssl x509 -req -in server.csr \
+  -text -days 3650 \
+  -CA ca.crt \
+  -CAkey ca.key \
+  -CAcreateserial \
+  -out server.crt
+#+end_src
+
+*** Fix permissions
+#+begin_src sh :results silent
+chmod 644 server.crt
+chmod 600 server.key
+#+end_src
+
+*** Verify our work
+#+begin_src sh :results output verbatim
+ls -alh
+#+end_src
+
+#+results:
+#+begin_example
+total 57K
+drwxr-xr-x  2 jcf  users   10 Oct  9 23:42 .
+drwx------ 10 jcf  users   17 Oct  9 23:29 ..
+-rw-r--r--  1 root root  4.1K Oct  9 23:39 ca.crt
+-rw-------  1 root root  1.7K Oct  9 23:39 ca.key
+-rw-r--r--  1 root root    41 Oct  9 23:42 ca.srl
+-rw-r--r--  1 root root  4.0K Oct  9 23:42 server.crt
+-rw-r--r--  1 jcf  users 3.3K Oct  9 23:41 server.csr
+-rw-------  1 jcf  users 1.7K Oct  9 23:41 server.key
+#+end_example
+
+** Client certificate for Terraform
+:properties:
+:header-args: :dir /ssh:compute:~/postgres-certs
+:end:
+*** Create signing request
+#+begin_src sh :results silent
+openssl req -new -nodes -text \
+  -out client.csr \
+  -keyout client.key \
+  -subj "/CN=terraform"
+#+end_src
+
+*** Create client certificate
+#+begin_src sh :results silent
+sudo openssl x509 -req -in client.csr \
+  -text -days 3650 \
+  -CA ca.crt \
+  -CAkey ca.key \
+  -CAcreateserial \
+  -out client.crt
+#+end_src
+
+*** Fix permissions
+#+begin_src sh :results silent
+sudo chmod 644 client.crt
+sudo chmod 600 client.key
+#+end_src
+
+*** Verify our work
+#+begin_src sh :results output verbatim
+ls -alh
+#+end_src
+
+#+results:
+#+begin_example
+total 62K
+drwxr-xr-x  2 jcf  users   11 Oct  9 23:45 .
+drwx------ 10 jcf  users   17 Oct  9 23:29 ..
+-rw-r--r--  1 root root  4.1K Oct  9 23:39 ca.crt
+-rw-------  1 root root  1.7K Oct  9 23:39 ca.key
+-rw-r--r--  1 root root    41 Oct  9 23:45 ca.srl
+-rw-r--r--  1 root root  4.0K Oct  9 23:45 client.crt
+-rw-r--r--  1 jcf  users 3.3K Oct  9 23:44 client.csr
+-rw-------  1 jcf  users 1.7K Oct  9 23:44 client.key
+-rw-r--r--  1 root root  4.0K Oct  9 23:42 server.crt
+-rw-r--r--  1 jcf  users 3.3K Oct  9 23:41 server.csr
+-rw-------  1 jcf  users 1.7K Oct  9 23:41 server.key
+#+end_example
+
+** Install certificates on the server
+:properties:
+:header-args: :dir /ssh:compute:~/postgres-certs
+:end:
+#+begin_src sh :results silent
+sudo cp ca.crt server.crt server.key /persist/var/lib/postgresql/
+sudo chown postgres:postgres /persist/var/lib/postgresql/{ca.crt,server.crt,server.key}
+sudo chmod 644 /persist/var/lib/postgresql/ca.crt
+sudo chmod 644 /persist/var/lib/postgresql/server.crt
+sudo chmod 600 /persist/var/lib/postgresql/server.key
+#+end_src
+
+** Install certificates on the client
+#+begin_src sh :results silent
+mkdir -p ~/.config/pg
+
+scp compute:~/postgres-certs/client.crt ~/.config/pg/postgresql.crt
+scp compute:~/postgres-certs/client.key ~/.config/pg/postgresql.key
+scp compute:~/postgres-certs/ca.crt ~/.config/pg/root.crt
+
+chmod 600 ~/.config/pg/postgresql.key
+chmod 644 ~/.config/pg/postgresql.crt
+chmod 644 ~/.config/pg/root.crt
+#+end_src
+
+** Verify our certificate
+#+begin_src sh :eval never
+psql "host=compute.lan.invetica.co.uk dbname=terraform user=terraform sslmode=verify-full"
+#+end_src
+
+** Now with SANs
+:properties:
+:header-args: :dir /ssh:compute:~/postgres-certs
+:end:
+#+begin_src sh :results silent
+# Create OpenSSL config for SANs
+cat > server.cnf <<EOF
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = compute
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = compute
+DNS.2 = compute.lan.invetica.co.uk
+IP.1 = 100.94.209.96
+IP.2 = 10.10.10.40
+EOF
+
+# Generate new server cert with SANs
+openssl req -new -nodes -text \
+  -out server.csr \
+  -keyout server.key \
+  -config server.cnf
+
+sudo openssl x509 -req -in server.csr \
+  -text -days 3650 \
+  -CA ca.crt \
+  -CAkey ca.key \
+  -CAcreateserial \
+  -extfile server.cnf \
+  -extensions v3_req \
+  -out server.crt
+
+# Install
+sudo cp server.crt server.key /persist/var/lib/postgresql/
+sudo chown postgres:postgres /persist/var/lib/postgresql/server.{crt,key}
+sudo chmod 600 /persist/var/lib/postgresql/server.key
+sudo chmod 644 /persist/var/lib/postgresql/server.crt
+
+# Restart Postgres
+sudo systemctl restart postgresql
+#+end_src

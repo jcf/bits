@@ -1,5 +1,17 @@
+**/.terraform/*
 *.pem
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*_override.tf
+*_override.tf.json
 .astro
+.terraform.lock.hcl
+.terraformrc
 /.claude/settings.json
 /.devenv.flake.nix
 node_modules/
+override.tf
+override.tf.json
+terraform.rc
