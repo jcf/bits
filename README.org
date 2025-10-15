@@ -23,20 +23,21 @@ just
 #+begin_example
 Available recipes:
     [dev]
-    dev
-    fmt
+    dev              # Fire up a local development environment
+    fmt              # Format project files
 
     [docs]
-    decide +title
+    decide +title    # Create a new decision record
 
     [iac]
-    apply dir
-    output dir *args
-    plan dir
+    apply dir        # Apply one or all Terraform projects
+    init dir *args   # Initialize one or all Terraform projects
+    output dir *args # Interact with outputs from the named Terraform project
+    plan dir         # Plan one or all Terraform projects
 
     [setup]
-    mkcert
-    setup
+    mkcert           # Create self-signed SSL certificates via mkcert
+    setup            # Setup a local development environment
 #+end_example
 
 * Development
