@@ -55,17 +55,54 @@ first time you fire things up.
 
 With a running development environment, one has access to the following:
 
-1. [[https://land.invetica.dev][land.invetica.dev]]: Landing page where people can find out more about Bits.
-1. [[https://edit.invetica.dev/][edit.invetica.dev]]: Admin panel for customizing your page.
-2. [[https://*.page.invetica.dev/][*.page.invetica.dev]]: The Bits experience.
+1. [[https://www.bits.test][www.bits.test]]: Landing page where people can find out more about Bits.
+2. [[https://edit.bits.test/][edit.bits.test]]: Admin panel for customizing your page.
+3. [[https://*.page.bits.test/][*.page.bits.test]]: The Bits experience.
+
+** Certificates
+#+begin_src zsh :eval never
+just mkcert
+#+end_src
+
+#+begin_src sh :results output verbatim
+ls -1 certs
+#+end_src
+
+#+results:
+: _wildcard.bits.test-key.pem
+: _wildcard.bits.test.pem
+: _wildcard.page.bits.test-key.pem
+: _wildcard.page.bits.test.pem
 
 * Tests
 ** Development URLs
+*** Setup
+To get our =*.test= URLs to work takes some effort with DNS.
+
+#+begin_src sh :results output table :colnames '("Host" "Address")
+drill bits.test | awk '/^bits/ { print $1 "\t" $5 }'
+#+end_src
+
+#+results:
+| Host       |   Address |
+|------------+-----------|
+| bits.test. | 127.0.0.1 |
+
+#+begin_src sh :results output verbatim
+cat /etc/resolver/test
+#+end_src
+
+#+results:
+: nameserver 10.10.10.254
+
+*** Test
+
 #+begin_src zsh :results output verbatim
 urls=(
-  https://edit.invetica.dev
-  https://land.invetica.dev
-  https://page.invetica.dev
+  https://www.bits.test
+  https://edit.bits.test
+  https://page.bits.test
+  https://jcf.page.bits.test
 )
 
 for url in $urls; do
@@ -79,6 +116,7 @@ done
 #+end_src
 
 #+results:
-: ✅ https://edit.invetica.dev
-: ✅ https://land.invetica.dev
-: ✅ https://page.invetica.dev
+: ✅ https://www.bits.test
+: ✅ https://edit.bits.test
+: ✅ https://page.bits.test
+: ❌ https://jcf.page.bits.test (404)

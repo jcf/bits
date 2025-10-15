@@ -1,3 +1,4 @@
+domain := "bits.test"
 plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
@@ -7,18 +8,20 @@ _default:
 [group('setup')]
 mkcert:
     #!/usr/bin/env zsh
+    set -e
+
     mkcert -install
     mkdir -p {{ justfile_directory() }}/certs
     cd {{ justfile_directory() }}/certs
 
-    # Generate wildcard cert for *.invetica.dev (covers edit.invetica.dev, page.invetica.dev)
-    if [[ ! -f "_wildcard.invetica.dev.pem" ]]; then
-      mkcert '*.invetica.dev'
+    # Generate wildcard cert for *.test (covers edit.test, page.test)
+    if [[ ! -f "_wildcard.{{ domain }}.pem" ]]; then
+      mkcert '*.{{ domain }}'
     fi
 
-    # Generate wildcard cert for *.page.invetica.dev (covers customer subdomains)
-    if [[ ! -f "_wildcard.page.invetica.dev.pem" ]]; then
-      mkcert '*.page.invetica.dev'
+    # Generate wildcard cert for customer subdomains
+    if [[ ! -f "_wildcard.page.{{ domain }}.pem" ]]; then
+      mkcert '*.page.{{ domain }}'
     fi
 
     echo >&2 "🔒 Wildcard certificates ready!"
@@ -77,7 +80,7 @@ apply dir:
     @just _terraform {{ dir }} apply {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
     rm {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
 
-# Interact with outputs from the named Terraform project
+# Interact with outputs one or all Terraform projects
 [group('iac')]
 output dir *args:
     @just _terraform {{ dir }} output {{ args }}

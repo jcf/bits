@@ -1,9 +1,12 @@
 {
-  pkgs,
   config,
+  lib,
+  pkgs,
   ...
 }: let
   dev = {
+    domain = "bits.test";
+
     ports = {
       edit = 3060;
       page = 3030;
@@ -15,9 +18,9 @@ in {
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
-    DOMAIN_EDIT = "edit.invetica.dev";
-    DOMAIN_PAGE = "page.invetica.dev";
-    DOMAIN_WWW = "land.invetica.dev";
+    DOMAIN_EDIT = "edit.${dev.domain}";
+    DOMAIN_PAGE = "page.${dev.domain}";
+    DOMAIN_WWW = "www.${dev.domain}";
   };
 
   packages = with pkgs; [
@@ -25,6 +28,7 @@ in {
     fastly
     fd
     just
+    ldns # drill
     postgresql
     zsh
 
@@ -64,10 +68,10 @@ in {
       # Edit app
       server {
         listen 443 ssl;
-        server_name edit.invetica.dev;
+        server_name edit.${dev.domain};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.invetica.dev.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.invetica.dev-key.pem;
+        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}.pem;
+        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}-key.pem;
 
         location / {
           proxy_pass http://edit;
@@ -84,10 +88,10 @@ in {
       # Page app
       server {
         listen 443 ssl;
-        server_name page.invetica.dev;
+        server_name page.${dev.domain};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.invetica.dev.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.invetica.dev-key.pem;
+        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}.pem;
+        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}-key.pem;
 
         location / {
           proxy_pass http://page;
@@ -101,13 +105,13 @@ in {
         }
       }
 
-      # Customer subdomains (*.page.invetica.dev)
+      # Customer subdomains (*.page.${dev.domain})
       server {
         listen 443 ssl;
-        server_name ~^(?<customer>.+)\.page\.invetica\.dev$;
+        server_name ~^(?<customer>.+)\.page\.${lib.escapeRegex dev.domain}$;
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.page.invetica.dev.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.page.invetica.dev-key.pem;
+        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.page.${dev.domain}.pem;
+        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.page.${dev.domain}-key.pem;
 
         location / {
           proxy_pass http://page;
@@ -124,15 +128,15 @@ in {
 
       # `www` is not a loopback address so we use `land`.
       #
-      # ➜ drill www.invetica.dev | rg '^www'
-      # www.invetica.dev.       274     IN      A       172.67.178.210
-      # www.invetica.dev.       274     IN      A       104.21.48.58
+      # ➜ drill www.${dev.domain} | rg '^www'
+      # www.${dev.domain}.       274     IN      A       172.67.178.210
+      # www.${dev.domain}.       274     IN      A       104.21.48.58
       server {
         listen 443 ssl;
-        server_name land.invetica.dev;
+        server_name www.${dev.domain};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.invetica.dev.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.invetica.dev-key.pem;
+        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}.pem;
+        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}-key.pem;
 
         location / {
           proxy_pass http://www;
@@ -157,19 +161,19 @@ in {
   process.managers.process-compose.settings.processes = {
     edit = {
       environment = [
-        "ASTRO_SITE=https://edit.invetica.dev"
+        "ASTRO_SITE=https://edit.${dev.domain}"
         "PORT=${toString dev.ports.edit}"
       ];
     };
     page = {
       environment = [
-        "ASTRO_SITE=https://page.invetica.dev"
+        "ASTRO_SITE=https://page.${dev.domain}"
         "PORT=${toString dev.ports.page}"
       ];
     };
     www = {
       environment = [
-        "ASTRO_SITE=https://land.invetica.dev"
+        "ASTRO_SITE=https://www.${dev.domain}"
         "PORT=${toString dev.ports.www}"
       ];
     };
