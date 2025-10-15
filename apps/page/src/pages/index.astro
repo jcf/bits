@@ -1,8 +1,9 @@
 ---
 import config from "@bits/shared/config";
-import Link from '@bits/shared/components/Link';
+import { subURL } from "@bits/shared/utils/page";
+import Link from "@bits/shared/components/Link";
 
-import Layout from '@/layouts/Layout.astro';
+import Layout from "@/layouts/Layout.astro";
 
 const { tenant, subdomain, invalidTenant } = Astro.locals;
 
@@ -12,27 +13,36 @@ if (invalidTenant) {
 ---
 
 <Layout title={tenant ? tenant.name : "Bits Page"}>
-  {invalidTenant ? (
-  <>
-    <h1>Tenant Not Found</h1>
-    <p>The site <strong>{subdomain}</strong> does not exist.</p>
-    <p><Link href={config.apps.www.url}>Visit the main site</Link></p>
-  </>
-  ) : tenant ? (
-  <>
-    <h1>{tenant.name}</h1>
-    <p>Welcome to the {tenant.name} site (subdomain: {subdomain})</p>
-  </>
-  ) : (
-  <>
-    <h1>bits.page</h1>
-    <p>Welcome to the Bits page application.</p>
-    <p>
-      Try visiting
-      <Link href="https://foo.page.invetica.dev">foo.page.invetica.dev</Link>
-      or
-      <Link href="https://bar.page.invetica.dev">bar.page.invetica.dev</Link>
-    </p>
-  </>
-  )}
+  {
+    invalidTenant ? (
+      <>
+        <h1>Tenant Not Found</h1>
+        <p>
+          The site <strong>{subdomain}</strong> does not exist.
+        </p>
+        <p>
+          <Link href={config.apps.www.url}>Visit the main site</Link>
+        </p>
+      </>
+    ) : tenant ? (
+      <section class="flex grow items-center justify-center">
+        <div class="space-y-2 text-center">
+          <h1 class="text-pretty text-6xl font-bold">{tenant.name}</h1>
+          <p class="text-neutral-400">
+            Welcome to the <b>{tenant.name}</b> site.
+          </p>
+        </div>
+      </section>
+    ) : (
+      <section class="flex grow items-center justify-center">
+        <div class="text-center">
+          <p>Welcome to the Bits page application.</p>
+          <p>
+            Try visiting
+            <Link href={subURL("jcf")}>{subURL("jcf")}</Link>.
+          </p>
+        </div>
+      </section>
+    )
+  }
 </Layout>

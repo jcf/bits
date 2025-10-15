@@ -1,6 +1,8 @@
 ---
-import config from '@bits/shared/config';
-import Link from '@bits/shared/components/Link';
+import config from "@bits/shared/config";
+import Container from "@bits/shared/components/Container";
+import Link from "@bits/shared/components/Link";
+import Header from "@/components/Header.astro";
 
 import "@/styles/global.css";
 
@@ -9,25 +11,33 @@ export interface Props {
 }
 
 const { title } = Astro.props;
+const { tenant } = Astro.locals;
 ---
 
 <!doctype html>
-<html lang="en" class="antialiased min-h-screen">
+<html lang="en" class="min-h-screen antialiased">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content="Bits - A modern web application" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
   </head>
-  <body class="min-h-screen flex flex-col">
-    <main class="grow">
+  <body class="flex min-h-screen flex-col">
+    {!tenant && <Header />}
+
+    <main class="flex grow flex-col">
       <slot />
     </main>
 
-    <footer>
-      <p class="text-sm">
-        Brought to you by <Link class="font-semibold" href={config.apps.www.url}>Bits</Link>.
-      </p>
+    <footer class="py-4">
+      <Container>
+        <p class="text-sm">
+          Brought to you by <Link
+            class="font-semibold"
+            href={config.apps.www.url}>Bits</Link
+          >.
+        </p>
+      </Container>
     </footer>
   </body>
 </html>

@@ -8,8 +8,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Simple tenant data
   const tenants = {
-    foo: { name: "Foo Site" },
-    bar: { name: "Bar Site" },
+    jcf: { name: "James Conroy-Finn" },
   };
 
   // Check if this looks like a tenant request (not www, localhost, or base domain)
