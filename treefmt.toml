@@ -1,7 +1,18 @@
 [formatter.javascript]
 command = "prettier"
 options = ["--cache", "--write"]
-includes = ["*.js", "*.jsx", "*.ts", "*.tsx", "*.json", "*.md", "*.yaml", "*.yml"]
+includes = [
+  "*.astro",
+  "*.js",
+  "*.json",
+  "*.jsx",
+  "*.md",
+  "*.svelte",
+  "*.ts",
+  "*.tsx",
+  "*.yaml",
+  "*.yml",
+]
 excludes = ["node_modules/**", "pnpm-lock.yaml"]
 
 [formatter.just]

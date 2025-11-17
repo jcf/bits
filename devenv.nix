@@ -4,7 +4,7 @@
   pkgs,
   ...
 }: let
-  root = config.env.DEVENV_ROOT;
+  root = config.devenv.root;
 
   dev = {
     upstreams = {
@@ -48,10 +48,29 @@
     };
   };
 in {
-  claude.code.enable = true;
+  claude.code = {
+    enable = true;
+
+    mcpServers = {
+      devenv = {
+        type = "stdio";
+        command = "devenv";
+        args = ["mcp"];
+        env = {
+          DEVENV_ROOT = root;
+        };
+      };
+
+      svelte = {
+        type = "stdio";
+        command = "svelte";
+      };
+    };
+  };
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
+    DATABASE_URL = "op://Bits/neon/password";
     DOMAIN_EDIT = dev.hosts.edit.domain;
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;

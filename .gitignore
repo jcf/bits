@@ -7,13 +7,16 @@
 *_override.tf
 *_override.tf.json
 .astro
+.claude/settings.local.json
 .terraform.lock.hcl
 .terraformrc
 /.claude/settings.json
 /.devenv.flake.nix
+/.mcp.json
 /.terraform-plans/
 dist/
 node_modules/
 override.tf
 override.tf.json
+project.inlang/
 terraform.rc

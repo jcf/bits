@@ -4,9 +4,11 @@
   "type": "module",
   "scripts": {
     "build": "pnpm --recursive build",
+    "build:demo": "pnpm --filter @bits/demo build",
     "build:edit": "pnpm --filter @bits/edit build",
     "build:page": "pnpm --filter @bits/page build",
     "build:www": "pnpm --filter @bits/www build",
+    "dev:demo": "pnpm --filter @bits/demo dev",
     "dev:edit": "pnpm --filter @bits/edit dev",
     "dev:page": "pnpm --filter @bits/page dev",
     "dev:www": "pnpm --filter @bits/www dev",
@@ -18,6 +20,7 @@
     "@types/node": "^24.7.1",
     "prettier": "^3.6.2",
     "prettier-plugin-astro": "^0.14.1",
+    "prettier-plugin-svelte": "^3.4.0",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "typescript": "catalog:"
   }
