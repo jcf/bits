@@ -40,6 +40,38 @@ Available recipes:
     setup            # Setup a local development environment
 #+end_example
 
+** SLOC
+#+begin_src sh :results output verbatim
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Astro                    15          298          256            0           42
+ CSS                       3           10           10            0            0
+ HCL                      12          390          324           13           53
+ JavaScript                3          106           90            0           16
+ JSON                      8          140          140            0            0
+ Just                      1           99           59           25           15
+ MDX                       1           56            0           39           17
+ Nix                       2          228          190            8           30
+ Org                       5          442          368            4           70
+ Rust                      1           56           29           23            4
+ TOML                      4           69           53            2           14
+ TypeScript                5           82           63            5           14
+ YAML                      3         5485         4314            0         1171
+─────────────────────────────────────────────────────────────────────────────────
+ Markdown                  1           43            0           24           19
+ |- Shell                  1            4            4            0            0
+ (Total)                               47            4           24           19
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                    64         7508         5900          143         1465
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
+
 * Development
 I would recommend installing [[https://devenv.sh][=devenv=]] to simplify setting up a working
 development environment. With =devenv= installed, one can spin up a development

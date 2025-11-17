@@ -64,6 +64,7 @@ in {
     just
     ldns # drill
     postgresql
+    tokei
     zsh
 
     # SSL
