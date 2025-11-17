@@ -1,22 +1,29 @@
 import { defineMiddleware } from "astro:middleware";
 
+const domain = process.env.DOMAIN_PAGE;
+
+function extractSubdomain(hostname, domain) {
+  if (!hostname.endsWith(`.${domain}`)) return null;
+  return hostname.slice(0, -(domain.length + 1));
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const hostname = new URL(context.request.url).hostname;
 
-  // Extract subdomain: foo.localhost or foo.page.dev -> foo
-  const subdomain = hostname.split(".")[0];
+  const subdomain = extractSubdomain(hostname, domain);
 
   // Simple tenant data
   const tenants = {
     jcf: { name: "James Conroy-Finn" },
   };
 
-  // Check if this looks like a tenant request (not www, localhost, or base domain)
   const isTenantRequest =
-    subdomain &&
+    subdomain !== null &&
     subdomain !== "localhost" &&
     subdomain !== "page" &&
     subdomain !== "www";
+
+  console.log("Routing bits.page request", { subdomain, isTenantRequest });
 
   if (isTenantRequest) {
     if (tenants[subdomain]) {

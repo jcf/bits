@@ -1,4 +1,3 @@
-domain := "bits.test"
 plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
@@ -14,15 +13,29 @@ mkcert:
     mkdir -p {{ justfile_directory() }}/certs
     cd {{ justfile_directory() }}/certs
 
-    # Generate wildcard cert for *.test (covers edit.test, page.test)
-    if [[ ! -f "_wildcard.{{ domain }}.pem" ]]; then
-      mkcert '*.{{ domain }}'
-    fi
+    # We append .test to all domains during development. The following domains
+    # need to be supported:
+    #
+    # -- usebits.app
+    # api.usebits.app
+    # edit.usebits.app
+    # www.usebits.app
+    #
+    # -- bits.page
+    # bits.page
+    # jcf.bits.page
+    domains=(
+        app.test
+        usebits.app.test
+        bits.page.test
+        page.test
+    )
 
-    # Generate wildcard cert for customer subdomains
-    if [[ ! -f "_wildcard.page.{{ domain }}.pem" ]]; then
-      mkcert '*.page.{{ domain }}'
-    fi
+    for domain in $domains; do
+        if [[ ! -f "_wildcard.${domain}.pem" ]]; then
+            mkcert "*.${domain}"
+        fi
+    done
 
     echo >&2 "🔒 Wildcard certificates ready!"
 

@@ -4,13 +4,47 @@
   pkgs,
   ...
 }: let
-  dev = {
-    domain = "bits.test";
+  root = config.env.DEVENV_ROOT;
 
-    ports = {
-      edit = 3060;
-      page = 3030;
-      www = 3000;
+  dev = {
+    upstreams = {
+      page = {port = 3030;};
+      edit = {port = 3060;};
+      www = {port = 3090;};
+    };
+
+    hosts = {
+      page = {
+        domain = "bits.page.test";
+        upstream = "page";
+        certPem = "${root}/certs/_wildcard.page.test.pem";
+        certKey = "${root}/certs/_wildcard.page.test-key.pem";
+      };
+
+      page-customers = {
+        domain = "bits.page.test";
+        pattern = "~^(?<customer>.+)\\.bits\\.page\\.test$";
+        upstream = "page";
+        certPem = "${root}/certs/_wildcard.bits.page.test.pem";
+        certKey = "${root}/certs/_wildcard.bits.page.test-key.pem";
+        extraHeaders = ''
+          proxy_set_header X-Customer $customer;
+        '';
+      };
+
+      edit = {
+        domain = "edit.usebits.app.test";
+        upstream = "edit";
+        certPem = "${root}/certs/_wildcard.usebits.app.test.pem";
+        certKey = "${root}/certs/_wildcard.usebits.app.test-key.pem";
+      };
+
+      www = {
+        domain = "www.usebits.app.test";
+        upstream = "www";
+        certPem = "${root}/certs/_wildcard.usebits.app.test.pem";
+        certKey = "${root}/certs/_wildcard.usebits.app.test-key.pem";
+      };
     };
   };
 in {
@@ -18,9 +52,9 @@ in {
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
-    DOMAIN_EDIT = "edit.${dev.domain}";
-    DOMAIN_PAGE = "page.${dev.domain}";
-    DOMAIN_WWW = "www.${dev.domain}";
+    DOMAIN_EDIT = dev.hosts.edit.domain;
+    DOMAIN_PAGE = dev.hosts.page.domain;
+    DOMAIN_WWW = dev.hosts.www.domain;
   };
 
   packages = with pkgs; [
@@ -54,27 +88,27 @@ in {
       error_log stderr error;
 
       upstream edit {
-        server localhost:${toString dev.ports.edit};
+        server localhost:${toString dev.upstreams.edit.port};
       }
 
       upstream page {
-        server localhost:${toString dev.ports.page};
+        server localhost:${toString dev.upstreams.page.port};
       }
 
       upstream www {
-        server localhost:${toString dev.ports.www};
+        server localhost:${toString dev.upstreams.www.port};
       }
 
-      # Edit app
+      # ${dev.hosts.edit.domain}
       server {
         listen 443 ssl;
-        server_name edit.${dev.domain};
+        server_name ${dev.hosts.edit.domain};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}-key.pem;
+        ssl_certificate ${dev.hosts.edit.certPem};
+        ssl_certificate_key ${dev.hosts.edit.certKey};
 
         location / {
-          proxy_pass http://edit;
+          proxy_pass http://${dev.hosts.edit.upstream};
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -85,16 +119,16 @@ in {
         }
       }
 
-      # Page app
+      # ${dev.hosts.page.domain}
       server {
         listen 443 ssl;
-        server_name page.${dev.domain};
+        server_name ${dev.hosts.page.domain};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}-key.pem;
+        ssl_certificate ${dev.hosts.page.certPem};
+        ssl_certificate_key ${dev.hosts.page.certKey};
 
         location / {
-          proxy_pass http://page;
+          proxy_pass http://${dev.hosts.page.upstream};
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -105,16 +139,16 @@ in {
         }
       }
 
-      # Customer subdomains (*.page.${dev.domain})
+      # ${dev.hosts.page-customers.pattern}
       server {
         listen 443 ssl;
-        server_name ~^(?<customer>.+)\.page\.${lib.escapeRegex dev.domain}$;
+        server_name ${dev.hosts.page-customers.pattern};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.page.${dev.domain}.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.page.${dev.domain}-key.pem;
+        ssl_certificate ${dev.hosts.page-customers.certPem};
+        ssl_certificate_key ${dev.hosts.page-customers.certKey};
 
         location / {
-          proxy_pass http://page;
+          proxy_pass http://${dev.hosts.page-customers.upstream};
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -122,24 +156,20 @@ in {
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
-          proxy_set_header X-Customer $customer;
+          ${dev.hosts.page-customers.extraHeaders}
         }
       }
 
-      # `www` is not a loopback address so we use `land`.
-      #
-      # ➜ drill www.${dev.domain} | rg '^www'
-      # www.${dev.domain}.       274     IN      A       172.67.178.210
-      # www.${dev.domain}.       274     IN      A       104.21.48.58
+      # ${dev.hosts.www.domain}
       server {
         listen 443 ssl;
-        server_name www.${dev.domain};
+        server_name ${dev.hosts.www.domain};
 
-        ssl_certificate ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}.pem;
-        ssl_certificate_key ${config.env.DEVENV_ROOT}/certs/_wildcard.${dev.domain}-key.pem;
+        ssl_certificate ${dev.hosts.www.certPem};
+        ssl_certificate_key ${dev.hosts.www.certKey};
 
         location / {
-          proxy_pass http://www;
+          proxy_pass http://${dev.hosts.www.upstream};
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -161,20 +191,20 @@ in {
   process.managers.process-compose.settings.processes = {
     edit = {
       environment = [
-        "ASTRO_SITE=https://edit.${dev.domain}"
-        "PORT=${toString dev.ports.edit}"
+        "ASTRO_SITE=https://${dev.hosts.edit.domain}"
+        "PORT=${toString dev.upstreams.edit.port}"
       ];
     };
     page = {
       environment = [
-        "ASTRO_SITE=https://page.${dev.domain}"
-        "PORT=${toString dev.ports.page}"
+        "ASTRO_SITE=https://${dev.hosts.page.domain}"
+        "PORT=${toString dev.upstreams.page.port}"
       ];
     };
     www = {
       environment = [
-        "ASTRO_SITE=https://www.${dev.domain}"
-        "PORT=${toString dev.ports.www}"
+        "ASTRO_SITE=https://${dev.hosts.www.domain}"
+        "PORT=${toString dev.upstreams.www.port}"
       ];
     };
   };

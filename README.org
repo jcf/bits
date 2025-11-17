@@ -98,10 +98,10 @@ cat /etc/resolver/test
 *** Test
 #+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
 urls=(
-  https://www.bits.test
-  https://edit.bits.test
-  https://page.bits.test
-  https://jcf.page.bits.test
+  https://www.usebits.app.test
+  https://edit.usebits.app.test
+  https://bits.page.test
+  https://jcf.bits.page.test
 )
 
 for url in $urls; do
@@ -115,7 +115,7 @@ done
 #+end_src
 
 #+results:
-: ✅ https://www.bits.test
-: ✅ https://edit.bits.test
-: ✅ https://page.bits.test
-: ✅ https://jcf.page.bits.test
+: ✅ https://www.usebits.app.test
+: ✅ https://edit.usebits.app.test
+: ✅ https://bits.page.test
+: ✅ https://jcf.bits.page.test
