@@ -1,3 +1,4 @@
+**/.claude/settings.local.json
 **/.terraform/*
 *.pem
 *.tfstate
@@ -7,7 +8,6 @@
 *_override.tf
 *_override.tf.json
 .astro
-.claude/settings.local.json
 .terraform.lock.hcl
 .terraformrc
 /.claude/settings.json
