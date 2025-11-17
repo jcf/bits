@@ -96,8 +96,7 @@ cat /etc/resolver/test
 : nameserver 10.10.10.254
 
 *** Test
-
-#+begin_src zsh :results output verbatim
+#+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
 urls=(
   https://www.bits.test
   https://edit.bits.test
@@ -119,4 +118,4 @@ done
 : ✅ https://www.bits.test
 : ✅ https://edit.bits.test
 : ✅ https://page.bits.test
-: ❌ https://jcf.page.bits.test (404)
+: ✅ https://jcf.page.bits.test
