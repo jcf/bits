@@ -101,6 +101,8 @@ in {
   languages.javascript.enable = true;
   languages.javascript.pnpm.enable = true;
 
+  languages.rust.enable = true;
+
   # Nginx reverse proxy
   services.nginx = {
     enable = true;
