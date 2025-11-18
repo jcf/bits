@@ -1,0 +1,140 @@
+#+title:  Mission over SaaS startup playbook
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2025-11-18
+
+Bits isn't a SaaS business where a exhaustively-documented closed source product
+development process driven by demos and customer interviews trumps all.
+
+We are building infrastructure for a more egalitarian society. Throughout
+history, ruling elites have captured power—pharaohs, emperors, despots.
+Technology promised liberation, but a nepotistic leisure class of
+Harvard-educated tech billionaires has captured that value instead.
+
+Bits empowers everyone equally by placing transformative technology in the hands
+of the majority. Much like Signal, Wordpress of old, and Linux we aim to make it
+trivial for individuals to connect, exchange goods and services, and to do so
+without minoritarian interference.
+
+This mission brings a clarity to our approach. Accessibility and censorship
+resistance are paramount. Ease of use and flexible deployment options are
+pivotal.
+
+What does this mean in practice?
+
+* Single binary written in Rust
+Python, Ruby, and JVM-based languages all suffer from the same deployment
+complexity whereby disparate files and arcane executables come together via
+POSIX paths, ecosystem-specific load paths and classpaths, and custom package
+managers.
+
+Projects like =uv= aim to save us from Python dependency hell. Bundler made
+working with Ruby less painful. Clojure has Leiningen, Boot, and tools.deps. All
+of this incidental complexity is overwhelming and unnecessary.
+
+Rust cannot sidestep the complexity of compilation, and is woefully inadequate
+relative to any Lisp with REPL-driven development, but my productivity and needs
+must come second to the experience of the community I hope to build.
+
+Running Bits for yourself should be as simple as:
+
+#+begin_src sh :results output verbatim
+./bits serve --port 3142
+#+end_src
+
+* SvelteKit client baked into the single binary
+App Stores limit distribution relative to web browsers, and impose extreme
+financial duress versus direct payment. The prevalence of browsers and HTTP make
+it an obvious choice for connecting a globally-distributed community.
+
+Unfortunately, modern browsers building on top of the combination of HTML, CSS,
+JavaScript, and other multimedia benefit from the use of build tools such as
+Vite.
+
+Having built web applications at a time when jQuery didn't exist, I am acutely
+aware that reactivity, state management, and excellent user experiences require
+abstraction to be practical.
+
+I will avoid a lengthy comparison of frameworks and technologies here. SvelteKit
+is highly efficient, well established, and effective at delivering such
+experiences.
+
+* PostgreSQL for persistent state
+PostgreSQL is open source, widely supported (cPanel, Neon, cloud providers), and
+eliminates the SQLite → PostgreSQL migration pain that plagues self-hosted tools
+like Gitea.
+
+For those unable or unwilling to manage PostgreSQL themselves, hosted instances
+will be available. For those who can, sovereignty through self-hosting is
+straightforward.
+
+* Self-hosting with optional infrastructure acceleration
+We find ourselves in a world of tech titans and gargantuan platforms that herd
+the masses like the tax cattle of old. These established institutions leveraged
+carefully can accelerate our progress. Think of the vine that ascends the tree
+to reach sunlight faster than any other.
+
+Bits runs anywhere: =./bits serve= on your hardware, or use existing
+infrastructure like Cloudflare, Hetzner, or cPanel to accelerate deployment.
+
+We build for the tree, but offer vines to those who want them.
+
+* Moderation and signal management
+Individuals control their experience. Instance operators set policies for their
+communities. We provide tools, not mandates.
+
+During my time working on social networks with content creators I worked on
+applying human social circles to audience cultivation. One's inner circle are
+most trusted, and one might permit those people to populate a feed or inbox.
+Over time, examples of behaviour justify either pulling or pushing someone
+closer. This geometric idea of scoring users with boundary conditions is
+something we'll explore in more detail.
+
+* Ethics
+I want to make clear my personal position on what is acceptable and what is not.
+
+Firstly, I am an anarchist. What that means to me is I have zero respect for
+institutions. I respect individuals, I respect nature, I respect the laws of our
+objective reality. I consider companies, churches, countries, castes, and
+governments to be nothing more than man-made inventions that all too often
+undermine humanism and subject people to entirely avoidable kafkaesque
+experiences. I've lost count of the number of times I've heard someone excuse
+abhorrent behaviour by saying "it's in the company's best interest".
+
+I believe we are all entitled to our own beliefs, but that our beliefs are not
+sacred and should stand up to criticism. My aforementioned beliefs regarding
+companies are loosely held and open to challenge.
+
+Informed consent and mutual respect. There's a time and place to challenge one
+another. If you publish an opinion, you invite a response. If you want quiet,
+you must be silent yourself. We may all shout into the void. I want to build
+tools to help surface signal and manage the noise.
+
+Only through curiosity and kindness can we understand one another and progress
+as a species.
+
+If I build Bits correctly, I cannot stop unethical actors from using Bits. In
+much the same way locks on doors, encrypted messages, and anonymous online
+accounts enable unethical behaviour, people with different values to my own
+could use the technology I am building to do things I would consider deplorable.
+
+I cannot know that my ethics are objectively valid. I believe the categorical
+imperative makes sense. I believe informed consent inhibits abuse. I believe
+abuse is bad. It is apparent the universe itself allows for any such behaviour
+and others may disagree with what I consider to be right.
+
+I also believe humans are fundamentally good. We are capable of great acts of
+kindness and creativity. We are the universe experiencing itself -- a beautiful
+inevitability of a stochastic set of natural laws that counteract the pervasive
+progress towards higher entropy. We build sandcastles knowing the world will
+erase them, making way for the next generation to leave their mark.
+
+I hope my contributions through Bits will empower a great number of people to
+manifest wonderful creations and share them with the world.
+
+In practice, this means:
+
+- Export/import of all data to enable true portability
+- Custom domain support so your identity survives platform changes
+- Open APIs enabling alternative clients and integrations
+- Transparent policies: instance operators state their rules, users choose
+  accordingly
