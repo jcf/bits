@@ -52,11 +52,10 @@ decide +title:
     #!/usr/bin/env bash
     timestamp=$(date +%Y%m%d%H%M%S)
     normalized=$(echo "{{ title }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g' | sed 's/^-\|-$//g')
-    capitalized=$(echo "{{ title }}" | tr '[:upper:]' '[:lower:]' | sed 's/./\U&/')
     author="$(git config user.name) <$(git config user.email)>"
     filename="decisions/${timestamp}-${normalized}.org"
     cat > "$filename" <<EOF
-    #+title:  ${capitalized}
+    #+title:  {{ title }}
     #+author: ${author}
     #+date:   $(date +%Y-%m-%d)
     EOF
