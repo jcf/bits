@@ -1,0 +1,18 @@
+---
+import { twMerge } from "tailwind-merge";
+
+import Container from "@/components/Container";
+
+const { class: classes } = Astro.props;
+---
+
+<footer
+  class={twMerge(
+    "mt-4 py-4 text-sm text-neutral-900 dark:text-neutral-100",
+    classes,
+  )}
+>
+  <Container>
+    <p class="font-semibold">Bits, please.</p>
+  </Container>
+</footer>

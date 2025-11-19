@@ -1,0 +1,8 @@
+---
+import { twMerge } from "tailwind-merge";
+const { class: classes } = Astro.props;
+---
+
+<main class={twMerge("grow", classes)}>
+  <slot />
+</main>

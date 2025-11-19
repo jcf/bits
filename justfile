@@ -28,12 +28,51 @@ decide +title:
 # ------------------------------------------------------------------------------
 # Development
 
+# Create self-signed SSL certificates via mkcert
+[group('dev')]
+mkcert:
+    #!/usr/bin/env zsh
+    set -e
+
+    mkcert -install
+    mkdir -p {{ justfile_directory() }}/certs
+    cd {{ justfile_directory() }}/certs
+
+    # We append .test to all domains during development. The following domains
+    # need to be supported:
+    #
+    # -- usebits.app
+    # api.usebits.app
+    # edit.usebits.app
+    # www.usebits.app
+    #
+    # -- bits.page
+    # bits.page
+    # jcf.bits.page
+    domains=(
+        app.test
+        usebits.app.test
+        bits.page.test
+        page.test
+    )
+
+    for domain in $domains; do
+        if [[ ! -f "_wildcard.${domain}.pem" ]]; then
+            mkcert "*.${domain}"
+        fi
+    done
+
+    echo >&2 "🔒 Wildcard certificates ready!"
+
 # Setup a local development environment
 [group('dev')]
 setup:
     # Ensure this file exists in case Dioxus starts before Tailwind.
     touch assets/tailwind.css
-    @devenv shell echo -e "\n✅ {{ BOLD }}Development environment ready!{{ BOLD }}"
+    @just mkcert
+    devenv shell true
+    pnpm install
+    @echo -e "\n✅ {{ BOLD }}Setup complete!{{ BOLD }}"
 
 # Run Dioxus
 [group('dev')]
@@ -42,8 +81,17 @@ serve:
 
 # Watch source code for Tailwind classes
 [group('dev')]
-css:
-    pnpm tailwindcss --watch --input ./tailwind.css --output ./assets/tailwind.css
+tailwind:
+    pnpm --filter @bits/tailwind \
+        exec tailwindcss \
+            --watch \
+            --input ../../tailwind.css \
+            --output ../../assets/tailwind.css
+
+# Run the marketing site
+[group('dev')]
+www:
+    pnpm --filter @bits/www dev
 
 # Format project files
 [group('dev')]

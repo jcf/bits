@@ -1,0 +1,16 @@
+---
+import { twMerge } from "tailwind-merge";
+
+import Container from "@/components/Container.astro";
+import Link from "@/components/Link.astro";
+
+const { class: classes } = Astro.props;
+---
+
+<header
+  class={twMerge("mb-4 py-4 text-neutral-900 dark:text-neutral-100", classes)}
+>
+  <Container>
+    <Link class="font-semibold" href="/">Bits</Link>
+  </Container>
+</header>

@@ -1,0 +1,10 @@
+{
+  "name": "@bits/tailwind",
+  "type": "module",
+  "version": "0.0.1",
+  "devDependencies": {
+    "@tailwindcss/cli": "catalog:",
+    "@tailwindcss/typography": "catalog:",
+    "tailwindcss": "catalog:"
+  }
+}

@@ -1,0 +1,9 @@
+---
+import { subURL } from "@/utils/page";
+import Link from "@/components/Link.astro";
+
+const { sub } = Astro.props;
+const href = subURL(sub);
+---
+
+<Link href={href}><slot /></Link>

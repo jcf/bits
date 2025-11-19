@@ -1,0 +1,19 @@
+---
+import { twMerge } from "tailwind-merge";
+import type { HTMLTag, Polymorphic } from "astro/types";
+
+type Props = Polymorphic<{ as: HTMLTag }>;
+
+const { as: Tag = "a", class: classes, ...rest } = Astro.props;
+---
+
+<Tag
+  class:list={twMerge(
+    "underline",
+    "underline-offset-2",
+    "decoration-2",
+    "decoration-orange-400",
+    classes,
+  )}
+  {...rest}><slot /></Tag
+>
