@@ -23,9 +23,18 @@
   };
 
   packages = with pkgs; [
+    # Rust
+    cargo-audit
+    cargo-deny
+    cargo-edit
+    cargo-nextest
+    dioxus-cli
+    wasm-bindgen-cli
+
     # Development
     fd
     just
+    tokei
     zsh
 
     # Formatters
@@ -38,6 +47,12 @@
 
   languages.javascript.enable = true;
   languages.javascript.pnpm.enable = true;
+
+  languages.rust = {
+    enable = true;
+    channel = "stable";
+    targets = ["wasm32-unknown-unknown"];
+  };
 
   process.manager.implementation = "process-compose";
   process.managers.process-compose.tui.enable = false;
