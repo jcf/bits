@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
-    #[layout(Navbar)]
+    #[layout(Layout)]
     #[route("/")]
     Home {},
 }
@@ -46,9 +46,9 @@ fn Home() -> Element {
     }
 }
 
-/// Shared navbar component.
+/// Shared layout component.
 #[component]
-fn Navbar() -> Element {
+fn Layout() -> Element {
     rsx! {
         div {
             class: "text-neutral-900 dark:text-neutral-100",
