@@ -11,7 +11,6 @@ export default defineConfig({
 
   env: {
     schema: {
-      DOMAIN_EDIT: envField.string({ context: "client", access: "public" }),
       DOMAIN_PAGE: envField.string({ context: "client", access: "public" }),
       DOMAIN_WWW: envField.string({ context: "client", access: "public" }),
     },

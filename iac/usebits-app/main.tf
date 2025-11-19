@@ -30,7 +30,6 @@ module "site" {
   ])
 
   extra_env_vars = {
-    DOMAIN_EDIT = { type = "plain_text", value = "app.usebits.app", },
     DOMAIN_PAGE = { type = "plain_text", value = "bits.page", },
     DOMAIN_WWW  = { type = "plain_text", value = "usebits.app", },
   }

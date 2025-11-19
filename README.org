@@ -60,7 +60,6 @@ cat /etc/resolver/test
 #+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
 urls=(
   https://www.usebits.app.test
-  https://edit.usebits.app.test
   https://bits.page.test
   https://jcf.bits.page.test
 )
@@ -77,7 +76,6 @@ done
 
 #+results:
 : ✅ https://www.usebits.app.test
-: ❌ https://edit.usebits.app.test (406)
 : ❌ https://bits.page.test (406)
 : ❌ https://jcf.bits.page.test (406)
 

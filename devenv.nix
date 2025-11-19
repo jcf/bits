@@ -8,7 +8,6 @@
   dev = {
     upstreams = {
       page = {port = 3000;};
-      edit = {port = 3000;};
       www = {port = 3100;};
     };
 
@@ -29,13 +28,6 @@
         extraHeaders = ''
           proxy_set_header X-Customer $customer;
         '';
-      };
-
-      edit = {
-        domain = "edit.usebits.app.test";
-        upstream = "edit";
-        certPem = "${root}/certs/_wildcard.usebits.app.test.pem";
-        certKey = "${root}/certs/_wildcard.usebits.app.test-key.pem";
       };
 
       www = {
@@ -68,7 +60,6 @@ in {
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
-    DOMAIN_EDIT = dev.hosts.edit.domain;
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
   };
@@ -136,36 +127,12 @@ in {
     httpConfig = ''
       error_log stderr error;
 
-      upstream edit {
-        server localhost:${toString dev.upstreams.edit.port};
-      }
-
       upstream page {
         server localhost:${toString dev.upstreams.page.port};
       }
 
       upstream www {
         server localhost:${toString dev.upstreams.www.port};
-      }
-
-      # ${dev.hosts.edit.domain}
-      server {
-        listen 443 ssl;
-        server_name ${dev.hosts.edit.domain};
-
-        ssl_certificate ${dev.hosts.edit.certPem};
-        ssl_certificate_key ${dev.hosts.edit.certKey};
-
-        location / {
-          proxy_pass http://${dev.hosts.edit.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
-        }
       }
 
       # ${dev.hosts.page.domain}

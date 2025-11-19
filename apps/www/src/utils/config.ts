@@ -1,4 +1,4 @@
-import { DOMAIN_EDIT, DOMAIN_PAGE, DOMAIN_WWW } from "astro:env/client";
+import { DOMAIN_PAGE, DOMAIN_WWW } from "astro:env/client";
 
 export interface App {
   domain: string;
@@ -11,10 +11,6 @@ export interface Config {
 
 const config = {
   apps: {
-    edit: {
-      domain: DOMAIN_EDIT,
-      url: `https://${DOMAIN_EDIT}/`,
-    },
     page: {
       domain: DOMAIN_PAGE,
       url: `https://${DOMAIN_PAGE}/`,
