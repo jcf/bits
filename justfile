@@ -1,4 +1,5 @@
 # Terraform will panic if it encounters `PGSERVICEFILE`.
+
 unexport PGSERVICEFILE
 
 plan_dir := justfile_directory() / ".terraform-plans"
@@ -54,7 +55,11 @@ fmt:
 
 [group('postgres')]
 psql:
-    PGPASSWD=please psql --host=localhost --port=5432 --username=bits --dbname=bits_dev
+    PGPASSWD=please psql \
+        --host=localhost \
+        --port=5432 \
+        --username=bits \
+        --dbname=bits_dev
 
 # ------------------------------------------------------------------------------
 # Infrastructure
