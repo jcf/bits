@@ -37,6 +37,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: devenv shell
+        run: devenv shell -- echo "Your shell awaits."
+
       - name: cargo check
         run: devenv shell -- cargo check
 
