@@ -58,6 +58,13 @@
     targets = ["wasm32-unknown-unknown"];
   };
 
+  processes.tailwind = {
+    exec = "just css";
+    process-compose = {
+      is_tty = true;
+    };
+  };
+
   process.manager.implementation = "process-compose";
   process.managers.process-compose.tui.enable = false;
 }

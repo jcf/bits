@@ -24,6 +24,18 @@ You're never locked in.
 *Current state:* Active development. Your funding accelerates delivery.
 
 * Development
+Start required services and spawn a Tailwind watcher via =devenv=:
+
+#+begin_src sh :eval never
+devenv up
+#+end_src
+
+Then one can start an hot-reloading development process via Dioxus like so:
+
+#+begin_src sh :eval never
+just serve
+#+end_src
+
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
 fd --type file '\.org$' decisions | while read -r file; do
