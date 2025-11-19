@@ -73,7 +73,7 @@ Available recipes:
     plan dir         # Plan one or all Terraform projects
 
     [postgres]
-    psql
+    psql             # Start an interactive psql session connected to the local development database
 #+end_example
 
 ** SLOC

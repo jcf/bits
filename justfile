@@ -53,6 +53,7 @@ fmt:
 # ------------------------------------------------------------------------------
 # PostgreSQL
 
+# Start an interactive psql session connected to the local development database
 [group('postgres')]
 psql:
     PGPASSWD=please psql \
