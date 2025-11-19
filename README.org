@@ -112,6 +112,7 @@ done
 - [[file:decisions/20251009133634-get-the-message-out.org][Get the message out]]
 - [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
 - [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
+- [[file:decisions/20251119230950-ci-can-wait.org][CI can wait]]
 
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
@@ -124,6 +125,7 @@ Available recipes:
     [dev]
     fmt              # Format project files
     mkcert           # Create self-signed SSL certificates via mkcert
+    release
     serve            # Run Dioxus
     setup            # Setup a local development environment
     tailwind         # Watch source code for Tailwind classes
@@ -163,21 +165,21 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  HTML                      1           11           11            0            0
  JavaScript                2           42           34            1            7
  JSON                      4           56           56            0            0
- Just                      1          160           88           42           30
+ Just                      1          162           92           40           30
  MDX                       1           56            0           39           17
- Nix                       3          289          236            9           44
- Org                       6          625          510            4          111
+ Nix                       3          290          237            9           44
+ Org                       8         1523         1389            4          130
  SQL                       1            8            5            2            1
- TOML                      5           94           80            0           14
+ TOML                      5           93           80            0           13
  TypeScript                3           36           30            1            5
  YAML                      3         4949         3876            0         1073
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                      5          366          306            5           55
- |- Markdown               5           16            0           16            0
- (Total)                              382          306           21           55
+ Rust                      5          393          328            6           59
+ |- Markdown               4           16            0           16            0
+ (Total)                              409          328           22           59
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    59         7269         5701          132         1436
+ Total                    61         8196         6607          131         1458
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-f06f0c6-dirty @ 2025/11/19 21:36
+a8b7691 @ 2025/11/19 23:38
 #+end_example
