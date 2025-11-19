@@ -9,25 +9,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
         # https://github.com/actions/checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Install Nix
         # https://github.com/cachix/install-nix-action/tree/7e5978947b7efba56e96c43fd785691980aca924
-        uses: cachix/install-nix-action@7e5978947b7efba56e96c43fd785691980aca924
+      - uses: cachix/install-nix-action@7e5978947b7efba56e96c43fd785691980aca924
 
-      - name: Setup devenv cache
         # https://github.com/cachix/cachix-action/tree/29121a2db12c7ff8b89724a8898ca20d33bb4ea3
-        uses: cachix/cachix-action@29121a2db12c7ff8b89724a8898ca20d33bb4ea3
+      - uses: cachix/cachix-action@29121a2db12c7ff8b89724a8898ca20d33bb4ea3
         with:
           name: devenv
 
-      - name: Install devenv
-        run: nix profile add nixpkgs#devenv
+      - run: nix profile add nixpkgs#devenv
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
