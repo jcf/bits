@@ -50,10 +50,13 @@ mkcert:
     # bits.page
     # jcf.bits.page
     domains=(
-        app.test
         usebits.app.test
+        app.test
+
         bits.page.test
         page.test
+
+        test
     )
 
     for domain in $domains; do
