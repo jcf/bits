@@ -67,7 +67,6 @@ mkcert:
 # Setup a local development environment
 [group('dev')]
 setup:
-    # Ensure this file exists in case Dioxus starts before Tailwind.
     touch assets/tailwind.css
     @just mkcert
     devenv shell true
