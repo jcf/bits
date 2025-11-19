@@ -142,7 +142,7 @@ fn Layout() -> Element {
 /// Echo component that demonstrates fullstack server functions.
 #[component]
 fn Echo() -> Element {
-    let mut response = use_signal(|| String::new());
+    let mut response = use_signal(String::new);
 
     rsx! {
         div {
