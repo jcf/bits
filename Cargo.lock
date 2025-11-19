@@ -295,6 +295,7 @@ name = "bits"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "serde",
  "tracing",
 ]
 

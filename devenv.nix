@@ -21,13 +21,10 @@
 
       page-customers = {
         domain = "bits.page.test";
-        pattern = "~^(?<customer>.+)\\.bits\\.page\\.test$";
+        pattern = "~^(?<tenant>.+)\\.bits\\.page\\.test$";
         upstream = "page";
         certPem = "${root}/certs/_wildcard.bits.page.test.pem";
         certKey = "${root}/certs/_wildcard.bits.page.test-key.pem";
-        extraHeaders = ''
-          proxy_set_header X-Customer $customer;
-        '';
       };
 
       www = {
@@ -35,6 +32,13 @@
         upstream = "www";
         certPem = "${root}/certs/_wildcard.usebits.app.test.pem";
         certKey = "${root}/certs/_wildcard.usebits.app.test-key.pem";
+      };
+
+      custom-domains = {
+        pattern = "~^(?<custom_domain>.+\\.test)$";
+        upstream = "page";
+        certPem = "${root}/certs/_wildcard.test.pem";
+        certKey = "${root}/certs/_wildcard.test-key.pem";
       };
     };
   };
@@ -168,7 +172,26 @@ in {
           proxy_set_header X-Real-IP $remote_addr;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header X-Forwarded-Proto $scheme;
-          ${dev.hosts.page-customers.extraHeaders}
+        }
+      }
+
+      # ${dev.hosts.custom-domains.pattern}
+      server {
+        listen 443 ssl default_server;
+        server_name ~^(?<custom_domain>(?!.*\.(bits\.page|usebits\.app)\.test$).+\.test)$;
+
+        ssl_certificate ${dev.hosts.custom-domains.certPem};
+        ssl_certificate_key ${dev.hosts.custom-domains.certKey};
+
+        location / {
+          proxy_pass http://${dev.hosts.custom-domains.upstream};
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
         }
       }
 
