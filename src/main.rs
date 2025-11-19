@@ -17,6 +17,7 @@ fn main() {
 #[component]
 fn App() -> Element {
     rsx! {
+        document::Link { rel: "icon", href: "data:" }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
         Router::<Route> {}
     }
