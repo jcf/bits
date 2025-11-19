@@ -100,6 +100,22 @@ done
 : ✅ https://bits.page.test
 : ✅ https://jcf.bits.page.test
 
+And with a non-existent tenant, we expect a 404 response:
+
+#+begin_src sh :results output verbatim
+url="https://foo.bits.page.test"
+http_code="$(curl --silent --output /dev/null --write-out "%{http_code}" "$url")"
+
+if [ "$http_code" -eq 404 ]; then
+  echo "✅ $url"
+else
+  echo "❌ $url ($http_code)"
+fi
+#+end_src
+
+#+results:
+: ✅ https://foo.bits.page.test
+
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
 fd --type file '\.org$' decisions | while read -r file; do
