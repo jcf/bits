@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:www": "pnpm --filter @bits/www build",
     "preinstall": "npx only-allow pnpm"
   },
   "packageManager": "pnpm@10.18.0",
