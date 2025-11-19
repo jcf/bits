@@ -100,6 +100,16 @@ www:
 fmt:
     treefmt
 
+# Run tests
+[group('dev')]
+test:
+    cargo check
+    cargo nextest run
+
+[group('dev')]
+release:
+    dx bundle --release
+
 # ------------------------------------------------------------------------------
 # PostgreSQL
 
@@ -111,6 +121,16 @@ psql:
         --port=5432 \
         --username=bits \
         --dbname=bits_dev
+
+# Run database migrations
+[group('postgres')]
+migrate:
+    sqlx migrate run
+
+# Create a new migration
+[group('postgres')]
+migration name:
+    sqlx migrate add {{ name }}
 
 # ------------------------------------------------------------------------------
 # Infrastructure

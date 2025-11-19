@@ -65,6 +65,7 @@ in {
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
+    DATABASE_URL = "postgres://bits:please@127.0.0.1:5432/bits_dev";
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
   };
@@ -76,12 +77,14 @@ in {
     cargo-edit
     cargo-nextest
     dioxus-cli
+    sqlx-cli
     wasm-bindgen-cli
 
     # Development
     fd
     just
     tokei
+    tree
     zsh
 
     # SSL

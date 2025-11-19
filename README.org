@@ -95,6 +95,11 @@ for url in $urls; do
 done
 #+end_src
 
+#+results:
+: ✅ https://www.usebits.app.test
+: ✅ https://bits.page.test
+: ✅ https://jcf.bits.page.test
+
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
 fd --type file '\.org$' decisions | while read -r file; do
@@ -122,6 +127,7 @@ Available recipes:
     serve            # Run Dioxus
     setup            # Setup a local development environment
     tailwind         # Watch source code for Tailwind classes
+    test             # Run tests
     www              # Run the marketing site
 
     [docs]
@@ -134,6 +140,8 @@ Available recipes:
     plan dir         # Plan one or all Terraform projects
 
     [postgres]
+    migrate          # Run database migrations
+    migration name   # Create a new migration
     psql             # Start an interactive psql session connected to the local development database
 #+end_example
 
@@ -150,25 +158,26 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- CSS                       2            8            8            0            0
- HCL                      12          390          324           13           53
+ CSS                       2            7            7            0            0
+ HCL                      12          389          323           13           53
  HTML                      1           11           11            0            0
- JavaScript                2           43           35            1            7
+ JavaScript                2           42           34            1            7
  JSON                      4           56           56            0            0
- Just                      1          139           78           37           24
+ Just                      1          160           88           42           30
  MDX                       1           56            0           39           17
- Nix                       2          277          227            9           41
- Org                       6          611          499            4          108
- TOML                      5           87           73            0           14
- TypeScript                3           40           34            1            5
+ Nix                       3          289          236            9           44
+ Org                       6          625          510            4          111
+ SQL                       1            8            5            2            1
+ TOML                      5           94           80            0           14
+ TypeScript                3           36           30            1            5
  YAML                      3         4949         3876            0         1073
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                      1           88           76            0           12
- |- Markdown               1            4            0            4            0
- (Total)                               92           76            4           12
+ Rust                      5          366          306            5           55
+ |- Markdown               5           16            0           16            0
+ (Total)                              382          306           21           55
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    53         6924         5436          108         1380
+ Total                    59         7269         5701          132         1436
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-177ece7 @ 2025/11/19 16:36
+f06f0c6-dirty @ 2025/11/19 21:36
 #+end_example
