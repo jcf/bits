@@ -3,6 +3,10 @@
   pkgs,
   ...
 }: {
+  overlays = [
+    (import ./nix/overlays/wasm-bindgen-cli.nix)
+  ];
+
   claude.code = {
     enable = true;
 

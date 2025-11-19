@@ -25,7 +25,19 @@ decide +title:
 # Setup a local development environment
 [group('dev')]
 setup:
+    # Ensure this file exists in case Dioxus starts before Tailwind.
+    touch assets/tailwind.css
     @devenv shell echo -e "\n✅ {{ BOLD }}Development environment ready!{{ BOLD }}"
+
+# Run Dioxus
+[group('dev')]
+serve:
+    dx serve --platform web --port 3000
+
+# Watch source code for Tailwind classes
+[group('dev')]
+css:
+    pnpm tailwindcss --watch --input ./tailwind.css --output ./assets/tailwind.css
 
 # Format project files
 [group('dev')]

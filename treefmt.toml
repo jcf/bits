@@ -3,6 +3,7 @@ command = "prettier"
 options = ["--cache", "--write"]
 includes = [
   "*.astro",
+  "*.html",
   "*.js",
   "*.json",
   "*.jsx",

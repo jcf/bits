@@ -1,0 +1,16 @@
+[application]
+name = "bits"
+default_platform = "web"
+
+[web.app]
+title = "Bits"
+
+[web.resource]
+style = []
+script = []
+
+[web.resource.dev]
+script = []
+
+[web.watcher]
+reload_html = true
