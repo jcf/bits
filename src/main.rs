@@ -8,8 +8,6 @@ enum Route {
     Home {},
 }
 
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-
 fn main() {
     dioxus::launch(App);
 }
@@ -18,7 +16,7 @@ fn main() {
 fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: "data:" }
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS }
+        Stylesheet { href: asset!("assets/app.css") }
         Router::<Route> {}
     }
 }
@@ -93,7 +91,7 @@ fn Echo() -> Element {
 }
 
 /// Echo the user input on the server.
-#[server(EchoServer)]
+#[server]
 async fn echo_server(input: String) -> Result<String, ServerFnError> {
     Ok(input)
 }

@@ -17,7 +17,7 @@
 /.devenv.flake.nix
 /.direnv
 /.mcp.json
-/assets/tailwind.css
+/assets/app.css
 /certs/
 /dist
 /target

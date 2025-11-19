@@ -40,6 +40,7 @@
   };
 in {
   overlays = [
+    (import ./nix/overlays/dioxus-cli.nix)
     (import ./nix/overlays/wasm-bindgen-cli.nix)
   ];
 
@@ -98,11 +99,6 @@ in {
     enable = true;
     channel = "stable";
     targets = ["wasm32-unknown-unknown"];
-  };
-
-  processes.tailwind = {
-    exec = "just tailwind";
-    process-compose.is_tty = true;
   };
 
   processes.www = {
