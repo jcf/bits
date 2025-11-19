@@ -37,5 +37,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Run tests
-        run: devenv shell just test
+      - name: cargo check
+        run: devenv shell -- cargo check
+
+      - name: cargo clippy
+        run: devenv shell -- cargo clippy
+
+      - name: cargo nextest run
+        run: devenv shell -- cargo nextest run
