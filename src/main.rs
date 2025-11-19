@@ -25,10 +25,14 @@ fn App() -> Element {
 #[component]
 pub fn Hero() -> Element {
     rsx! {
-        a {
-            href: "https://github.com/jcf/bits",
-            target: "_blank",
-            "GitHub"
+        nav {
+            class: "text-neutral-900 dark:text-neutral-100",
+            a {
+                href: "https://github.com/jcf/bits",
+                class: "underline decoration-2 decoration-cyan-400",
+                target: "_blank",
+                "GitHub"
+            }
         }
     }
 }
@@ -47,6 +51,7 @@ fn Home() -> Element {
 fn Navbar() -> Element {
     rsx! {
         div {
+            class: "text-neutral-900 dark:text-neutral-100",
             id: "navbar",
             Link {
                 to: Route::Home {},
@@ -65,6 +70,7 @@ fn Echo() -> Element {
 
     rsx! {
         div {
+            class: "text-neutral-900 dark:text-neutral-100",
             id: "echo",
             h4 { "ServerFn Echo" }
             input {
