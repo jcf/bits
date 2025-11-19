@@ -1,0 +1,12 @@
+#+title:   DNS
+#+startup: content
+
+* Name servers
+#+begin_src sh :results output verbatim :wrap src json :shebang "#!/usr/bin/env zsh"
+just output dns -json |
+  jq '.cloudflare_zone.value | with_entries({key: .key, value: .value.name_servers})'
+#+end_src
+
+#+results:
+#+begin_src json
+#+end_src

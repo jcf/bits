@@ -1,0 +1,8 @@
+**/.terraform/
+.terraform.lock.hcl
+/.claude/settings.json
+/.devenv
+/.devenv.flake.nix
+/.direnv
+/.mcp.json
+/node_modules/

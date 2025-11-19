@@ -1,0 +1,87 @@
+#+title:   Bits
+#+startup: content
+
+Platforms control your audience. Payment processors control your revenue. Bits
+gives you both back.
+
+*What you get:*
+
+- Subscriptions, one-time purchases, digital downloads
+- Video hosting and delivery
+- Your data, your domain, your rules
+- Permissive content policies for persecuted creators
+
+*Why it works:*
+
+- Self-host on a $5/month VPS or use managed hosting
+- Single binary deployment - no complex setup
+- Built with care to minimize resource usage and maximize reliability
+- Open source - audit the code, modify what you need, contribute back
+
+*The model:* Like WordPress.org - free to self-host, managed option available.
+You're never locked in.
+
+*Current state:* Active development. Your funding accelerates delivery.
+
+* Development
+** Decision records
+#+begin_src sh :results output raw :exports output :exports results
+fd --type file '\.org$' decisions | while read -r file; do
+  title=$(awk -F':[[:space:]]*' 'NR==1 { print $2 }' "$file")
+  echo "- [[file:$file][$title]]"
+done
+#+end_src
+
+#+results:
+- [[file:decisions/20251009133634-get-the-message-out.org][Get the message out]]
+- [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
+- [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
+
+** Dev tasks
+#+begin_src sh :results output verbatim :exports results
+just
+#+end_src
+
+#+results:
+#+begin_example
+Available recipes:
+    [dev]
+    fmt              # Format project files
+    setup            # Setup a local development environment
+
+    [docs]
+    decide +title    # Create a new decision record
+
+    [iac]
+    apply dir        # Apply one or all Terraform projects
+    init dir *args   # Initialize one or all Terraform projects
+    output dir *args # Interact with outputs one or all Terraform projects
+    plan dir         # Plan one or all Terraform projects
+#+end_example
+
+** SLOC
+#+begin_src sh :results output verbatim :exports results
+tokei
+echo
+echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ HCL                      12          390          324           13           53
+ JavaScript                1            9            8            1            0
+ JSON                      1            7            7            0            0
+ Just                      1           59           36           12           11
+ Nix                       1           44           36            2            6
+ Org                       6          537          438            4           95
+ TOML                      1           35           31            0            4
+ YAML                      2          684          542            0          142
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                    25         1765         1422           32          311
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+182edf7 @ 2025/11/19 13:09
+#+end_example
