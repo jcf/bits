@@ -76,14 +76,25 @@ in {
     DOMAIN_WWW = dev.hosts.www.domain;
   };
 
+  overlays = [
+    (import ./nix/overlays/wasm-bindgen-cli.nix)
+  ];
+
   packages = with pkgs; [
     # Development
+    cargo-audit
+    cargo-deny
+    cargo-edit
+    cargo-nextest
+    dioxus-cli
     fastly
     fd
+    just
     just
     ldns # drill
     postgresql
     tokei
+    wasm-bindgen-cli
     zsh
 
     # SSL
@@ -96,138 +107,24 @@ in {
     shfmt
     taplo
     treefmt
+
+    # Build
+    openssl
+    pkg-config
   ];
 
   languages.javascript.enable = true;
   languages.javascript.pnpm.enable = true;
 
-  languages.rust.enable = true;
-
-  # Nginx reverse proxy
-  services.nginx = {
+  languages.rust = {
     enable = true;
-    httpConfig = ''
-      error_log stderr error;
-
-      upstream edit {
-        server localhost:${toString dev.upstreams.edit.port};
-      }
-
-      upstream page {
-        server localhost:${toString dev.upstreams.page.port};
-      }
-
-      upstream www {
-        server localhost:${toString dev.upstreams.www.port};
-      }
-
-      # ${dev.hosts.edit.domain}
-      server {
-        listen 443 ssl;
-        server_name ${dev.hosts.edit.domain};
-
-        ssl_certificate ${dev.hosts.edit.certPem};
-        ssl_certificate_key ${dev.hosts.edit.certKey};
-
-        location / {
-          proxy_pass http://${dev.hosts.edit.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
-        }
-      }
-
-      # ${dev.hosts.page.domain}
-      server {
-        listen 443 ssl;
-        server_name ${dev.hosts.page.domain};
-
-        ssl_certificate ${dev.hosts.page.certPem};
-        ssl_certificate_key ${dev.hosts.page.certKey};
-
-        location / {
-          proxy_pass http://${dev.hosts.page.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
-        }
-      }
-
-      # ${dev.hosts.page-customers.pattern}
-      server {
-        listen 443 ssl;
-        server_name ${dev.hosts.page-customers.pattern};
-
-        ssl_certificate ${dev.hosts.page-customers.certPem};
-        ssl_certificate_key ${dev.hosts.page-customers.certKey};
-
-        location / {
-          proxy_pass http://${dev.hosts.page-customers.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
-          ${dev.hosts.page-customers.extraHeaders}
-        }
-      }
-
-      # ${dev.hosts.www.domain}
-      server {
-        listen 443 ssl;
-        server_name ${dev.hosts.www.domain};
-
-        ssl_certificate ${dev.hosts.www.certPem};
-        ssl_certificate_key ${dev.hosts.www.certKey};
-
-        location / {
-          proxy_pass http://${dev.hosts.www.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
-        }
-      }
-    '';
+    channel = "stable";
+    targets = ["wasm32-unknown-unknown"];
   };
 
-  processes.edit.exec = "pnpm dev:edit";
-  processes.page.exec = "pnpm dev:page";
-  processes.www.exec = "pnpm dev:www";
+  # Dioxus requires its interactive TUI to work properly.
+  processes.tailwind.exec = "pnpm tailwind:watch";
 
   process.manager.implementation = "process-compose";
   process.managers.process-compose.tui.enable = false;
-  process.managers.process-compose.settings.processes = {
-    edit = {
-      environment = [
-        "ASTRO_SITE=https://${dev.hosts.edit.domain}"
-        "PORT=${toString dev.upstreams.edit.port}"
-      ];
-    };
-    page = {
-      environment = [
-        "ASTRO_SITE=https://${dev.hosts.page.domain}"
-        "PORT=${toString dev.upstreams.page.port}"
-      ];
-    };
-    www = {
-      environment = [
-        "ASTRO_SITE=https://${dev.hosts.www.domain}"
-        "PORT=${toString dev.upstreams.www.port}"
-      ];
-    };
-  };
 }

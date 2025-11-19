@@ -61,6 +61,16 @@ decide +title:
     EOF
     echo "🎯 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
 
+# Run a development web server.
+[group('dev')]
+web:
+    dx serve
+
+# Automatically compile CSS.
+[group('dev')]
+css:
+    pnpm tailwind:watch
+
 # Format project files
 [group('dev')]
 fmt:

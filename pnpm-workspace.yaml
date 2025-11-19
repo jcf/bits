@@ -3,16 +3,14 @@ packages:
   - packages/*
 
 catalog:
-  "@astrojs/check": ^0.9.0
-  "@tailwindcss/typography": ^0.5.19
-  "@tailwindcss/vite": ^4.1.14
+  '@astrojs/check': ^0.9.0
+  '@tailwindcss/cli': ^4.1.14
+  '@tailwindcss/typography': ^0.5.19
+  '@tailwindcss/vite': ^4.1.14
   astro: ^5.14.1
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
-  typescript: 5.9.2
+  typescript: 5.9.3
 
 overrides:
   vite: 6.3.5
-onlyBuiltDependencies:
-  - esbuild
-  - "@tailwindcss/oxide"
