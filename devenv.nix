@@ -67,4 +67,29 @@
 
   process.manager.implementation = "process-compose";
   process.managers.process-compose.tui.enable = false;
+
+  services.postgres = {
+    enable = true;
+
+    extensions = extensions: [
+      extensions.pgvector
+      extensions.postgis
+    ];
+
+    package = pkgs.postgresql_17;
+
+    listen_addresses = "127.0.0.1";
+    initialDatabases = [
+      {
+        name = "bits_dev";
+        user = "bits";
+        pass = "please";
+      }
+      {
+        name = "bits_test";
+        user = "bits";
+        pass = "please";
+      }
+    ];
+  };
 }

@@ -1,11 +1,13 @@
 # Terraform will panic if it encounters `PGSERVICEFILE`.
-
 unexport PGSERVICEFILE
 
 plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
     @just --list
+
+# ------------------------------------------------------------------------------
+# Docs
 
 # Create a new decision record
 [group('docs')]
@@ -21,6 +23,9 @@ decide +title:
     #+date:   $(date +%Y-%m-%d)
     EOF
     echo "🎯 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
+
+# ------------------------------------------------------------------------------
+# Development
 
 # Setup a local development environment
 [group('dev')]
@@ -43,6 +48,16 @@ css:
 [group('dev')]
 fmt:
     treefmt
+
+# ------------------------------------------------------------------------------
+# PostgreSQL
+
+[group('postgres')]
+psql:
+    PGPASSWD=please psql --host=localhost --port=5432 --username=bits --dbname=bits_dev
+
+# ------------------------------------------------------------------------------
+# Infrastructure
 
 [group('iac')]
 _terraform dir *args:
