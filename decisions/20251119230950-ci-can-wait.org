@@ -1,0 +1,40 @@
+#+title:    CI can wait
+#+author:   James Conroy-Finn <james@invetica.co.uk>
+#+date:     2025-11-19
+#+property: header-args :dir ..
+
+Automated tests are great. Being able to have a machine verify you've not made
+any mistakes can speed up the process of extending a system.
+
+- [[https://github.com/jcf/bits/actions/runs/19519057476/job/55878187694][14 minutes and counting]]
+- [[https://github.com/jcf/bits/actions/runs/19519237888/job/55878796804][5 minutes and counting]]
+- [[https://github.com/jcf/bits/actions/runs/19519312221/job/55879040799][Nearly 3 minutes on =cargo check=]]
+
+I could investigate why this is taking so long on GitHub, because locally:
+
+#+begin_src sh :results output verbatim
+/usr/bin/time devenv shell --quiet -- just test 2>&1
+#+end_src
+
+#+results:
+#+begin_example
+cargo check
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.22s
+cargo clippy
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
+cargo nextest run
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+────────────
+ Nextest run ID dc27df10-8c93-474e-b1a2-1cfba90625fb with nextest profile: default
+    Starting 4 tests across 2 binaries
+        PASS [   0.008s] bits middleware::tests::test_tenant_state_variants
+        PASS [   0.008s] bits tenant::tests::test_extract_tenant_from_host
+        PASS [   0.013s] bits db::tests::test_pool_connects
+        PASS [   0.017s] bits tenant::tests::test_tenant_exists
+────────────
+     Summary [   0.017s] 4 tests run: 4 passed, 0 skipped
+        1.25 real         0.48 user         0.46 sys
+#+end_example
+
+I'll come back to CI on GitHub when the pain presents itself, and run things
+locally until then.
