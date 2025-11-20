@@ -70,7 +70,6 @@ mkcert:
 # Setup a local development environment
 [group('dev')]
 setup:
-    touch assets/app.css
     @just mkcert
     devenv shell true
     pnpm install
