@@ -103,8 +103,16 @@ fmt:
 # Run tests
 [group('dev')]
 test:
+    treefmt --ci
     cargo check
+    cargo clippy
     cargo nextest run
+
+# Verify and push changes
+[group('dev')]
+push:
+    @just test
+    git push
 
 [group('dev')]
 release:
