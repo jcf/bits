@@ -200,3 +200,11 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 
 1939095-dirty @ 2025/11/20 00:20
 #+end_example
+
+** TODOs
+#+begin_src sh :results output verbatim :exports results
+rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
+#+end_src
+
+#+results:
+: src/db.rs:            // TODO Pull max connections from nested database configuration
