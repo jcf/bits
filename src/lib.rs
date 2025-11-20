@@ -1,3 +1,5 @@
+pub mod config;
+
 #[cfg(feature = "server")]
 pub mod db;
 #[cfg(feature = "server")]
@@ -11,6 +13,25 @@ pub use db::{pool, TenantDb};
 pub use middleware::tenant_middleware;
 #[cfg(feature = "server")]
 pub use tenant::{Tenant, TenantState};
+
+use config::Config;
+use std::sync::OnceLock;
+
+static CONFIG: OnceLock<Config> = OnceLock::new();
+
+/// Initialize the application configuration.
+///
+/// Safe to call multiple times; subsequent calls are ignored.
+pub fn init(config: Config) {
+    let _ = CONFIG.set(config);
+}
+
+/// Return the application configuration.
+pub fn config() -> &'static Config {
+    CONFIG
+        .get()
+        .expect("Config not initialized. Call bits::init() first.")
+}
 
 // Re-export for client-side
 #[cfg(not(feature = "server"))]

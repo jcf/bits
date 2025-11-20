@@ -10,12 +10,9 @@ static POOL_CELL: OnceCell<PgPool> = OnceCell::const_new();
 pub async fn pool() -> &'static PgPool {
     POOL_CELL
         .get_or_init(|| async {
-            let database_url =
-                std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
             PgPoolOptions::new()
                 .max_connections(5)
-                .connect(&database_url)
+                .connect(&crate::config().database_url)
                 .await
                 .expect("Failed to connect to database")
         })
@@ -29,9 +26,18 @@ pub struct TenantDb(pub Arc<Mutex<sqlx::pool::PoolConnection<sqlx::Postgres>>>);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Config;
 
     #[tokio::test]
     async fn test_pool_connects() {
+        let database_url =
+            std::env::var("DATABASE_URL").expect("DATABASE_URL must be set for tests");
+        let config = Config {
+            port: 8080,
+            database_url,
+        };
+        crate::init(config);
+
         let pool = pool().await;
         let row: (i32,) = sqlx::query_as("SELECT 1")
             .fetch_one(pool)

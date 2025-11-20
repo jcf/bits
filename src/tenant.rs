@@ -58,7 +58,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_tenant_exists() {
+        use crate::config::Config;
         use crate::db::pool;
+
+        let database_url =
+            std::env::var("DATABASE_URL").expect("DATABASE_URL must be set for tests");
+        let config = Config {
+            port: 8080,
+            database_url,
+        };
+        let _ = crate::init(config);
 
         let pool = pool().await;
 

@@ -2,22 +2,23 @@ use bits::App;
 use clap::{Parser, Subcommand};
 
 #[cfg(feature = "server")]
-use bits::tenant_middleware;
+use bits::{config::Config, tenant_middleware};
 
 #[derive(Parser)]
 #[command(name = "bits")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    #[cfg(feature = "server")]
+    #[command(flatten)]
+    config: Config,
 }
 
 #[derive(Subcommand)]
 enum Commands {
     Admin,
-    Serve {
-        #[arg(short, long, default_value = "8080")]
-        port: u16,
-    },
+    Serve,
 }
 
 fn main() {
@@ -28,10 +29,13 @@ fn main() {
             println!("Hello, administrator.");
             return;
         }
-        Some(Commands::Serve { port }) => {
-            std::env::set_var("PORT", port.to_string());
+        Some(Commands::Serve) | None => {
+            #[cfg(feature = "server")]
+            {
+                std::env::set_var("PORT", cli.config.port.to_string());
+                bits::init(cli.config);
+            }
         }
-        None => {}
     }
 
     #[cfg(feature = "server")]
