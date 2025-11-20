@@ -141,6 +141,7 @@ Available recipes:
     [dev]
     fmt              # Format project files
     mkcert           # Create self-signed SSL certificates via mkcert
+    push             # Verify and push changes
     release
     serve            # Run Dioxus
     setup            # Setup a local development environment
@@ -179,23 +180,23 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  CSS                       2            7            7            0            0
  HCL                      12          389          323           13           53
  HTML                      1           11           11            0            0
- JavaScript                2           42           34            1            7
- JSON                      4           56           56            0            0
- Just                      1          162           92           40           30
+ JavaScript                2           51           43            1            7
+ JSON                      4           58           58            0            0
+ Just                      1          170           98           41           31
  MDX                       1           56            0           39           17
  Nix                       3          290          237            9           44
- Org                       8         1523         1389            4          130
+ Org                       8         1541         1403            4          134
  SQL                       1            8            5            2            1
  TOML                      5           93           80            0           13
  TypeScript                3           36           30            1            5
- YAML                      3         4949         3876            0         1073
+ YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                      5          393          328            6           59
- |- Markdown               4           16            0           16            0
- (Total)                              409          328           22           59
+ Rust                      6          439          365            6           68
+ |- Markdown               4           20            0           19            1
+ (Total)                              459          365           25           69
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    61         8196         6607          131         1458
+ Total                    62         8380         6762          135         1483
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-a8b7691 @ 2025/11/19 23:38
+1939095-dirty @ 2025/11/20 00:20
 #+end_example
