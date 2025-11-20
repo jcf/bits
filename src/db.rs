@@ -10,6 +10,7 @@ static POOL_CELL: OnceCell<PgPool> = OnceCell::const_new();
 pub async fn pool() -> &'static PgPool {
     POOL_CELL
         .get_or_init(|| async {
+            // TODO Pull max connections from nested database configuration
             PgPoolOptions::new()
                 .max_connections(5)
                 .connect(&crate::config().database_url)
