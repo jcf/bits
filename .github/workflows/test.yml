@@ -35,6 +35,8 @@ jobs:
       - name: devenv shell
         run: devenv shell -- echo "Your shell awaits."
 
+      - run: touch assets/app.css
+
       - name: cargo check
         run: devenv shell -- cargo check
 
