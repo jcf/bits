@@ -1,0 +1,8 @@
+[package]
+name = "bits-domain"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true

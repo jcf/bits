@@ -5,7 +5,10 @@ unexport PGSERVICEFILE
 plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
-    @just --list
+    @just fmt
+    @just build
+    @just lint
+    @just test
 
 # ------------------------------------------------------------------------------
 # Docs
@@ -75,10 +78,20 @@ setup:
     pnpm install
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ BOLD }}"
 
-# Run Dioxus
+# Clear build caches
+[group('dev')]
+clean:
+    cargo clean
+
+# Run Dioxus in single-tenant mode
 [group('dev')]
 serve:
-    dx serve --platform web --port 3000
+    dx serve --platform web --fullstack true --port 3000 --package bits-solo
+
+# Run Dioxus in multi-tenant mode
+[group('dev')]
+multi:
+    dx serve --platform web --fullstack true --port 3000 --package bits-colo
 
 # Watch source code for Tailwind classes
 [group('dev')]
@@ -94,18 +107,41 @@ tailwind:
 www:
     pnpm --filter @bits/www dev
 
+# Fix errors within Bits
+[group('dev')]
+fix:
+    cargo fix --lib -p bits-app
+
 # Format project files
 [group('dev')]
 fmt:
     treefmt
 
+# Build fullstack web packages
+[group('dev')]
+build:
+    dx build --fullstack true --platform web --package bits-solo
+    dx build --fullstack true --platform web --package bits-colo
+
+# Run checks
+[group('dev')]
+check:
+    cargo check
+
+# Run lints
+[group('dev')]
+lint:
+    cargo clippy
+
 # Run tests
 [group('dev')]
 test:
-    treefmt --ci
-    cargo check
-    cargo clippy
-    cargo nextest run
+    cargo nextest run --features server
+
+# Run integration tests
+[group('dev')]
+integration:
+    cargo nextest run --package bits-colo --features server --test integration
 
 # Verify and push changes
 [group('dev')]
@@ -122,12 +158,13 @@ release:
 
 # Start an interactive psql session connected to the local development database
 [group('postgres')]
-psql:
+psql *args:
     PGPASSWD=please psql \
         --host=localhost \
         --port=5432 \
         --username=bits \
-        --dbname=bits_dev
+        --dbname=bits_dev \
+        {{ args }}
 
 # Run database migrations
 [group('postgres')]

@@ -68,6 +68,7 @@ in {
     DATABASE_URL = "postgres://bits:please@127.0.0.1:5432/bits_dev";
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
+    PLATFORM_DOMAIN = dev.hosts.page.domain;
   };
 
   packages = with pkgs; [
