@@ -33,21 +33,20 @@ pub fn normalize_host(scheme: Scheme, host: &str) -> String {
 }
 
 #[cfg(feature = "server")]
-pub fn extract_scheme(parts: &dioxus::server::axum::http::request::Parts) -> Scheme {
-    let scheme_str = parts
-        .headers
+pub fn extract_scheme<B>(req: &dioxus::server::axum::http::Request<B>) -> Scheme {
+    let scheme_str = req
+        .headers()
         .get("x-forwarded-proto")
         .and_then(|h| h.to_str().ok())
-        .or_else(|| parts.uri.scheme_str())
+        .or_else(|| req.uri().scheme_str())
         .unwrap_or("https");
 
     Scheme::from_str(scheme_str)
 }
 
 #[cfg(feature = "server")]
-pub fn extract_host(parts: &dioxus::server::axum::http::request::Parts) -> Option<String> {
-    parts
-        .headers
+pub fn extract_host<B>(req: &dioxus::server::axum::http::Request<B>) -> Option<String> {
+    req.headers()
         .get("host")
         .and_then(|h| h.to_str().ok())
         .map(|s| s.to_string())

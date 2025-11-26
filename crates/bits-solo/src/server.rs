@@ -8,7 +8,7 @@ use dioxus::server::axum;
 pub async fn server(config: Config) -> Result<axum::Router, anyhow::Error> {
     use dioxus::server::axum::Extension;
 
-    let state = AppState::new(config.clone()).await?;
+    let state = bits_app::init(config.clone()).await?;
     let session_store = setup_session_store(&state).await?;
 
     let auth_config = AuthConfig::<i64>::default().with_anonymous_user_id(Some(-1));

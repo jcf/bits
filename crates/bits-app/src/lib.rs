@@ -15,7 +15,7 @@ pub use tenant::{Realm, Tenant};
 #[cfg(feature = "server")]
 pub use middleware::{RealmLayer, RealmMiddleware};
 #[cfg(feature = "server")]
-pub use server::setup_session_store;
+pub use server::{init, setup_session_store};
 
 #[cfg(feature = "server")]
 use dioxus::fullstack::FullstackContext;
@@ -73,10 +73,10 @@ pub fn App() -> Element {
 
 #[component]
 pub fn Hero() -> Element {
-    use auth::{get_realm, get_session};
+    use auth::get_realm;
 
     let realm = use_server_future(move || async move { get_realm().await })?;
-    let session = use_server_future(move || async move { get_session().await })?;
+    let session = use_context::<Resource<Result<Option<User>>>>();
 
     rsx! {
         nav {
@@ -316,6 +316,11 @@ fn Home() -> Element {
 /// Shared layout component with error handling.
 #[component]
 fn Layout() -> Element {
+    use auth::get_session;
+
+    let session = use_server_future(move || async move { get_session().await });
+    use_context_provider(move || session);
+
     rsx! {
         div {
             class: "text-neutral-900 dark:text-neutral-100",

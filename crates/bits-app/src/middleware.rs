@@ -42,8 +42,9 @@ where
 
         Box::pin(async move {
             let realm = if let Some(app_state) = req.extensions().get::<AppState>() {
-                if let Some(host) = req.headers().get("host").and_then(|h| h.to_str().ok()) {
-                    resolve_realm(app_state, host).await
+                if let Some(host) = crate::http::extract_host(&req) {
+                    let scheme = crate::http::extract_scheme(&req);
+                    resolve_realm(app_state, scheme, &host).await
                 } else {
                     Realm::Platform
                 }
