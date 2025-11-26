@@ -3,43 +3,42 @@ use anyhow::Result;
 use bits_db::PostgresUrl;
 use sqlx::PgPool;
 
+#[derive(sqlx::FromRow)]
 pub struct Tenant {
     pub id: i64,
 }
 
+#[derive(sqlx::FromRow)]
 pub struct TenantDomain {
     pub id: i64,
     pub tenant_id: i64,
     pub domain: String,
 }
 
+#[derive(sqlx::FromRow)]
 pub struct User {
     pub id: i64,
 }
 
 pub struct TestContext {
     pub server: TestServer,
-    pub db_name: String,
     pub db_pool: PgPool,
-    admin_pool: PgPool,
-    runtime_handle: tokio::runtime::Handle,
 }
 
 impl TestContext {
     pub async fn create_user(&self, email: &str, password_hash: &str) -> Result<User> {
-        let user = sqlx::query_as!(
-            User,
-            "INSERT INTO users (password_hash) VALUES ($1) RETURNING id",
-            password_hash
+        let user = sqlx::query_as::<_, User>(
+            "INSERT INTO users (password_hash) VALUES ($1) RETURNING id"
         )
+        .bind(password_hash)
         .fetch_one(&self.db_pool)
         .await?;
 
-        sqlx::query!(
-            "INSERT INTO email_addresses (user_id, address) VALUES ($1, $2)",
-            user.id,
-            email
+        sqlx::query(
+            "INSERT INTO email_addresses (user_id, address) VALUES ($1, $2)"
         )
+        .bind(user.id)
+        .bind(email)
         .execute(&self.db_pool)
         .await?;
 
@@ -47,8 +46,7 @@ impl TestContext {
     }
 
     pub async fn create_tenant(&self) -> Result<Tenant> {
-        let tenant = sqlx::query_as!(
-            Tenant,
+        let tenant = sqlx::query_as::<_, Tenant>(
             "INSERT INTO tenants DEFAULT VALUES RETURNING id"
         )
         .fetch_one(&self.db_pool)
@@ -64,15 +62,14 @@ impl TestContext {
     ) -> Result<(Tenant, TenantDomain)> {
         let tenant = self.create_tenant().await?;
 
-        let tenant_domain = sqlx::query_as!(
-            TenantDomain,
+        let tenant_domain = sqlx::query_as::<_, TenantDomain>(
             "INSERT INTO tenant_domains (tenant_id, domain, added_by)
              VALUES ($1, $2, $3)
-             RETURNING id, tenant_id, domain",
-            tenant.id,
-            domain,
-            added_by
+             RETURNING id, tenant_id, domain"
         )
+        .bind(tenant.id)
+        .bind(domain)
+        .bind(added_by)
         .fetch_one(&self.db_pool)
         .await?;
 
@@ -80,83 +77,83 @@ impl TestContext {
     }
 }
 
-impl Drop for TestContext {
-    fn drop(&mut self) {
-        let db_name = self.db_name.clone();
-        let admin_pool = self.admin_pool.clone();
+// Note: We don't auto-cleanup test databases in Drop to avoid panics during shutdown
+// and to allow debugging failed tests. Clean up manually with:
+//   psql -U bits -c "DROP DATABASE bits_test_*" postgres
 
-        let _ = self.runtime_handle.block_on(async move {
-            let _ = sqlx::query(&format!(
-                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{}'",
-                db_name
-            ))
-            .execute(&admin_pool)
-            .await;
-
-            let _ = sqlx::query(&format!("DROP DATABASE IF EXISTS {} WITH (FORCE)", db_name))
-                .execute(&admin_pool)
-                .await;
-        });
-    }
-}
-
-async fn create_test_database(base_url: &PostgresUrl) -> Result<(String, PgPool, PgPool)> {
-    let template_db = base_url
-        .database()
-        .ok_or_else(|| anyhow::anyhow!("DATABASE_URL missing database name"))?;
+async fn create_test_database(base_url: &PostgresUrl) -> Result<(PostgresUrl, PgPool)> {
+    use sqlx::postgres::PgPoolOptions;
 
     let postgres_url = base_url.with_database("postgres");
-    let admin_pool = PgPool::connect(postgres_url.as_ref()).await?;
+    let admin_pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect(postgres_url.as_ref())
+        .await?;
 
     let test_id = uuid::Uuid::new_v4().simple().to_string();
-    let db_name = format!("{}_{}", template_db, test_id);
+    let db_name = format!("bits_test_{}", test_id);
 
-    sqlx::query(&format!(
-        "CREATE DATABASE {} TEMPLATE {}",
-        db_name, template_db
-    ))
-    .execute(&admin_pool)
-    .await?;
+    sqlx::query(&format!("CREATE DATABASE {}", db_name))
+        .execute(&admin_pool)
+        .await?;
 
     let test_url = base_url.with_database(&db_name);
-    let test_pool = PgPool::connect(test_url.as_ref()).await?;
+    let test_pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(test_url.as_ref())
+        .await?;
 
-    Ok((db_name, test_pool, admin_pool))
+    // Run migrations
+    sqlx::migrate!("../../migrations")
+        .run(&test_pool)
+        .await?;
+
+    Ok((test_url, test_pool))
 }
 
 pub fn config() -> Result<bits_app::config::Config> {
-    bits_app::config::Config::from_env()
-        .map_err(|e| anyhow::anyhow!("Failed to load config: {}", e))
+    use std::env;
+
+    let database_url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://bits:please@localhost:5432/bits_test".to_string())
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Invalid DATABASE_URL: {}", e))?;
+
+    let max_database_connections = env::var("MAX_DATABASE_CONNECTIONS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(5);
+
+    let port = env::var("PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0); // Use 0 to let the OS assign a random port
+
+    // bits-e2e always enables colo feature on bits-app when server is enabled
+    let config = bits_app::config::Config {
+        database_url,
+        max_database_connections,
+        port,
+        platform_domain: env::var("PLATFORM_DOMAIN").ok(),
+    };
+
+    Ok(config)
 }
 
 pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext> {
-    let (db_name, db_pool, admin_pool) = create_test_database(&config.database_url).await?;
-    let test_config = config.with_database_url(config.database_url.with_database(&db_name));
+    let (test_url, db_pool) = create_test_database(&config.database_url).await?;
+    let test_config = config.with_database_url(test_url);
 
     let server = crate::server::spawn_solo(test_config).await?;
-    let runtime_handle = tokio::runtime::Handle::current();
 
-    Ok(TestContext {
-        server,
-        db_name,
-        db_pool,
-        admin_pool,
-        runtime_handle,
-    })
+    Ok(TestContext { server, db_pool })
 }
 
 pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext> {
-    let (db_name, db_pool, admin_pool) = create_test_database(&config.database_url).await?;
-    let test_config = config.with_database_url(config.database_url.with_database(&db_name));
+    let (test_url, db_pool) = create_test_database(&config.database_url).await?;
+    let test_config = config.with_database_url(test_url);
 
     let server = crate::server::spawn_colo(test_config).await?;
-    let runtime_handle = tokio::runtime::Handle::current();
 
-    Ok(TestContext {
-        server,
-        db_name,
-        db_pool,
-        admin_pool,
-        runtime_handle,
-    })
+    Ok(TestContext { server, db_pool })
 }

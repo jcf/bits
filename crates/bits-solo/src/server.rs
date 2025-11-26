@@ -1,9 +1,10 @@
-use bits_app::{setup_session_store, AppState, Config, User};
+use bits_app::{setup_session_store, Config, User};
 use axum_session::SessionLayer;
 use axum_session_auth::{AuthConfig, AuthSessionLayer};
 use axum_session_sqlx::SessionPgPool;
 use dioxus::server::axum;
 
+#[allow(non_snake_case)]
 fn App() -> dioxus::prelude::Element {
     use dioxus::prelude::*;
 

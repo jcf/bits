@@ -28,7 +28,7 @@ pub async fn init(config: Config) -> Result<AppState, anyhow::Error> {
 }
 
 async fn run_migrations(pool: &PgPool) -> Result<(), anyhow::Error> {
-    sqlx::migrate!().run(pool).await?;
+    sqlx::migrate!("../../migrations").run(pool).await?;
     Ok(())
 }
 

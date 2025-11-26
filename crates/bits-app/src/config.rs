@@ -22,17 +22,15 @@ pub struct Config {
 
 impl Config {
     /// Load config from environment variables (for tests)
-    pub fn from_env() -> Result<Self, figment::Error> {
-        Figment::new().merge(Env::prefixed("")).extract()
+    pub fn from_env() -> Result<Self, Box<figment::Error>> {
+        Figment::new()
+            .merge(Env::prefixed(""))
+            .extract()
+            .map_err(Box::new)
     }
 
     pub fn with_database_url(mut self, url: PostgresUrl) -> Self {
         self.database_url = url;
-        self
-    }
-
-    pub fn with_max_connections(mut self, n: u32) -> Self {
-        self.max_database_connections = n;
         self
     }
 }

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::net::SocketAddr;
+use tokio::net::TcpListener;
 
 pub struct TestServer {
     pub addr: SocketAddr,
@@ -11,10 +12,28 @@ impl TestServer {
     }
 }
 
-pub async fn spawn_solo() -> Result<TestServer> {
-    todo!("Implement solo server spawning")
+pub async fn spawn_solo(config: bits_app::Config) -> Result<TestServer> {
+    let router = bits_solo::server::server(config).await?;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.ok();
+    });
+
+    Ok(TestServer { addr })
 }
 
-pub async fn spawn_colo() -> Result<TestServer> {
-    todo!("Implement colo server spawning")
+pub async fn spawn_colo(config: bits_app::Config) -> Result<TestServer> {
+    let router = bits_colo::server::server(config).await?;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let addr = listener.local_addr()?;
+
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.ok();
+    });
+
+    Ok(TestServer { addr })
 }

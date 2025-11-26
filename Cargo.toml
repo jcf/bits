@@ -5,6 +5,7 @@ members = [
     "crates/bits-colo",
     "crates/bits-db",
     "crates/bits-domain",
+    "crates/bits-e2e",
     "crates/bits-solo",
 ]
 
@@ -17,6 +18,8 @@ edition = "2021"
 bits-domain = { path = "crates/bits-domain" }
 bits-db = { path = "crates/bits-db" }
 bits-app = { path = "crates/bits-app" }
+bits-solo = { path = "crates/bits-solo" }
+bits-colo = { path = "crates/bits-colo" }
 
 anyhow = "1"
 axum_session = "0.17.1"

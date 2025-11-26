@@ -44,6 +44,7 @@ fn main() {
 }
 
 #[cfg(not(feature = "server"))]
+#[allow(non_snake_case)]
 fn App() -> dioxus::prelude::Element {
     use dioxus::prelude::*;
 

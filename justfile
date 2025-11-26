@@ -121,8 +121,8 @@ fmt:
 # Build fullstack web packages
 [group('dev')]
 build:
-    dx build --fullstack true --platform web --package bits-solo
-    dx build --fullstack true --platform web --package bits-colo
+    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits-solo
+    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits-colo
 
 # Run checks
 [group('dev')]
@@ -132,17 +132,17 @@ check:
 # Run lints
 [group('dev')]
 lint:
-    cargo clippy
+    env RUSTFLAGS="-D warnings" cargo clippy -- -D warnings
 
 # Run tests
 [group('dev')]
 test:
-    cargo nextest run --features server
+    env RUSTFLAGS="-D warnings" cargo nextest run --features server
 
 # Run integration tests
 [group('dev')]
 integration:
-    cargo nextest run --package bits-colo --features server --test integration
+    env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --features server --run-ignored ignored-only
 
 # Verify and push changes
 [group('dev')]

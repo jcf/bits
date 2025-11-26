@@ -6,17 +6,17 @@ edition.workspace = true
 publish = false
 
 [features]
-server = ["bits-solo/server", "bits-colo/server"]
+default = ["server"]
+server = ["bits-solo/server", "bits-colo/server", "bits-app/colo"]
 
 [dependencies]
 bits-app.workspace = true
 bits-db.workspace = true
 bits-solo.workspace = true
-bits-colo = { path = "../bits-colo" }
+bits-colo.workspace = true
 anyhow.workspace = true
+axum = "0.8"
+reqwest = { version = "0.12", features = ["json"] }
 sqlx.workspace = true
 tokio.workspace = true
 uuid = { version = "1", features = ["v4"] }
-
-[dev-dependencies]
-reqwest = { version = "0.12", features = ["json"] }

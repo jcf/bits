@@ -253,5 +253,9 @@ in {
         pass = "please";
       }
     ];
+
+    initialScript = ''
+      ALTER USER bits CREATEDB;
+    '';
   };
 }

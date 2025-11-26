@@ -1,6 +1,4 @@
 #[cfg(feature = "server")]
-use crate::Config;
-#[cfg(feature = "server")]
 use sqlx::PgPool;
 
 /// A validated tenant.
