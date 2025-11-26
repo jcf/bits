@@ -4,6 +4,15 @@ use axum_session_auth::{AuthConfig, AuthSessionLayer};
 use axum_session_sqlx::SessionPgPool;
 use dioxus::server::axum;
 
+fn App() -> dioxus::prelude::Element {
+    use dioxus::prelude::*;
+
+    rsx! {
+        document::Link { rel: "stylesheet", href: asset!("assets/app.css") }
+        bits_app::App {}
+    }
+}
+
 /// Multi-tenant server setup (colo mode)
 /// Uses RealmLayer middleware to determine tenant context
 pub async fn server(config: Config) -> Result<axum::Router, anyhow::Error> {
@@ -17,7 +26,7 @@ pub async fn server(config: Config) -> Result<axum::Router, anyhow::Error> {
         AuthSessionLayer::<User, i64, SessionPgPool, sqlx::PgPool>::new(Some(state.db.clone()))
             .with_config(auth_config);
 
-    Ok(dioxus::server::router(bits_app::App)
+    Ok(dioxus::server::router(App)
         .layer(RealmLayer)
         .layer(auth_layer)
         .layer(SessionLayer::new(session_store))

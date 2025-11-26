@@ -1,6 +1,7 @@
 **/*.rs.bk
 **/.claude/settings.local.json
 **/.terraform/
+**/assets/app.css
 *.pem
 *.tfstate
 *.tfstate.*
@@ -17,7 +18,6 @@
 /.devenv.flake.nix
 /.direnv
 /.mcp.json
-/assets/app.css
 /certs/
 /dist
 /target

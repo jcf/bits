@@ -9,6 +9,7 @@ _default:
     @just build
     @just lint
     @just test
+    @just integration
 
 # ------------------------------------------------------------------------------
 # Docs
@@ -95,12 +96,12 @@ multi:
 
 # Watch source code for Tailwind classes
 [group('dev')]
-tailwind:
+tailwind dir:
     pnpm --filter @bits/tailwind \
         exec tailwindcss \
             --watch \
-            --input ../../tailwind.css \
-            --output ../../assets/tailwind.css
+            --input ../../{{ dir }}/tailwind.css \
+            --output ../../{{ dir }}/assets/app.css
 
 # Run the marketing site
 [group('dev')]

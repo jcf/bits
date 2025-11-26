@@ -97,8 +97,8 @@ done
 
 #+results:
 : ✅ https://www.usebits.app.test
-: ✅ https://bits.page.test
-: ✅ https://jcf.bits.page.test
+: ❌ https://bits.page.test (502)
+: ❌ https://jcf.bits.page.test (502)
 
 And with a non-existent tenant, we expect a 404 response:
 
@@ -114,7 +114,7 @@ fi
 #+end_src
 
 #+results:
-: ✅ https://foo.bits.page.test
+: ❌ https://foo.bits.page.test (502)
 
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
@@ -132,20 +132,27 @@ done
 
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
-just
+just --list
 #+end_src
 
 #+results:
 #+begin_example
 Available recipes:
     [dev]
+    build            # Build fullstack web packages
+    check            # Run checks
+    clean            # Clear build caches
+    fix              # Fix errors within Bits
     fmt              # Format project files
+    integration      # Run integration tests
+    lint             # Run lints
     mkcert           # Create self-signed SSL certificates via mkcert
+    multi            # Run Dioxus in multi-tenant mode
     push             # Verify and push changes
     release
-    serve            # Run Dioxus
+    serve            # Run Dioxus in single-tenant mode
     setup            # Setup a local development environment
-    tailwind         # Watch source code for Tailwind classes
+    tailwind dir     # Watch source code for Tailwind classes
     test             # Run tests
     www              # Run the marketing site
 
@@ -161,7 +168,7 @@ Available recipes:
     [postgres]
     migrate          # Run database migrations
     migration name   # Create a new migration
-    psql             # Start an interactive psql session connected to the local development database
+    psql *args       # Start an interactive psql session connected to the local development database
 #+end_example
 
 ** SLOC
@@ -177,28 +184,32 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- CSS                       2            7            7            0            0
+ CSS                       8         1556         1552            4            0
  HCL                      12          389          323           13           53
- HTML                      1           11           11            0            0
+ HTML                      3           33           33            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      1          170           98           41           31
+ Just                      1          207          121           48           38
  MDX                       1           56            0           39           17
- Nix                       3          290          237            9           44
- Org                       8         1549         1410            4          135
- SQL                       1            8            5            2            1
- TOML                      5           93           80            0           13
+ Nix                       3          299          244            9           46
+ Org                       8         1550         1410            4          136
+ SQL                       2          114           97            1           16
+ TOML                     13          269          230            0           39
  TypeScript                3           36           30            1            5
  YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                      6          440          365            7           68
- |- Markdown               4           20            0           19            1
- (Total)                              460          365           26           69
+ Markdown                  1           36            0           23           13
+ |- Rust                   1           68           49           10            9
+ (Total)                              104           49           33           22
+─────────────────────────────────────────────────────────────────────────────────
+ Rust                     19         1433         1230            5          198
+ |- Markdown               6           16            0           16            0
+ (Total)                             1449         1230           21          198
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    62         8389         6769          136         1484
+ Total                    93        11382         9522          174         1686
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-4a8b672-dirty @ 2025/11/20 00:23
+c5dc45c-dirty @ 2025/11/26 15:21
 #+end_example
 
 ** TODOs
@@ -207,4 +218,4 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: src/db.rs:            // TODO Pull max connections from nested database configuration
+: crates/bits-e2e/tests/solo.rs:    // TODO: Assert no marketing content present

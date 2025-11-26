@@ -1,8 +1,6 @@
 [application]
-name = "bits"
+name = "bits-solo"
 default_platform = "web"
-tailwind_input = "tailwind.css"
-tailwind_output = "assets/app.css"
 
 [web.app]
 title = "Bits"

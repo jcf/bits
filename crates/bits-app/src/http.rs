@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Scheme {
     Http,
@@ -5,15 +7,19 @@ pub enum Scheme {
     Unsupported,
 }
 
-impl Scheme {
-    pub fn from_str(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
+impl FromStr for Scheme {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.to_lowercase().as_str() {
             "http" => Scheme::Http,
             "https" => Scheme::Https,
             _ => Scheme::Unsupported,
-        }
+        })
     }
+}
 
+impl Scheme {
     fn default_port(&self) -> Option<u16> {
         match self {
             Scheme::Http => Some(80),
@@ -41,7 +47,7 @@ pub fn extract_scheme<B>(req: &dioxus::server::axum::http::Request<B>) -> Scheme
         .or_else(|| req.uri().scheme_str())
         .unwrap_or("https");
 
-    Scheme::from_str(scheme_str)
+    scheme_str.parse().unwrap_or(Scheme::Unsupported)
 }
 
 #[cfg(feature = "server")]
@@ -65,7 +71,7 @@ mod tests {
     #[case("ftp", Scheme::Unsupported)]
     #[case("", Scheme::Unsupported)]
     fn parse_scheme(#[case] input: &str, #[case] expected: Scheme) {
-        assert_eq!(Scheme::from_str(input), expected);
+        assert_eq!(input.parse::<Scheme>(), Ok(expected));
     }
 
     #[rstest]

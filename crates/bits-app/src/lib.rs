@@ -1,5 +1,5 @@
-pub mod config;
 pub mod auth;
+pub mod config;
 pub mod http;
 pub mod tenant;
 
@@ -8,14 +8,14 @@ pub mod middleware;
 #[cfg(feature = "server")]
 pub mod server;
 
+pub use auth::{AuthError, AuthForm, JoinForm, User};
 pub use config::Config;
-pub use auth::{User, AuthError, AuthForm, JoinForm};
 pub use tenant::{Realm, Tenant};
 
 #[cfg(feature = "server")]
 pub use middleware::{RealmLayer, RealmMiddleware};
 #[cfg(feature = "server")]
-pub use server::{init, setup_session_store};
+pub use server::{init, init_tracing, setup_session_store};
 
 #[cfg(feature = "server")]
 use dioxus::fullstack::FullstackContext;
@@ -46,7 +46,6 @@ impl axum_core::extract::FromRef<FullstackContext> for AppState {
     }
 }
 
-
 // App module
 use dioxus::prelude::*;
 
@@ -66,7 +65,6 @@ pub enum Route {
 pub fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: "data:" }
-        document::Link { rel: "stylesheet", href: "/assets/app.css" }
         Router::<Route> {}
     }
 }
@@ -102,13 +100,14 @@ pub fn Hero() -> Element {
             }
             div {
                 class: "flex gap-4 items-center",
+                Link {
+                    to: Route::Home {},
+                    class: "underline decoration-2 decoration-cyan-400",
+                    "Home"
+                }
                 match session() {
                     Some(Ok(Some(user))) => rsx! {
                         span { "{user.email}" }
-                        Link {
-                            to: Route::Home {},
-                            "Home"
-                        }
                     },
                     _ => rsx! {
                         Link {
@@ -158,8 +157,10 @@ fn Auth() -> Element {
                     }
                 }
                 form {
+                    method: "post",
                     class: "space-y-6",
                     onsubmit: move |evt: FormEvent| async move {
+                        evt.prevent_default();
                         let form: AuthForm = evt.parsed_values().unwrap();
                         auth_action.call(dioxus::fullstack::Form(form)).await;
                         if auth_action.value().and_then(|r| r.ok()).is_some() {
@@ -173,6 +174,8 @@ fn Auth() -> Element {
                             r#type: "email",
                             name: "email",
                             required: true,
+                            autocomplete: "off",
+                            autocapitalize: "none",
                             placeholder: "Email address",
                             class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
                         }
@@ -183,6 +186,7 @@ fn Auth() -> Element {
                             r#type: "password",
                             name: "password",
                             required: true,
+                            autocomplete: "off",
                             placeholder: "Password",
                             class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
                         }
@@ -241,8 +245,10 @@ fn Join() -> Element {
                     }
                 }
                 form {
+                    method: "post",
                     class: "space-y-6",
                     onsubmit: move |evt: FormEvent| async move {
+                        evt.prevent_default();
                         let form: JoinForm = evt.parsed_values().unwrap();
                         join_action.call(dioxus::fullstack::Form(form)).await;
                         if join_action.value().and_then(|r| r.ok()).is_some() {
@@ -255,6 +261,8 @@ fn Join() -> Element {
                             r#type: "email",
                             name: "email",
                             required: true,
+                            autocomplete: "off",
+                            autocapitalize: "none",
                             placeholder: "Email address",
                             class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
                         }
@@ -265,6 +273,7 @@ fn Join() -> Element {
                             r#type: "password",
                             name: "password",
                             required: true,
+                            autocomplete: "off",
                             placeholder: "Password",
                             class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
                         }
@@ -309,7 +318,13 @@ fn NotFound() -> Element {
 #[component]
 fn Home() -> Element {
     rsx! {
-        Hero {}
+        div {
+            class: "flex min-h-full items-center justify-center p-8",
+            h1 {
+                class: "text-4xl font-bold",
+                "Welcome to Bits"
+            }
+        }
     }
 }
 
@@ -318,38 +333,39 @@ fn Home() -> Element {
 fn Layout() -> Element {
     use auth::get_session;
 
-    let session = use_server_future(move || async move { get_session().await });
-    use_context_provider(move || session);
+    let session = use_server_future(move || async move { get_session().await })?;
+    use_context_provider(|| session);
 
     rsx! {
         div {
-            class: "text-neutral-900 dark:text-neutral-100",
-            id: "navbar",
-            Link {
-                to: Route::Home {},
-                "Home"
+            class: "flex min-h-screen flex-col",
+            div {
+                class: "sticky top-0 bg-neutral-100 dark:bg-neutral-900",
+                Hero {}
             }
-        }
+            div {
+                class: "flex-grow",
+                ErrorBoundary {
+                    handle_error: move |err: ErrorContext| {
+                        #[cfg(feature = "server")]
+                        let http_error = dioxus::fullstack::FullstackContext::commit_error_status(
+                            err.error().unwrap()
+                        );
 
-        ErrorBoundary {
-            handle_error: move |err: ErrorContext| {
-                #[cfg(feature = "server")]
-                let http_error = dioxus::fullstack::FullstackContext::commit_error_status(
-                    err.error().unwrap()
-                );
+                        #[cfg(not(feature = "server"))]
+                        let http_error = err.error().unwrap();
 
-                #[cfg(not(feature = "server"))]
-                let http_error = err.error().unwrap();
-
-                rsx! {
-                    div {
-                        class: "text-red-500",
-                        h1 { "Error" }
-                        p { "{http_error:?}" }
-                    }
+                        rsx! {
+                            div {
+                                class: "text-red-500",
+                                h1 { "Error" }
+                                p { "{http_error:?}" }
+                            }
+                        }
+                    },
+                    Outlet::<Route> {}
                 }
-            },
-            Outlet::<Route> {}
+            }
         }
     }
 }

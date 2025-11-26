@@ -3,17 +3,8 @@ use axum_session::{SessionConfig, SessionStore};
 use axum_session_sqlx::SessionPgPool;
 use sqlx::PgPool;
 
-/// Initialize the application: tracing, database, and migrations
-pub async fn init(config: Config) -> Result<AppState, anyhow::Error> {
-    init_tracing();
-
-    let state = AppState::new(config).await?;
-    run_migrations(&state.db).await?;
-
-    Ok(state)
-}
-
-fn init_tracing() {
+/// Initialize tracing with custom filters for database and session logging
+pub fn init_tracing() {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
     tracing_subscriber::registry()
@@ -26,6 +17,14 @@ fn init_tracing() {
         )
         .with(tracing_subscriber::fmt::layer().compact())
         .init();
+}
+
+/// Initialize the application: database and migrations
+pub async fn init(config: Config) -> Result<AppState, anyhow::Error> {
+    let state = AppState::new(config).await?;
+    run_migrations(&state.db).await?;
+
+    Ok(state)
 }
 
 async fn run_migrations(pool: &PgPool) -> Result<(), anyhow::Error> {
