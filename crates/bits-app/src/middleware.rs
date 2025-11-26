@@ -1,5 +1,5 @@
 use crate::tenant::{resolve_realm, Realm};
-use crate::{AppState, Config};
+use crate::AppState;
 use dioxus::server::axum::{extract::Request, response::Response};
 use std::{
     future::Future,
@@ -42,14 +42,9 @@ where
 
         Box::pin(async move {
             let realm = if let Some(app_state) = req.extensions().get::<AppState>() {
-                if let Some(config) = req.extensions().get::<Config>() {
-                    if let Some(host) = req.headers().get("host").and_then(|h| h.to_str().ok()) {
-                        resolve_realm(host, config, &app_state.db).await
-                    } else {
-                        Realm::Platform
-                    }
+                if let Some(host) = req.headers().get("host").and_then(|h| h.to_str().ok()) {
+                    resolve_realm(app_state, host).await
                 } else {
-                    tracing::warn!("Config not found in request extensions");
                     Realm::Platform
                 }
             } else {

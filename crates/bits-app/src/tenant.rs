@@ -38,30 +38,33 @@ async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Option<Tenant> {
 }
 
 #[cfg(feature = "server")]
-pub async fn resolve_realm(host: &str, config: &Config, db: &PgPool) -> Realm {
-    // Check if this is the platform domain
-    if let Some(ref platform_domain) = config.platform_domain {
-        // Strip port if present for comparison
-        let host_without_port = host.split(':').next().unwrap_or(host);
+pub async fn resolve_realm(state: &crate::AppState, host: &str) -> Realm {
+    #[cfg(feature = "colo")]
+    {
+        // Check if this is the platform domain
+        if let Some(ref platform_domain) = state.config.platform_domain {
+            // Strip port if present for comparison
+            let host_without_port = host.split(':').next().unwrap_or(host);
 
-        if host_without_port == platform_domain {
-            return Realm::Platform;
-        }
-
-        // Check if it's a subdomain of the platform
-        if host_without_port.ends_with(&format!(".{}", platform_domain)) {
-            // Try to find a tenant by domain (without port)
-            if let Some(tenant) = load_tenant_by_domain(db, host_without_port).await {
-                return Realm::Tenancy(tenant);
+            if host_without_port == platform_domain {
+                return Realm::Platform;
             }
-            // Subdomain pattern but no tenant found
-            return Realm::UnknownTenant;
+
+            // Check if it's a subdomain of the platform
+            if host_without_port.ends_with(&format!(".{}", platform_domain)) {
+                // Try to find a tenant by domain (without port)
+                if let Some(tenant) = load_tenant_by_domain(&state.db, host_without_port).await {
+                    return Realm::Tenancy(tenant);
+                }
+                // Subdomain pattern but no tenant found
+                return Realm::UnknownTenant;
+            }
         }
     }
 
     // Try to find a tenant by custom domain (without port)
     let host_without_port = host.split(':').next().unwrap_or(host);
-    if let Some(tenant) = load_tenant_by_domain(db, host_without_port).await {
+    if let Some(tenant) = load_tenant_by_domain(&state.db, host_without_port).await {
         return Realm::Tenancy(tenant);
     }
 

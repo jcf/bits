@@ -1,5 +1,6 @@
 pub mod config;
 pub mod auth;
+pub mod http;
 pub mod tenant;
 
 #[cfg(feature = "server")]
@@ -22,6 +23,7 @@ use dioxus::fullstack::FullstackContext;
 #[cfg(feature = "server")]
 #[derive(Clone, Debug)]
 pub struct AppState {
+    pub config: Config,
     pub db: sqlx::PgPool,
 }
 
@@ -33,7 +35,7 @@ impl AppState {
             .connect(config.database_url.as_ref())
             .await?;
 
-        Ok(Self { db })
+        Ok(Self { config, db })
     }
 }
 

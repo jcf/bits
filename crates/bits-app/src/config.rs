@@ -1,59 +1,9 @@
+use bits_db::PostgresUrl;
 use clap::Args;
-use url::Url;
+use figment::{providers::Env, Figment};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
-pub struct PostgresUrl(Url);
-
-impl PostgresUrl {
-    pub fn parse(s: &str) -> Result<Self, PostgresUrlError> {
-        let url = Url::parse(s)?;
-
-        match url.scheme() {
-            "postgres" | "postgresql" => {}
-            _ => return Err(PostgresUrlError::NotPostgres),
-        }
-
-        if url.host_str().is_none() {
-            return Err(PostgresUrlError::MissingHost);
-        }
-
-        Ok(Self(url))
-    }
-}
-
-impl std::str::FromStr for PostgresUrl {
-    type Err = PostgresUrlError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::parse(s)
-    }
-}
-
-impl AsRef<str> for PostgresUrl {
-    fn as_ref(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl std::ops::Deref for PostgresUrl {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum PostgresUrlError {
-    #[error("invalid URL: {0}")]
-    InvalidUrl(#[from] url::ParseError),
-    #[error("not a postgres:// or postgresql:// URL")]
-    NotPostgres,
-    #[error("missing host")]
-    MissingHost,
-}
-
-#[derive(Args, Clone, Debug)]
+#[derive(Args, Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
     #[arg(long, env = "DATABASE_URL")]
     pub database_url: PostgresUrl,
@@ -64,11 +14,25 @@ pub struct Config {
     #[arg(short, long, env = "PORT", default_value = "3000")]
     pub port: u16,
 
-    /// Platform domain (e.g., "bits.page") for multi-tenant mode
+    /// Platform domain (e.g., "bits.page") used for tenant routing
+    #[cfg(feature = "colo")]
     #[arg(long, env = "PLATFORM_DOMAIN")]
     pub platform_domain: Option<String>,
+}
 
-    /// Enable multi-tenant mode (domain-based tenant lookup)
-    #[arg(long, env = "MULTI_TENANT", default_value = "false")]
-    pub multi_tenant: bool,
+impl Config {
+    /// Load config from environment variables (for tests)
+    pub fn from_env() -> Result<Self, figment::Error> {
+        Figment::new().merge(Env::prefixed("")).extract()
+    }
+
+    pub fn with_database_url(mut self, url: PostgresUrl) -> Self {
+        self.database_url = url;
+        self
+    }
+
+    pub fn with_max_connections(mut self, n: u32) -> Self {
+        self.max_database_connections = n;
+        self
+    }
 }

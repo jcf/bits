@@ -1,0 +1,22 @@
+[package]
+name = "bits-e2e"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+publish = false
+
+[features]
+server = ["bits-solo/server", "bits-colo/server"]
+
+[dependencies]
+bits-app.workspace = true
+bits-db.workspace = true
+bits-solo.workspace = true
+bits-colo = { path = "../bits-colo" }
+anyhow.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }

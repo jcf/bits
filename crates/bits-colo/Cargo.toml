@@ -8,7 +8,7 @@ edition.workspace = true
 name = "bits-colo"
 
 [features]
-server = ["bits-app/server"]
+server = ["bits-app/server", "bits-app/colo"]
 
 [dependencies]
 bits-domain.workspace = true
