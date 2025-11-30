@@ -2,6 +2,10 @@
 name = "bits-solo"
 default_platform = "web"
 
+# Disable Dioxus' built-in Tailwind support
+tailwind_input = "please-do-not-exist.css"
+tailwind_output = "/tmp/bits-solo.css"
+
 [web.app]
 title = "Bits"
 
