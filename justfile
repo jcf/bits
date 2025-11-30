@@ -84,15 +84,19 @@ setup:
 clean:
     cargo clean
 
-# Run Dioxus in single-tenant mode
+# Run Dioxus in solo mode
 [group('dev')]
-serve:
+solo:
     dx serve --platform web --fullstack true --port 3000 --package bits-solo
 
-# Run Dioxus in multi-tenant mode
+# Run Dioxus in co-located mode
 [group('dev')]
-multi:
+colo:
     dx serve --platform web --fullstack true --port 3000 --package bits-colo
+
+# Run Dioxus in co-located mode
+[group('dev')]
+dev: colo
 
 # Watch source code for Tailwind classes
 [group('dev')]
