@@ -1,0 +1,14 @@
+{:lint-as {clojure.test.check.clojure-test/defspec clojure.test/deftest
+           clojure.test.check.properties/for-all   clojure.core/let
+           bits.test.app/with-system               clojure.core/let}
+
+ :linters
+ {:consistent-alias
+  {:aliases {clojure.spec.alpha s
+             iv.interceptor     i}}
+
+  :unused-referred-var
+  {:exclude {com.stuartsierra.component.repl [system]}}
+
+  :unresolved-symbol
+  {:exclude [(clojure.test/is [match?])]}}}

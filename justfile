@@ -1,5 +1,4 @@
 # Terraform will panic if it encounters `PGSERVICEFILE`.
-
 unexport PGSERVICEFILE
 
 plan_dir := justfile_directory() / ".terraform-plans"
@@ -77,82 +76,53 @@ setup:
     @just mkcert
     devenv shell true
     pnpm install
-    @echo -e "\n✅ {{ BOLD }}Setup complete!{{ BOLD }}"
+    @echo -e "\n✅ {{ BOLD }}Setup complete!{{ NORMAL }}"
 
-# Clear build caches
 [group('dev')]
-clean:
-    cargo clean
+nrepl *args:
+    #!/usr/bin/env zsh
+    set -e
 
-# Run Dioxus in single-tenant mode
-[group('dev')]
-serve:
-    dx serve --platform web --fullstack true --port 3000 --package bits-solo
+    echo >&2 \
+        "{{ BLUE }}{{ BOLD }}==>{{ NORMAL }} {{ BOLD }}Starting nREPL on localhost:9999...{{ NORMAL }}"
 
-# Run Dioxus in multi-tenant mode
-[group('dev')]
-multi:
-    dx serve --platform web --fullstack true --port 3000 --package bits-colo
+    exec clojure \
+        -M:dev:test:logging:nrepl \
+        --report stderr \
+        --main bits.nrepl \
+        --host localhost \
+        --port 9999 \
+        {{ args }}
 
 # Watch source code for Tailwind classes
 [group('dev')]
-tailwind dir:
+tailwind:
+    mkdir -p resources/public
     pnpm --filter @bits/tailwind \
         exec tailwindcss \
             --watch \
-            --input ../../{{ dir }}/tailwind.css \
-            --output ../../{{ dir }}/assets/app.css
+            --input ../../resources/tailwind.css \
+            --output ../../resources/public/app.css
 
 # Run the marketing site
 [group('dev')]
-www:
+market:
     pnpm --filter @bits/www dev
-
-# Fix errors within Bits
-[group('dev')]
-fix:
-    cargo fix --lib -p bits-app
 
 # Format project files
 [group('dev')]
 fmt:
     treefmt
 
-# Build fullstack web packages
-[group('dev')]
-build:
-    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits-solo
-    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits-colo
-
-# Run checks
-[group('dev')]
-check:
-    cargo check
-
 # Run lints
 [group('dev')]
 lint:
-    env RUSTFLAGS="-D warnings" cargo clippy -- -D warnings
+    clj-kondo --lint dev src test
 
 # Run tests
 [group('dev')]
 test:
-    env RUSTFLAGS="-D warnings" cargo nextest run --features server
-
-# Run integration tests
-[group('dev')]
-integration:
-    env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --features server --run-ignored ignored-only
-
-# Verify and push changes
-[group('dev')]
-push:
-    @just test
-    git push
-
-[group('dev')]
-release:
-    dx bundle --release
+    exit 1
 
 # ------------------------------------------------------------------------------
 # PostgreSQL
@@ -167,15 +137,19 @@ psql *args:
         --dbname=bits_dev \
         {{ args }}
 
-# Run database migrations
-[group('postgres')]
-migrate:
-    sqlx migrate run
-
 # Create a new migration
 [group('postgres')]
 migration name:
-    sqlx migrate add {{ name }}
+    #!/usr/bin/env zsh
+    set -e
+    timestamp="$(date +%Y%m%d%H%M%S)"
+    normalized=$(echo "{{ name }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g' | sed 's/^-\|-$//g')
+    dir="resources/migrations"
+    mkdir -p "$dir"
+    for direction in up down; do
+        path="$dir/${timestamp}-${normalized}.${direction}.sql"
+        touch "$path" && echo "$path"
+    done
 
 # ------------------------------------------------------------------------------
 # Infrastructure

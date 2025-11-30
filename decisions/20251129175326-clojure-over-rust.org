@@ -1,0 +1,39 @@
+#+title:  Clojure over Rust
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2025-11-29
+
+This warrants a longer write up based on my experience, but to record the
+decision ahead of ripping out a lot of Rust/Dioxus configuration an incredibly
+short summary.
+
+#+begin_src sh :results output verbatim
+git log $(git rev-list --max-parents=0 HEAD) -1
+#+end_src
+
+#+results:
+: commit a07c62644e5bd37b564a7b654531a5b7c54b8743
+: Author: James Conroy-Finn <james@invetica.co.uk>
+: Date:   Wed Nov 19 12:27:44 2025 +0000
+:
+:     Initial commit
+
+In ten days we've introduced modules, crates, had authentication working and
+broken it, and dealt with some gnarly errors.
+
+The Rust ecosystem is rich in multitudinal places with high-quality libraries
+and profoundly talented individuals. For this team of one, however, where I want
+to ship features fast using boring tech, Dioxus is just too volatile and Rust
+does little to speed me up.
+
+I expect I'll have a working web application that's both fast and stable enough
+in days with Clojure. Data orientation, exploration via a REPL, and function
+composition in a Lisp is just too good to give up.
+
+Let's ship some features.
+
+#+begin_src sh :results output verbatim
+clojure --version
+#+end_src
+
+#+results:
+: Clojure CLI version 1.12.2.1565

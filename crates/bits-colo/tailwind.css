@@ -1,4 +1,0 @@
-@import "tailwindcss";
-@source "./index.html";
-@source "../bits-app/src/**/*.{rs,html,css}";
-@source "./src/**/*.{rs,html,css}";

@@ -96,7 +96,7 @@ done
 #+end_src
 
 #+results:
-: ✅ https://www.usebits.app.test
+: ❌ https://www.usebits.app.test (502)
 : ❌ https://bits.page.test (502)
 : ❌ https://jcf.bits.page.test (502)
 
@@ -129,6 +129,7 @@ done
 - [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
 - [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
 - [[file:decisions/20251119230950-ci-can-wait.org][CI can wait]]
+- [[file:decisions/20251129175326-clojure-over-rust.org][Clojure over Rust]]
 
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
@@ -139,22 +140,14 @@ just --list
 #+begin_example
 Available recipes:
     [dev]
-    build            # Build fullstack web packages
-    check            # Run checks
-    clean            # Clear build caches
-    fix              # Fix errors within Bits
     fmt              # Format project files
-    integration      # Run integration tests
     lint             # Run lints
+    market           # Run the marketing site
     mkcert           # Create self-signed SSL certificates via mkcert
-    multi            # Run Dioxus in multi-tenant mode
-    push             # Verify and push changes
-    release
-    serve            # Run Dioxus in single-tenant mode
+    nrepl *args
     setup            # Setup a local development environment
-    tailwind dir     # Watch source code for Tailwind classes
+    tailwind         # Watch source code for Tailwind classes
     test             # Run tests
-    www              # Run the marketing site
 
     [docs]
     decide +title    # Create a new decision record
@@ -166,7 +159,6 @@ Available recipes:
     plan dir         # Plan one or all Terraform projects
 
     [postgres]
-    migrate          # Run database migrations
     migration name   # Create a new migration
     psql *args       # Start an interactive psql session connected to the local development database
 #+end_example
@@ -184,32 +176,29 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- CSS                       8         1556         1552            4            0
+ Clojure                  15         1092          856           95          141
+ CSS                       3            6            6            0            0
+ Edn                       1           60           55            0            5
  HCL                      12          389          323           13           53
- HTML                      3           33           33            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      1          207          121           48           38
+ Just                      1          181          110           41           30
  MDX                       1           56            0           39           17
- Nix                       3          299          244            9           46
- Org                       8         1550         1410            4          136
- SQL                       2          114           97            1           16
- TOML                     13          269          230            0           39
+ Nix                       1          254          208            8           38
+ Org                       9         1602         1453            4          145
+ TOML                      1           36           32            0            4
  TypeScript                3           36           30            1            5
- YAML                      3         5046         3963            0         1083
+ XML                       1           18           14            1            3
+ YAML                      3         5053         3968            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
  Markdown                  1           36            0           23           13
  |- Rust                   1           68           49           10            9
  (Total)                              104           49           33           22
-─────────────────────────────────────────────────────────────────────────────────
- Rust                     19         1433         1230            5          198
- |- Markdown               6           16            0           16            0
- (Total)                             1449         1230           21          198
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    93        11382         9522          174         1686
+ Total                    68         9161         7344          236         1581
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-c5dc45c-dirty @ 2025/11/26 15:21
+194a5a7-dirty @ 2025/11/29 18:44
 #+end_example
 
 ** TODOs
@@ -218,4 +207,6 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: crates/bits-e2e/tests/solo.rs:    // TODO: Assert no marketing content present
+: src/bits/assets.clj:;; TODO Make content-type explicit or more intelligent.
+: src/bits/service.clj:                    ;; TODO Bring back sessions
+: src/bits/session.clj:;; TODO Improve these names.

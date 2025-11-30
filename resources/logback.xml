@@ -1,0 +1,18 @@
+<!-- -*- mode: sgml -*- -->
+<configuration scan="true" scanPeriod="10 seconds" debug="false">
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <charset>UTF-8</charset>
+      <pattern>%d{"HH:mm:ss.SSS"} %blue(%-5level) %yellow(%logger{36}) %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="WARN">
+    <appender-ref ref="CONSOLE" />
+  </root>
+
+  <logger name="bits" level="debug" />
+  <logger name="user" level="debug" />
+</configuration>

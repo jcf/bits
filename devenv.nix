@@ -43,11 +43,6 @@
     };
   };
 in {
-  overlays = [
-    (import ./nix/overlays/dioxus-cli.nix)
-    (import ./nix/overlays/wasm-bindgen-cli.nix)
-  ];
-
   claude.code = {
     enable = true;
 
@@ -72,14 +67,12 @@ in {
   };
 
   packages = with pkgs; [
-    # Rust
-    cargo-audit
-    cargo-deny
-    cargo-edit
-    cargo-nextest
-    dioxus-cli
-    sqlx-cli
-    wasm-bindgen-cli
+    # Clojure
+    babashka
+    clj-kondo
+    cljfmt
+    clojure
+    clojure-lsp
 
     # Development
     fd
@@ -110,17 +103,18 @@ in {
     targets = ["wasm32-unknown-unknown"];
   };
 
-  processes.www = {
-    exec = "just www";
+  processes.nrepl = {
+    exec = "just nrepl";
+  };
+
+  processes.market = {
+    exec = "just market";
     process-compose.is_tty = true;
   };
 
-  processes.tailwind-colo = {
-    exec = "just tailwind crates/bits-colo";
-  };
-
-  processes.tailwind-solo = {
-    exec = "just tailwind crates/bits-solo";
+  processes.tailwind = {
+    exec = "just tailwind";
+    process-compose.is_tty = true;
   };
 
   process.manager.implementation = "process-compose";

@@ -1,0 +1,36 @@
+#+title:    ECMAScript
+#+property: header-args :dir ..
+
+
+#+begin_src sh :results output verbatim
+pwd
+#+end_src
+
+#+results:
+: /Users/jcf/code/bits
+
+* Vendor htmx
+:properties:
+:header-args+: :var version="2.0.8"
+:end:
+https://htmx.org/docs/#installing
+
+#+begin_src sh :eval query
+mkdir -p resources/public
+
+rm -f resources/public/htmx@*.min.js
+curl "https://cdn.jsdelivr.net/npm/htmx.org@${version}/dist/htmx.min.js" \
+  -o "resources/public/htmx@${version}.min.js"
+ls resources/public/htmx@*.min.js
+#+end_src
+
+#+results:
+: resources/public/htmx@2.0.8.min.js
+
+#+begin_src sh :results output verbatim
+rg "htmx@${version}.min.js" src
+#+end_src
+
+#+results:
+: src/bits/html.clj:      [:script {:src (asset-path "/htmx@2.0.8.min.js")}]]
+: src/bits/app.clj:                          "public/htmx@2.0.8.min.js"}}
