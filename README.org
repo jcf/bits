@@ -142,16 +142,17 @@ Available recipes:
     build            # Build fullstack web packages
     check            # Run checks
     clean            # Clear build caches
+    colo             # Run Dioxus in co-located mode
+    dev              # Run Dioxus in co-located mode
     fix              # Fix errors within Bits
     fmt              # Format project files
     integration      # Run integration tests
     lint             # Run lints
     mkcert           # Create self-signed SSL certificates via mkcert
-    multi            # Run Dioxus in multi-tenant mode
     push             # Verify and push changes
     release
-    serve            # Run Dioxus in single-tenant mode
     setup            # Setup a local development environment
+    solo             # Run Dioxus in solo mode
     tailwind dir     # Watch source code for Tailwind classes
     test             # Run tests
     www              # Run the marketing site
@@ -166,6 +167,7 @@ Available recipes:
     plan dir         # Plan one or all Terraform projects
 
     [postgres]
+    db-destroy       # Delete all development PostgreSQL state
     migrate          # Run database migrations
     migration name   # Create a new migration
     psql *args       # Start an interactive psql session connected to the local development database
