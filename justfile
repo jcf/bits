@@ -177,6 +177,21 @@ migrate:
 migration name:
     sqlx migrate add {{ name }}
 
+# Delete all development PostgreSQL state
+[group('postgres')]
+db-destroy:
+    #!/usr/bin/env zsh
+    dir=".devenv/state/postgres"
+    [[ ! -d "$dir" ]] && exit
+
+    echo -n "{{ BOLD }}Are you sure you want to delete {{ YELLOW }}${dir}{{ NORMAL }}{{ BOLD }}? (y/N): {{ NORMAL }}"
+    read response
+
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        rm -r .devenv/state/postgres/
+        echo >&2 "🔥 PostgreSQL state deleted."
+    fi
+
 # ------------------------------------------------------------------------------
 # Infrastructure
 
