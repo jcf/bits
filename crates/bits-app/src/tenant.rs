@@ -6,6 +6,7 @@ use sqlx::PgPool;
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Tenant {
     pub id: i64,
+    pub name: String,
 }
 
 /// Realm represents the context for a request in multi-tenant mode
@@ -77,13 +78,9 @@ where
         parts: &mut dioxus::server::axum::http::request::Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        parts
-            .extensions
-            .get::<Realm>()
-            .cloned()
-            .ok_or((
-                dioxus::server::axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "Realm not set",
-            ))
+        parts.extensions.get::<Realm>().cloned().ok_or((
+            dioxus::server::axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "Realm not set",
+        ))
     }
 }

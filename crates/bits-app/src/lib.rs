@@ -82,7 +82,7 @@ pub fn Hero() -> Element {
             div {
                 match realm() {
                     Some(Ok(Realm::Tenancy(tenant))) => rsx! {
-                        p { "Tenant ID: {tenant.id}" }
+                        h1 { "{tenant.name}" }
                     },
                     Some(Ok(Realm::Platform)) => rsx! {
                         p { "Platform" }
