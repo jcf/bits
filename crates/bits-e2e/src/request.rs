@@ -1,5 +1,5 @@
 use crate::fixtures::TestContext;
-use reqwest::{Client, RequestBuilder, Response};
+use reqwest::{RequestBuilder, Response};
 
 pub struct Request {
     builder: RequestBuilder,
@@ -17,13 +17,11 @@ impl Request {
 }
 
 pub fn get(ctx: &TestContext, path: &str) -> Request {
-    let client = Client::new();
-    let builder = client.get(ctx.server.url(path));
+    let builder = ctx.client.get(ctx.server.url(path));
     Request { builder }
 }
 
 pub fn post(ctx: &TestContext, path: &str) -> Request {
-    let client = Client::new();
-    let builder = client.post(ctx.server.url(path));
+    let builder = ctx.client.post(ctx.server.url(path));
     Request { builder }
 }

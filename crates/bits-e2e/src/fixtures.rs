@@ -23,6 +23,7 @@ pub struct User {
 pub struct TestContext {
     pub server: TestServer,
     pub db_pool: PgPool,
+    pub client: reqwest::Client,
 }
 
 impl TestContext {
@@ -145,8 +146,13 @@ pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext>
     let test_config = config.with_database_url(test_url);
 
     let server = crate::server::spawn_solo(test_config).await?;
+    let client = reqwest::Client::new();
 
-    Ok(TestContext { server, db_pool })
+    Ok(TestContext {
+        server,
+        db_pool,
+        client,
+    })
 }
 
 pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext> {
@@ -154,6 +160,11 @@ pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext>
     let test_config = config.with_database_url(test_url);
 
     let server = crate::server::spawn_colo(test_config).await?;
+    let client = reqwest::Client::new();
 
-    Ok(TestContext { server, db_pool })
+    Ok(TestContext {
+        server,
+        db_pool,
+        client,
+    })
 }
