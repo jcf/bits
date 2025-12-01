@@ -1,6 +1,11 @@
 #+title:   Bits
 #+startup: content
 
+*Warning:* Bits supports creators who produce content some may consider explicit
+or not suitable for work. You may encounter such content in our product research
+and competitor analysis. This repo itself does not contain any sexually explicit
+content.
+
 Platforms control your audience. Payment processors control your revenue. Bits
 gives you both back.
 
