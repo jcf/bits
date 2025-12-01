@@ -102,7 +102,7 @@ dev: colo
 tailwind dir:
     pnpm --filter @bits/tailwind \
         exec tailwindcss \
-            --watch \
+            --watch=always \
             --input ../../{{ dir }}/tailwind.css \
             --output ../../{{ dir }}/assets/app.css
 
