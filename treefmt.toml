@@ -1,3 +1,9 @@
+[formatter.dioxus]
+command = "just"
+options = ["_fmt-dx"]
+includes = ["*.rs"]
+priority = 10 # After rustfmt
+
 [formatter.javascript]
 command = "prettier"
 options = ["--cache", "--write"]
@@ -28,6 +34,7 @@ includes = ["*.nix"]
 [formatter.rust]
 command = "rustfmt"
 includes = ["*.rs"]
+priority = 0 # Before Dioxus
 
 [formatter.toml]
 command = "taplo"

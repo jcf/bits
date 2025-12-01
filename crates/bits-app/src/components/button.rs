@@ -146,9 +146,7 @@ pub fn ButtonLink(
     };
 
     rsx! {
-        Link {
-            to: to,
-            class: "{all_classes}",
+        Link { to, class: "{all_classes}",
             if let Some(icon_element) = icon {
                 {icon_element}
             }

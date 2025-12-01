@@ -121,6 +121,11 @@ fix:
 fmt:
     treefmt
 
+# Format rsx expressions via stdin (please use `just fmt`)
+[group('dev')]
+_fmt-dx *_args:
+    dx fmt --file -
+
 # Build fullstack web packages
 [group('dev')]
 build:

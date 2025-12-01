@@ -77,8 +77,7 @@ pub fn Header() -> Element {
     let session = use_context::<Resource<Result<Option<User>>>>();
 
     rsx! {
-        nav {
-            class: "flex justify-between items-center text-neutral-900 dark:text-neutral-100 p-4",
+        nav { class: "flex justify-between items-center text-neutral-900 dark:text-neutral-100 p-4",
             div {
                 match realm() {
                     Some(Ok(Realm::Tenancy(tenant))) => rsx! {
@@ -99,8 +98,7 @@ pub fn Header() -> Element {
                     },
                 }
             }
-            div {
-                class: "flex gap-4 items-center",
+            div { class: "flex gap-4 items-center",
                 Link {
                     to: Route::Home {},
                     class: "underline decoration-2 decoration-indigo-400",
@@ -147,19 +145,13 @@ fn Auth() -> Element {
     let nav = navigator();
 
     rsx! {
-        div {
-            class: "flex min-h-full items-center justify-center px-4 py-12",
-            div {
-                class: "w-full max-w-sm space-y-10",
-                h2 {
-                    class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
+        div { class: "flex min-h-full items-center justify-center px-4 py-12",
+            div { class: "w-full max-w-sm space-y-10",
+                h2 { class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
                     "Sign in to your account"
                 }
                 if let Some(Err(err)) = auth_action.value() {
-                    div {
-                        class: "text-red-500 text-sm text-center",
-                        "{err}"
-                    }
+                    div { class: "text-red-500 text-sm text-center", "{err}" }
                 }
                 form {
                     method: "post",
@@ -178,7 +170,7 @@ fn Auth() -> Element {
                             id: "email",
                             input_type: "email",
                             name: "email",
-                            placeholder: "Email address"
+                            placeholder: "Email address",
                         }
                     }
                     div {
@@ -186,7 +178,7 @@ fn Auth() -> Element {
                             id: "password",
                             input_type: "password",
                             name: "password",
-                            placeholder: "Password"
+                            placeholder: "Password",
                         }
                     }
                     components::Button {
@@ -202,8 +194,7 @@ fn Auth() -> Element {
                         }
                     }
                 }
-                p {
-                    class: "text-center text-sm text-neutral-500",
+                p { class: "text-center text-sm text-neutral-500",
                     "Not a member? "
                     Link {
                         to: Route::Join {},
@@ -225,23 +216,16 @@ fn Join() -> Element {
     let nav = navigator();
 
     rsx! {
-        div {
-            class: "flex min-h-full items-center justify-center px-4 py-12",
-            div {
-                class: "w-full max-w-sm space-y-10",
-                h2 {
-                    class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
+        div { class: "flex min-h-full items-center justify-center px-4 py-12",
+            div { class: "w-full max-w-sm space-y-10",
+                h2 { class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
                     "Create your account"
                 }
                 if let Some(Err(err)) = join_action.value() {
-                    div {
-                        class: "text-red-500 text-sm text-center",
-                        "{err}"
-                    }
+                    div { class: "text-red-500 text-sm text-center", "{err}" }
                 }
                 if let Some(Ok(_)) = join_action.value() {
-                    div {
-                        class: "text-green-500 text-sm text-center",
+                    div { class: "text-green-500 text-sm text-center",
                         "Account created! You can now sign in once your email is verified."
                     }
                 }
@@ -261,7 +245,7 @@ fn Join() -> Element {
                             id: "email",
                             input_type: "email",
                             name: "email",
-                            placeholder: "Email address"
+                            placeholder: "Email address",
                         }
                     }
                     div {
@@ -269,7 +253,7 @@ fn Join() -> Element {
                             id: "password",
                             input_type: "password",
                             name: "password",
-                            placeholder: "Password"
+                            placeholder: "Password",
                         }
                     }
                     components::Button {
@@ -285,8 +269,7 @@ fn Join() -> Element {
                         }
                     }
                 }
-                p {
-                    class: "text-center text-sm text-neutral-500",
+                p { class: "text-center text-sm text-neutral-500",
                     "Already a member? "
                     Link {
                         to: Route::Auth {},
@@ -302,8 +285,7 @@ fn Join() -> Element {
 #[component]
 fn NotFound() -> Element {
     rsx! {
-        div {
-            class: "text-red-500",
+        div { class: "text-red-500",
             h1 { "404 - Tenant Not Found" }
             p { "The requested tenant does not exist." }
         }
@@ -346,26 +328,14 @@ fn Home() -> Element {
     let realm = use_context::<Resource<Result<Realm>>>();
 
     rsx! {
-        div {
-            class: "flex min-h-full items-center justify-center p-8",
-            h1 {
-                class: "text-4xl font-bold text-neutral-900 dark:text-neutral-100",
+        div { class: "flex min-h-full items-center justify-center p-8",
+            h1 { class: "text-4xl font-bold text-neutral-900 dark:text-neutral-100",
                 match realm() {
-                    Some(Ok(Realm::Tenancy(tenant))) => rsx! {
-                        "{tenant.name}"
-                    },
-                    Some(Ok(Realm::Platform)) => rsx! {
-                        "Welcome to Bits"
-                    },
-                    Some(Ok(Realm::UnknownTenant)) => rsx! {
-                        "Unknown Tenant"
-                    },
-                    Some(Err(_)) => rsx! {
-                        "Welcome to Bits"
-                    },
-                    None => rsx! {
-                        "Loading…"
-                    },
+                    Some(Ok(Realm::Tenancy(tenant))) => rsx! { "{tenant.name}" },
+                    Some(Ok(Realm::Platform)) => rsx! { "Welcome to Bits" },
+                    Some(Ok(Realm::UnknownTenant)) => rsx! { "Unknown Tenant" },
+                    Some(Err(_)) => rsx! { "Welcome to Bits" },
+                    None => rsx! { "Loading…" },
                 }
             }
         }
@@ -383,27 +353,21 @@ fn Layout() -> Element {
     use_context_provider(|| realm);
 
     rsx! {
-        div {
-            class: "flex min-h-screen flex-col",
-            div {
-                class: "sticky top-0 bg-neutral-100 dark:bg-neutral-900",
-                Header {}
-            }
-            div {
-                class: "flex-grow",
+        div { class: "flex min-h-screen flex-col",
+            header { class: "bg-neutral-100 dark:bg-neutral-900", Header {} }
+            main { class: "grow",
                 ErrorBoundary {
                     handle_error: move |err: ErrorContext| {
                         #[cfg(feature = "server")]
                         let http_error = dioxus::fullstack::FullstackContext::commit_error_status(
-                            err.error().unwrap()
+                            err.error().unwrap(),
                         );
 
                         #[cfg(not(feature = "server"))]
                         let http_error = err.error().unwrap();
 
                         rsx! {
-                            div {
-                                class: "text-red-500",
+                            div { class: "text-red-500",
                                 h1 { "Error" }
                                 p { "{http_error:?}" }
                             }
@@ -411,6 +375,9 @@ fn Layout() -> Element {
                     },
                     Outlet::<Route> {}
                 }
+            }
+            footer {
+                p { "Powered by Bits" }
             }
         }
     }
