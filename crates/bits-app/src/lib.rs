@@ -2,6 +2,7 @@ pub mod auth;
 pub mod components;
 pub mod config;
 pub mod http;
+pub mod i18n;
 pub mod tenant;
 
 #[cfg(feature = "server")]
@@ -79,12 +80,13 @@ fn Auth() -> Element {
     let mut session = use_context::<Resource<Result<Option<User>>>>();
     let mut auth_action = use_action(auth);
     let nav = navigator();
+    let t = i18n::use_translation();
 
     rsx! {
         div { class: "flex min-h-full items-center justify-center px-4 py-12",
             div { class: "w-full max-w-sm space-y-10",
                 h2 { class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
-                    "Sign in to your account"
+                    "{t.t(\"auth-sign-in-title\")}"
                 }
                 if let Some(Err(err)) = auth_action.value() {
                     div { class: "text-red-500 text-sm text-center", "{err}" }
@@ -106,7 +108,7 @@ fn Auth() -> Element {
                             id: "email",
                             input_type: "email",
                             name: "email",
-                            placeholder: "Email address",
+                            placeholder: t.t("form-email-placeholder"),
                         }
                     }
                     div {
@@ -114,7 +116,7 @@ fn Auth() -> Element {
                             id: "password",
                             input_type: "password",
                             name: "password",
-                            placeholder: "Password",
+                            placeholder: t.t("form-password-placeholder"),
                         }
                     }
                     components::Button {
@@ -124,18 +126,18 @@ fn Auth() -> Element {
                         loading: auth_action.pending(),
                         class: "w-full",
                         if auth_action.pending() {
-                            "Signing in..."
+                            "{t.t(\"auth-sign-in-loading\")}"
                         } else {
-                            "Sign in"
+                            "{t.t(\"auth-sign-in-button\")}"
                         }
                     }
                 }
                 p { class: "text-center text-sm text-neutral-500",
-                    "Not a member? "
+                    "{t.t(\"auth-not-member\")} "
                     Link {
                         to: Route::Join {},
                         class: "text-indigo-600 hover:text-indigo-500",
-                        "Create an account"
+                        "{t.t(\"auth-create-account-link\")}"
                     }
                 }
             }
@@ -150,19 +152,20 @@ fn Join() -> Element {
 
     let mut join_action = use_action(join);
     let nav = navigator();
+    let t = i18n::use_translation();
 
     rsx! {
         div { class: "flex min-h-full items-center justify-center px-4 py-12",
             div { class: "w-full max-w-sm space-y-10",
                 h2 { class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
-                    "Create your account"
+                    "{t.t(\"auth-create-account-title\")}"
                 }
                 if let Some(Err(err)) = join_action.value() {
                     div { class: "text-red-500 text-sm text-center", "{err}" }
                 }
                 if let Some(Ok(_)) = join_action.value() {
                     div { class: "text-green-500 text-sm text-center",
-                        "Account created! You can now sign in once your email is verified."
+                        "{t.t(\"auth-account-created-success\")}"
                     }
                 }
                 form {
@@ -181,7 +184,7 @@ fn Join() -> Element {
                             id: "email",
                             input_type: "email",
                             name: "email",
-                            placeholder: "Email address",
+                            placeholder: t.t("form-email-placeholder"),
                         }
                     }
                     div {
@@ -189,7 +192,7 @@ fn Join() -> Element {
                             id: "password",
                             input_type: "password",
                             name: "password",
-                            placeholder: "Password",
+                            placeholder: t.t("form-password-placeholder"),
                         }
                     }
                     components::Button {
@@ -199,18 +202,18 @@ fn Join() -> Element {
                         loading: join_action.pending(),
                         class: "w-full",
                         if join_action.pending() {
-                            "Creating account..."
+                            "{t.t(\"auth-create-account-loading\")}"
                         } else {
-                            "Create account"
+                            "{t.t(\"auth-create-account-button\")}"
                         }
                     }
                 }
                 p { class: "text-center text-sm text-neutral-500",
-                    "Already a member? "
+                    "{t.t(\"auth-already-member\")} "
                     Link {
                         to: Route::Auth {},
                         class: "text-indigo-600 hover:text-indigo-500",
-                        "Sign in"
+                        "{t.t(\"auth-sign-in-button\")}"
                     }
                 }
             }
@@ -220,10 +223,12 @@ fn Join() -> Element {
 
 #[component]
 fn NotFound() -> Element {
+    let t = i18n::use_translation();
+
     rsx! {
         div { class: "text-red-500",
-            h1 { "404 - Tenant Not Found" }
-            p { "The requested tenant does not exist." }
+            h1 { "{t.t(\"error-404-title\")}" }
+            p { "{t.t(\"error-404-message\")}" }
         }
     }
 }
@@ -235,6 +240,7 @@ pub fn SignOutButton() -> Element {
     let mut session = use_context::<Resource<Result<Option<User>>>>();
     let mut sign_out_action = use_action(sign_out);
     let nav = navigator();
+    let t = i18n::use_translation();
 
     use_effect(move || {
         if sign_out_action.value().and_then(|r| r.ok()).is_some() {
@@ -250,9 +256,9 @@ pub fn SignOutButton() -> Element {
             loading: sign_out_action.pending(),
             onclick: move |_| sign_out_action.call(),
             if sign_out_action.pending() {
-                "Signing out..."
+                "{t.t(\"auth-sign-out-loading\")}"
             } else {
-                "Sign out"
+                "{t.t(\"auth-sign-out-button\")}"
             }
         }
     }
@@ -262,16 +268,17 @@ pub fn SignOutButton() -> Element {
 #[component]
 fn Home() -> Element {
     let realm = use_context::<Resource<Result<Realm>>>();
+    let t = i18n::use_translation();
 
     rsx! {
         div { class: "flex min-h-full items-center justify-center p-8",
             h1 { class: "text-4xl font-bold text-neutral-900 dark:text-neutral-100",
                 match realm() {
                     Some(Ok(Realm::Tenancy(tenant))) => rsx! { "{tenant.name}" },
-                    Some(Ok(Realm::Platform)) => rsx! { "Welcome to Bits" },
-                    Some(Ok(Realm::UnknownTenant)) => rsx! { "Unknown Tenant" },
-                    Some(Err(_)) => rsx! { "Welcome to Bits" },
-                    None => rsx! { "Loading…" },
+                    Some(Ok(Realm::Platform)) => rsx! { "{t.t(\"home-welcome\")}" },
+                    Some(Ok(Realm::UnknownTenant)) => rsx! { "{t.t(\"home-unknown-tenant\")}" },
+                    Some(Err(_)) => rsx! { "{t.t(\"home-welcome\")}" },
+                    None => rsx! { "{t.t(\"common-loading\")}" },
                 }
             }
         }
@@ -285,8 +292,12 @@ fn Layout() -> Element {
 
     let session = use_server_future(move || async move { get_session().await })?;
     let realm = use_server_future(move || async move { get_realm().await })?;
+    let locale = i18n::create_default_locale()
+        .unwrap_or_else(|e| panic!("Failed to create default locale: {}", e));
+
     use_context_provider(|| session);
     use_context_provider(|| realm);
+    use_context_provider(|| locale);
 
     rsx! {
         div { class: "flex min-h-screen flex-col",
@@ -296,6 +307,8 @@ fn Layout() -> Element {
             main { class: "grow",
                 ErrorBoundary {
                     handle_error: move |err: ErrorContext| {
+                        let t = i18n::use_translation();
+
                         #[cfg(feature = "server")]
                         let http_error = dioxus::fullstack::FullstackContext::commit_error_status(
                             err.error().unwrap(),
@@ -306,7 +319,7 @@ fn Layout() -> Element {
 
                         rsx! {
                             div { class: "text-red-500",
-                                h1 { "Error" }
+                                h1 { "{t.t(\"common-error\")}" }
                                 p { "{http_error:?}" }
                             }
                         }

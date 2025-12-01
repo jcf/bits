@@ -14,8 +14,15 @@ clap.workspace = true
 dioxus.workspace = true
 dioxus-html = { version = "0.7", features = ["serialize"] }
 figment = { version = "0.10", features = ["env"] }
+fluent-bundle = "0.15"
+icu = "2.0"
 serde.workspace = true
 thiserror = "2"
+unic-langid = "0.9"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Document", "Element", "HtmlElement", "MouseEvent", "EventTarget", "Window"] }
+wasm-bindgen = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow.workspace = true

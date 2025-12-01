@@ -36,6 +36,8 @@ pub fn SignOutLink(class: Option<String>) -> Element {
     let mut session = use_context::<Resource<Result<Option<User>>>>();
     let mut sign_out_action = use_action(sign_out);
     let nav = navigator();
+    let t = crate::i18n::use_translation();
+
     use_effect(move || {
         if sign_out_action.value().and_then(|r| r.ok()).is_some() {
             session.restart();
@@ -47,7 +49,7 @@ pub fn SignOutLink(class: Option<String>) -> Element {
             r#type: "button",
             class: class.unwrap_or_default(),
             onclick: move |_| sign_out_action.call(),
-            "Sign out"
+            "{t.t(\"auth-sign-out-button\")}"
         }
     }
 }
@@ -77,6 +79,53 @@ pub fn Header() -> Element {
     let mut mobile_tab_index = use_signal(|| 0);
     let mut women_popover_open = use_signal(|| false);
     let mut men_popover_open = use_signal(|| false);
+    let mut switching_popover = use_signal(|| false);
+    let t = crate::i18n::use_translation();
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use wasm_bindgen::prelude::*;
+        use wasm_bindgen::JsCast;
+
+        use_effect(move || {
+            if !women_popover_open() && !men_popover_open() {
+                return;
+            }
+
+            let document = web_sys::window()
+                .and_then(|w| w.document())
+                .expect("no document");
+
+            let handler = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+                if let Some(target) = event.target() {
+                    if let Some(element) = target.dyn_ref::<web_sys::Element>() {
+                        let mut is_inside_popover = false;
+                        let mut node = Some(element.clone());
+
+                        while let Some(current) = node {
+                            if current.has_attribute("data-popover") {
+                                is_inside_popover = true;
+                                break;
+                            }
+                            node = current.parent_element();
+                        }
+
+                        if !is_inside_popover {
+                            women_popover_open.set(false);
+                            men_popover_open.set(false);
+                        }
+                    }
+                }
+            }) as Box<dyn FnMut(_)>);
+
+            let _ = document.add_event_listener_with_callback_and_bool(
+                "click",
+                handler.as_ref().unchecked_ref(),
+                true,
+            );
+            handler.forget();
+        });
+    }
 
     rsx! {
         div { class: "bg-white",
@@ -112,7 +161,7 @@ pub fn Header() -> Element {
                                     class: "relative -m-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400",
                                     onclick: move |_| mobile_menu_open.set(false),
                                     span { class: "absolute -inset-0.5" }
-                                    span { class: "sr-only", "Close menu" }
+                                    span { class: "sr-only", "{t.t(\"common-close\")}" }
                                     svg {
                                         view_box: "0 0 24 24",
                                         fill: "none",
@@ -136,12 +185,12 @@ pub fn Header() -> Element {
                                         button {
                                             class: if mobile_tab_index() == 0 { "flex-1 border-b-2 border-indigo-600 px-1 py-4 text-base font-medium whitespace-nowrap text-indigo-600" } else { "flex-1 border-b-2 border-transparent px-1 py-4 text-base font-medium whitespace-nowrap text-gray-900" },
                                             onclick: move |_| mobile_tab_index.set(0),
-                                            "Women"
+                                            "{t.t(\"nav-women\")}"
                                         }
                                         button {
                                             class: if mobile_tab_index() == 1 { "flex-1 border-b-2 border-indigo-600 px-1 py-4 text-base font-medium whitespace-nowrap text-indigo-600" } else { "flex-1 border-b-2 border-transparent px-1 py-4 text-base font-medium whitespace-nowrap text-gray-900" },
                                             onclick: move |_| mobile_tab_index.set(1),
-                                            "Men"
+                                            "{t.t(\"nav-men\")}"
                                         }
                                     }
                                 }
@@ -149,52 +198,20 @@ pub fn Header() -> Element {
                                 if mobile_tab_index() == 0 {
                                     div { class: "space-y-12 px-4 py-6",
                                         div { class: "grid grid-cols-2 gap-x-4 gap-y-10",
-                                            MobileCategoryItem {
-                                                name: "New Arrivals",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-01.jpg",
-                                                image_alt: "Models sitting back to back, wearing Basic Tee in black and bone.",
-                                            }
-                                            MobileCategoryItem {
-                                                name: "Basic Tees",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-02.jpg",
-                                                image_alt: "Close up of Basic Tee fall bundle with off-white, ochre, olive, and black tees.",
-                                            }
-                                            MobileCategoryItem {
-                                                name: "Accessories",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-03.jpg",
-                                                image_alt: "Model wearing minimalist watch with black wristband and white watch face.",
-                                            }
-                                            MobileCategoryItem {
-                                                name: "Carry",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-04.jpg",
-                                                image_alt: "Model opening tan leather long wallet with credit card pockets and cash pouch.",
-                                            }
+                                            MobileCategoryItem { name: t.t("category-new-arrivals") }
+                                            MobileCategoryItem { name: t.t("category-basic-tees") }
+                                            MobileCategoryItem { name: t.t("category-accessories") }
+                                            MobileCategoryItem { name: t.t("category-carry") }
                                         }
                                     }
                                 }
                                 if mobile_tab_index() == 1 {
                                     div { class: "space-y-12 px-4 py-6",
                                         div { class: "grid grid-cols-2 gap-x-4 gap-y-10",
-                                            MobileCategoryItem {
-                                                name: "New Arrivals",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-01.jpg",
-                                                image_alt: "Hats and sweaters on wood shelves next to various colors of t-shirts on hangers.",
-                                            }
-                                            MobileCategoryItem {
-                                                name: "Basic Tees",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-02.jpg",
-                                                image_alt: "Model wearing light heather gray t-shirt.",
-                                            }
-                                            MobileCategoryItem {
-                                                name: "Accessories",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-03.jpg",
-                                                image_alt: "Grey 6-panel baseball hat with black brim, black mountain graphic on front, and light heather gray body.",
-                                            }
-                                            MobileCategoryItem {
-                                                name: "Carry",
-                                                image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-04.jpg",
-                                                image_alt: "Model putting folded cash into slim card holder olive leather wallet with hand stitching.",
-                                            }
+                                            MobileCategoryItem { name: t.t("category-new-arrivals") }
+                                            MobileCategoryItem { name: t.t("category-basic-tees") }
+                                            MobileCategoryItem { name: t.t("category-accessories") }
+                                            MobileCategoryItem { name: t.t("category-carry") }
                                         }
                                     }
                                 }
@@ -202,10 +219,10 @@ pub fn Header() -> Element {
 
                             div { class: "space-y-6 border-t border-gray-200 px-4 py-6",
                                 div { class: "flow-root",
-                                    span { class: "-m-2 block p-2 font-medium text-gray-900", "Company" }
+                                    span { class: "-m-2 block p-2 font-medium text-gray-900", "{t.t(\"nav-company\")}" }
                                 }
                                 div { class: "flow-root",
-                                    span { class: "-m-2 block p-2 font-medium text-gray-900", "Stores" }
+                                    span { class: "-m-2 block p-2 font-medium text-gray-900", "{t.t(\"nav-stores\")}" }
                                 }
                             }
 
@@ -227,14 +244,14 @@ pub fn Header() -> Element {
                                             Link {
                                                 to: Route::Join {},
                                                 class: "-m-2 block p-2 font-medium text-gray-900",
-                                                "Create an account"
+                                                "{t.t(\"auth-create-account-link\")}"
                                             }
                                         }
                                         div { class: "flow-root",
                                             Link {
                                                 to: Route::Auth {},
                                                 class: "-m-2 block p-2 font-medium text-gray-900",
-                                                "Sign in"
+                                                "{t.t(\"auth-sign-in-button\")}"
                                             }
                                         }
                                     },
@@ -319,12 +336,12 @@ pub fn Header() -> Element {
                                         Link {
                                             to: Route::Auth {},
                                             class: "text-sm font-medium text-white hover:text-gray-100",
-                                            "Sign in"
+                                            "{t.t(\"auth-sign-in-button\")}"
                                         }
                                         Link {
                                             to: Route::Join {},
                                             class: "text-sm font-medium text-white hover:text-gray-100",
-                                            "Create an account"
+                                            "{t.t(\"auth-create-account-link\")}"
                                         }
                                     },
                                 }
@@ -341,7 +358,7 @@ pub fn Header() -> Element {
                                     div { class: "hidden lg:flex lg:flex-1 lg:items-center",
                                         Link {
                                             to: Route::Home {},
-                                            span { class: "sr-only", "Your Company" }
+                                            span { class: "sr-only", "{t.t(\"brand-company-name\")}" }
                                             img {
                                                 src: "https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600",
                                                 alt: "",
@@ -353,106 +370,46 @@ pub fn Header() -> Element {
                                     div { class: "hidden h-full lg:flex",
                                         div { class: "inset-x-0 bottom-0 px-4",
                                             div { class: "flex h-full justify-center space-x-8",
-                                                // Women popover
-                                                div {
-                                                    class: "flex relative",
-                                                    onmouseleave: move |_| women_popover_open.set(false),
-                                                    div { class: "relative flex",
-                                                        button {
-                                                            class: if women_popover_open() { "relative flex items-center justify-center text-sm font-medium transition-colors duration-200 ease-out text-indigo-600" } else { "relative flex items-center justify-center text-sm font-medium transition-colors duration-200 ease-out text-gray-700 hover:text-gray-800" },
-                                                            onmouseenter: move |_| women_popover_open.set(true),
-                                                            "Women"
-                                                            span {
-                                                                "aria-hidden": "true",
-                                                                class: if women_popover_open() { "absolute inset-x-0 -bottom-px z-30 h-0.5 bg-indigo-600 duration-200 ease-in" } else { "absolute inset-x-0 -bottom-px z-30 h-0.5 bg-transparent duration-200 ease-in" },
-                                                            }
+                                                NavigationPopover {
+                                                    label: t.t("nav-women"),
+                                                    is_open: women_popover_open,
+                                                    switching: switching_popover,
+                                                    on_toggle: move |_| {
+                                                        if men_popover_open() && !women_popover_open() {
+                                                            switching_popover.set(true);
                                                         }
-                                                    }
-                                                    if women_popover_open() {
-                                                        div {
-                                                            class: "absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500",
-                                                            div { "aria-hidden": "true", class: "absolute inset-0 top-1/2 bg-white shadow-sm" }
-                                                            div { class: "relative bg-white",
-                                                                div { class: "mx-auto max-w-7xl px-8",
-                                                                    div { class: "grid grid-cols-4 gap-x-8 gap-y-10 py-16",
-                                                                        CategoryItem {
-                                                                            name: "New Arrivals",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-01.jpg",
-                                                                            image_alt: "Models sitting back to back, wearing Basic Tee in black and bone.",
-                                                                        }
-                                                                        CategoryItem {
-                                                                            name: "Basic Tees",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-02.jpg",
-                                                                            image_alt: "Close up of Basic Tee fall bundle with off-white, ochre, olive, and black tees.",
-                                                                        }
-                                                                        CategoryItem {
-                                                                            name: "Accessories",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-03.jpg",
-                                                                            image_alt: "Model wearing minimalist watch with black wristband and white watch face.",
-                                                                        }
-                                                                        CategoryItem {
-                                                                            name: "Carry",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-04.jpg",
-                                                                            image_alt: "Model opening tan leather long wallet with credit card pockets and cash pouch.",
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                                                        men_popover_open.set(false);
+                                                        women_popover_open.set(!women_popover_open());
+                                                    },
+                                                    div { class: "grid grid-cols-4 gap-x-8 gap-y-10 py-16",
+                                                        CategoryItem { name: "Dresses & Skirts".to_string() }
+                                                        CategoryItem { name: "Tops & Blouses".to_string() }
+                                                        CategoryItem { name: "Handbags".to_string() }
+                                                        CategoryItem { name: "Jewelry".to_string() }
                                                     }
                                                 }
 
-                                                // Men popover
-                                                div {
-                                                    class: "flex relative",
-                                                    onmouseleave: move |_| men_popover_open.set(false),
-                                                    div { class: "relative flex",
-                                                        button {
-                                                            class: if men_popover_open() { "relative flex items-center justify-center text-sm font-medium transition-colors duration-200 ease-out text-indigo-600" } else { "relative flex items-center justify-center text-sm font-medium transition-colors duration-200 ease-out text-gray-700 hover:text-gray-800" },
-                                                            onmouseenter: move |_| men_popover_open.set(true),
-                                                            "Men"
-                                                            span {
-                                                                "aria-hidden": "true",
-                                                                class: if men_popover_open() { "absolute inset-x-0 -bottom-px z-30 h-0.5 bg-indigo-600 duration-200 ease-in" } else { "absolute inset-x-0 -bottom-px z-30 h-0.5 bg-transparent duration-200 ease-in" },
-                                                            }
+                                                NavigationPopover {
+                                                    label: t.t("nav-men"),
+                                                    is_open: men_popover_open,
+                                                    switching: switching_popover,
+                                                    on_toggle: move |_| {
+                                                        if women_popover_open() && !men_popover_open() {
+                                                            switching_popover.set(true);
                                                         }
-                                                    }
-                                                    if men_popover_open() {
-                                                        div {
-                                                            class: "absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500",
-                                                            div { "aria-hidden": "true", class: "absolute inset-0 top-1/2 bg-white shadow-sm" }
-                                                            div { class: "relative bg-white",
-                                                                div { class: "mx-auto max-w-7xl px-8",
-                                                                    div { class: "grid grid-cols-4 gap-x-8 gap-y-10 py-16",
-                                                                        CategoryItem {
-                                                                            name: "New Arrivals",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-01.jpg",
-                                                                            image_alt: "Hats and sweaters on wood shelves next to various colors of t-shirts on hangers.",
-                                                                        }
-                                                                        CategoryItem {
-                                                                            name: "Basic Tees",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-02.jpg",
-                                                                            image_alt: "Model wearing light heather gray t-shirt.",
-                                                                        }
-                                                                        CategoryItem {
-                                                                            name: "Accessories",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-03.jpg",
-                                                                            image_alt: "Grey 6-panel baseball hat with black brim, black mountain graphic on front, and light heather gray body.",
-                                                                        }
-                                                                        CategoryItem {
-                                                                            name: "Carry",
-                                                                            image_src: "https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-01-men-category-04.jpg",
-                                                                            image_alt: "Model putting folded cash into slim card holder olive leather wallet with hand stitching.",
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                                                        women_popover_open.set(false);
+                                                        men_popover_open.set(!men_popover_open());
+                                                    },
+                                                    div { class: "grid grid-cols-4 gap-x-8 gap-y-10 py-16",
+                                                        CategoryItem { name: "Shirts & Tops".to_string() }
+                                                        CategoryItem { name: "Pants & Jeans".to_string() }
+                                                        CategoryItem { name: "Outerwear".to_string() }
+                                                        CategoryItem { name: "Shoes".to_string() }
                                                     }
                                                 }
 
-                                                span { class: "flex items-center text-sm font-medium text-gray-700", "Company" }
-                                                span { class: "flex items-center text-sm font-medium text-gray-700", "Stores" }
+                                                a { class: "flex items-center text-sm font-medium text-gray-700 hover:text-gray-800", "{t.t(\"nav-company\")}" }
+                                                a { class: "flex items-center text-sm font-medium text-gray-700 hover:text-gray-800", "{t.t(\"nav-stores\")}" }
                                             }
                                         }
                                     }
@@ -463,7 +420,7 @@ pub fn Header() -> Element {
                                             r#type: "button",
                                             class: "-ml-2 rounded-md bg-white p-2 text-gray-400",
                                             onclick: move |_| mobile_menu_open.set(true),
-                                            span { class: "sr-only", "Open menu" }
+                                            span { class: "sr-only", "{t.t(\"mobile-menu-open\")}" }
                                             svg {
                                                 view_box: "0 0 24 24",
                                                 fill: "none",
@@ -482,7 +439,7 @@ pub fn Header() -> Element {
                                         button {
                                             r#type: "button",
                                             class: "ml-2 p-2 text-gray-400 hover:text-gray-500",
-                                            span { class: "sr-only", "Search" }
+                                            span { class: "sr-only", "{t.t(\"common-search\")}" }
                                             svg {
                                                 view_box: "0 0 24 24",
                                                 fill: "none",
@@ -503,7 +460,7 @@ pub fn Header() -> Element {
                                     Link {
                                         to: Route::Home {},
                                         class: "lg:hidden",
-                                        span { class: "sr-only", "Your Company" }
+                                        span { class: "sr-only", "{t.t(\"brand-company-name\")}" }
                                         img {
                                             src: "https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600",
                                             alt: "",
@@ -515,7 +472,7 @@ pub fn Header() -> Element {
                                         button {
                                             r#type: "button",
                                             class: "hidden text-sm font-medium text-gray-700 hover:text-gray-800 lg:block",
-                                            "Search"
+                                            "{t.t(\"common-search\")}"
                                         }
 
                                         div { class: "flex items-center lg:ml-8",
@@ -523,7 +480,7 @@ pub fn Header() -> Element {
                                             button {
                                                 r#type: "button",
                                                 class: "p-2 text-gray-400 hover:text-gray-500 lg:hidden",
-                                                span { class: "sr-only", "Help" }
+                                                span { class: "sr-only", "{t.t(\"common-help\")}" }
                                                 svg {
                                                     view_box: "0 0 24 24",
                                                     fill: "none",
@@ -541,7 +498,7 @@ pub fn Header() -> Element {
                                             button {
                                                 r#type: "button",
                                                 class: "hidden text-sm font-medium text-gray-700 hover:text-gray-800 lg:block",
-                                                "Help"
+                                                "{t.t(\"common-help\")}"
                                             }
 
                                             // Cart
@@ -563,7 +520,7 @@ pub fn Header() -> Element {
                                                         }
                                                     }
                                                     span { class: "ml-2 text-sm font-medium text-gray-700 group-hover:text-gray-800", "0" }
-                                                    span { class: "sr-only", "items in cart, view bag" }
+                                                    span { class: "sr-only", "{t.t(\"common-cart-items\")}" }
                                                 }
                                             }
                                         }
@@ -579,35 +536,112 @@ pub fn Header() -> Element {
 }
 
 #[component]
-fn CategoryItem(name: String, image_src: String, image_alt: String) -> Element {
+fn NavigationPopover(
+    label: String,
+    is_open: Signal<bool>,
+    switching: Signal<bool>,
+    on_toggle: EventHandler<()>,
+    children: Element,
+) -> Element {
+    #[cfg(target_arch = "wasm32")]
+    {
+        use wasm_bindgen::prelude::*;
+        use wasm_bindgen::JsCast;
+
+        use_effect(move || {
+            if switching() {
+                let window = web_sys::window().expect("no window");
+                let mut switching = switching;
+                let closure = Closure::wrap(Box::new(move || {
+                    switching.set(false);
+                }) as Box<dyn FnMut()>);
+                let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                    closure.as_ref().unchecked_ref(),
+                    50,
+                );
+                closure.forget();
+            }
+        });
+    }
+
     rsx! {
-        div { class: "group relative",
-            img {
-                src: "{image_src}",
-                alt: "{image_alt}",
-                class: "aspect-square w-full rounded-md bg-gray-100 object-cover group-hover:opacity-75",
+        div { class: "flex", "data-popover": "{label}",
+            div { class: "relative flex",
+                button {
+                    r#type: "button",
+                    class: if is_open() {
+                        "group relative flex items-center justify-center text-sm font-medium transition-colors duration-200 ease-out text-indigo-600"
+                    } else {
+                        "group relative flex items-center justify-center text-sm font-medium text-gray-700 transition-colors duration-200 ease-out hover:text-gray-800"
+                    },
+                    onclick: move |evt| {
+                        evt.stop_propagation();
+                        on_toggle.call(());
+                    },
+                    "{label}"
+                    span {
+                        "aria-hidden": "true",
+                        class: if is_open() {
+                            "absolute inset-x-0 -bottom-px z-30 h-0.5 transition duration-200 ease-out bg-indigo-600"
+                        } else {
+                            "absolute inset-x-0 -bottom-px z-30 h-0.5 transition duration-200 ease-out"
+                        },
+                    }
+                }
             }
-            div { class: "mt-4 block font-medium text-gray-900",
-                "{name}"
+            div {
+                class: if switching() {
+                    if is_open() {
+                        "absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500 opacity-100 translate-y-0"
+                    } else {
+                        "absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500 opacity-0 translate-y-0 pointer-events-none"
+                    }
+                } else {
+                    if is_open() {
+                        "absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500 transition-all duration-200 ease-out opacity-100 translate-y-0"
+                    } else {
+                        "absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500 transition-all duration-150 ease-in opacity-0 translate-y-1 pointer-events-none"
+                    }
+                },
+                div { "aria-hidden": "true", class: "absolute inset-0 top-1/2 bg-white shadow-sm" }
+                div { class: "relative bg-white",
+                    div { class: "mx-auto max-w-7xl px-8",
+                        {children}
+                    }
+                }
             }
-            p { "aria-hidden": "true", class: "mt-1", "Shop now" }
         }
     }
 }
 
 #[component]
-fn MobileCategoryItem(name: String, image_src: String, image_alt: String) -> Element {
+fn CategoryItem(name: String) -> Element {
+    let t = crate::i18n::use_translation();
+
     rsx! {
         div { class: "group relative",
-            img {
-                src: "{image_src}",
-                alt: "{image_alt}",
-                class: "aspect-square w-full rounded-md bg-gray-100 object-cover group-hover:opacity-75",
-            }
-            div { class: "mt-6 block text-sm font-medium text-gray-900",
+            div { class: "aspect-square w-full rounded-md bg-gray-200" }
+            div { class: "mt-4 block font-medium text-gray-900",
+                span { "aria-hidden": "true", class: "absolute inset-0 z-10" }
                 "{name}"
             }
-            p { "aria-hidden": "true", class: "mt-1 text-sm text-gray-500", "Shop now" }
+            p { "aria-hidden": "true", class: "mt-1", "{t.t(\"category-shop-now\")}" }
+        }
+    }
+}
+
+#[component]
+fn MobileCategoryItem(name: String) -> Element {
+    let t = crate::i18n::use_translation();
+
+    rsx! {
+        div { class: "group relative",
+            div { class: "aspect-square w-full rounded-md bg-gray-200" }
+            div { class: "mt-6 block text-sm font-medium text-gray-900",
+                span { "aria-hidden": "true", class: "absolute inset-0 z-10" }
+                "{name}"
+            }
+            p { "aria-hidden": "true", class: "mt-1 text-sm text-gray-500", "{t.t(\"category-shop-now\")}" }
         }
     }
 }
@@ -615,15 +649,16 @@ fn MobileCategoryItem(name: String, image_src: String, image_alt: String) -> Ele
 #[component]
 pub fn Footer() -> Element {
     let realm = use_context::<Resource<Result<Realm>>>();
+    let t = crate::i18n::use_translation();
 
     rsx! {
-        footer { class: "bg-white dark:bg-gray-900",
+        footer { class: "bg-neutral-100 dark:bg-neutral-900",
             div { class: "mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8",
                 div { class: "flex justify-center gap-x-6 md:order-2",
                     button {
                         r#type: "button",
                         class: "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white",
-                        span { class: "sr-only", "Facebook" }
+                        span { class: "sr-only", "{t.t(\"social-facebook\")}" }
                         svg {
                             view_box: "0 0 24 24",
                             fill: "currentColor",
@@ -639,7 +674,7 @@ pub fn Footer() -> Element {
                     button {
                         r#type: "button",
                         class: "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white",
-                        span { class: "sr-only", "Instagram" }
+                        span { class: "sr-only", "{t.t(\"social-instagram\")}" }
                         svg {
                             view_box: "0 0 24 24",
                             fill: "currentColor",
@@ -655,7 +690,7 @@ pub fn Footer() -> Element {
                     button {
                         r#type: "button",
                         class: "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white",
-                        span { class: "sr-only", "X" }
+                        span { class: "sr-only", "{t.t(\"social-x\")}" }
                         svg {
                             view_box: "0 0 24 24",
                             fill: "currentColor",
@@ -669,7 +704,7 @@ pub fn Footer() -> Element {
                     button {
                         r#type: "button",
                         class: "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white",
-                        span { class: "sr-only", "GitHub" }
+                        span { class: "sr-only", "{t.t(\"social-github\")}" }
                         svg {
                             view_box: "0 0 24 24",
                             fill: "currentColor",
@@ -685,7 +720,7 @@ pub fn Footer() -> Element {
                     button {
                         r#type: "button",
                         class: "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white",
-                        span { class: "sr-only", "YouTube" }
+                        span { class: "sr-only", "{t.t(\"social-youtube\")}" }
                         svg {
                             view_box: "0 0 24 24",
                             fill: "currentColor",
@@ -705,13 +740,13 @@ pub fn Footer() -> Element {
                             "{tenant.name}"
                         },
                         Some(Ok(_)) => rsx! {
-                            "Bits"
+                            "{t.t(\"brand-name\")}"
                         },
                         Some(Err(_)) => rsx! {
-                            "Bits"
+                            "{t.t(\"brand-name\")}"
                         },
                         None => rsx! {
-                            "Loading…"
+                            "{t.t(\"common-loading\")}"
                         },
                     }
                 }
