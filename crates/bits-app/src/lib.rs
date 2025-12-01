@@ -72,70 +72,6 @@ pub fn App() -> Element {
 }
 
 #[component]
-pub fn Header() -> Element {
-    let realm = use_context::<Resource<Result<Realm>>>();
-    let session = use_context::<Resource<Result<Option<User>>>>();
-
-    rsx! {
-        nav { class: "flex justify-between items-center text-neutral-900 dark:text-neutral-100 p-4",
-            div {
-                match realm() {
-                    Some(Ok(Realm::Tenancy(tenant))) => rsx! {
-                        document::Title { "{tenant.name}" }
-                        h1 { "{tenant.name}" }
-                    },
-                    Some(Ok(Realm::Platform)) => rsx! {
-                        p { "Platform" }
-                    },
-                    Some(Ok(Realm::UnknownTenant)) => rsx! {
-                        p { class: "text-red-500", "Unknown subdomain" }
-                    },
-                    Some(Err(_)) => rsx! {
-                        p { class: "text-red-500", "Error loading realm" }
-                    },
-                    None => rsx! {
-                        p { "Loading…" }
-                    },
-                }
-            }
-            div { class: "flex gap-4 items-center",
-                Link {
-                    to: Route::Home {},
-                    class: "underline decoration-2 decoration-indigo-400",
-                    "Home"
-                }
-                match session() {
-                    Some(Ok(Some(user))) => rsx! {
-                        span { "{user.email}" }
-                        SignOutButton {}
-                    },
-                    _ => rsx! {
-                        components::ButtonLink {
-                            to: Route::Auth {},
-                            variant: components::ButtonVariant::Secondary,
-                            size: components::ButtonSize::SM,
-                            "Sign in"
-                        }
-                        components::ButtonLink {
-                            to: Route::Join {},
-                            variant: components::ButtonVariant::Primary,
-                            size: components::ButtonSize::SM,
-                            "Join"
-                        }
-                    },
-                }
-                a {
-                    href: "https://github.com/jcf/bits",
-                    class: "underline decoration-2 decoration-indigo-400",
-                    target: "_blank",
-                    "GitHub"
-                }
-            }
-        }
-    }
-}
-
-#[component]
 fn Auth() -> Element {
     use auth::{auth, AuthForm};
     use components::Input;
@@ -354,7 +290,9 @@ fn Layout() -> Element {
 
     rsx! {
         div { class: "flex min-h-screen flex-col",
-            header { class: "bg-neutral-100 dark:bg-neutral-900", Header {} }
+            header { class: "bg-neutral-100 dark:bg-neutral-900",
+                components::Header {}
+            }
             main { class: "grow",
                 ErrorBoundary {
                     handle_error: move |err: ErrorContext| {
@@ -376,9 +314,7 @@ fn Layout() -> Element {
                     Outlet::<Route> {}
                 }
             }
-            footer {
-                p { "Powered by Bits" }
-            }
+            components::Footer {}
         }
     }
 }
