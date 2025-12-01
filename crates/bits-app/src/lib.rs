@@ -82,6 +82,7 @@ pub fn Header() -> Element {
             div {
                 match realm() {
                     Some(Ok(Realm::Tenancy(tenant))) => rsx! {
+                        document::Title { "{tenant.name}" }
                         h1 { "{tenant.name}" }
                     },
                     Some(Ok(Realm::Platform)) => rsx! {
