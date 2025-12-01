@@ -7,6 +7,37 @@ pub enum Scheme {
     Unsupported,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CspMode {
+    Strict,
+    Development,
+}
+
+const CSP_STRICT: [&str; 6] = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "object-src 'none'",
+    "style-src 'self'",
+    "style-src-attr 'none'",
+    "img-src 'self'",
+];
+
+const CSP_DEVELOPMENT: [&str; 6] = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+    "object-src 'none'",
+    "style-src 'self' 'unsafe-inline'",
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self'",
+];
+
+pub fn csp_header(mode: CspMode) -> String {
+    match mode {
+        CspMode::Strict => CSP_STRICT.join("; "),
+        CspMode::Development => CSP_DEVELOPMENT.join("; "),
+    }
+}
+
 impl FromStr for Scheme {
     type Err = ();
 
@@ -87,5 +118,25 @@ mod tests {
     #[case(Scheme::Https, "jcf.bits.page:443", "jcf.bits.page")]
     fn normalize(#[case] scheme: Scheme, #[case] input: &str, #[case] expected: &str) {
         assert_eq!(normalize_host(scheme, input), expected);
+    }
+
+    // These CSP tests aren't testing behaviour, but given how critically
+    // important it is to get our content security policy right, verifying the
+    // strings themselves seems a reasonable compromise.
+
+    #[test]
+    fn csp_strict_policy() {
+        assert_eq!(
+            csp_header(CspMode::Strict),
+            "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self'; style-src-attr 'none'; img-src 'self'"
+        );
+    }
+
+    #[test]
+    fn csp_development_policy() {
+        assert_eq!(
+            csp_header(CspMode::Development),
+            "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; object-src 'none'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self'"
+        );
     }
 }

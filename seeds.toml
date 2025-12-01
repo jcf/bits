@@ -1,0 +1,19 @@
+[[tenant]]
+name = "Building Bits"
+domain = "jcf.bits.page.test"
+
+[[tenant]]
+name = "Jimmy's Leather Emporium"
+domain = "emporium.bits.page.test"
+
+[[tenant]]
+name = "Charlie's Countryside Adventures"
+domain = "charlie.bits.page.test"
+
+[[tenant]]
+name = "Millie's Meat Treats"
+domain = "milly.bits.page.test"
+
+[[user]]
+email = "james@invetica.co.uk"
+password = "password"

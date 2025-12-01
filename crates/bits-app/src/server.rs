@@ -8,13 +8,19 @@ pub fn init_tracing() {
     use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
     tracing_subscriber::registry()
-        .with(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                EnvFilter::new(
-                    "info,sqlx=warn,axum_session=warn,axum_session_auth=warn,axum_session_sqlx=warn",
-                )
-            }),
-        )
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+            let filters = [
+                "info",
+                "axum_session=warn",
+                "axum_session_auth=warn",
+                "axum_session_sqlx=warn",
+                "bits_app=debug",
+                "bits_colo=debug",
+                "bits_solo=debug",
+                "sqlx=warn",
+            ];
+            EnvFilter::new(filters.join(","))
+        }))
         .with(tracing_subscriber::fmt::layer().compact())
         .init();
 }

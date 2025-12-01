@@ -9,7 +9,6 @@ _default:
     @just build
     @just lint
     @just test
-    @just integration
 
 # ------------------------------------------------------------------------------
 # Docs
@@ -138,15 +137,21 @@ check:
 lint:
     env RUSTFLAGS="-D warnings" cargo clippy -- -D warnings
 
-# Run tests
+# Run units tests
 [group('dev')]
-test:
+unit:
     env RUSTFLAGS="-D warnings" cargo nextest run --features server
 
 # Run integration tests
 [group('dev')]
-integration:
-    env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --features server --run-ignored ignored-only
+integrate:
+    env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --features server
+
+# Run unit and integration tests
+[group('dev')]
+test:
+    @just unit
+    @just integrate
 
 # Verify and push changes
 [group('dev')]
@@ -180,6 +185,11 @@ migrate:
 [group('postgres')]
 migration name:
     sqlx migrate add {{ name }}
+
+# Seed the database with test data
+[group('postgres')]
+seed:
+    cargo run --bin bits-seed
 
 # Delete all development PostgreSQL state
 [group('postgres')]

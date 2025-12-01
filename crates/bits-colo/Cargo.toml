@@ -19,6 +19,7 @@ bits-app.workspace = true
 clap.workspace = true
 dioxus.workspace = true
 tracing.workspace = true
+tower-http = { version = "0.6.7", features = ["set-header"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow.workspace = true

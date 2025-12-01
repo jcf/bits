@@ -5,6 +5,10 @@ authors.workspace = true
 edition.workspace = true
 publish = false
 
+[[bin]]
+name = "bits-seed"
+path = "src/bin/seed.rs"
+
 [features]
 default = ["server"]
 server = ["bits-solo/server", "bits-colo/server", "bits-app/colo"]
@@ -16,7 +20,17 @@ bits-solo.workspace = true
 bits-colo.workspace = true
 anyhow.workspace = true
 axum = "0.8"
+fake.workspace = true
+jiff.workspace = true
+rand.workspace = true
 reqwest = { version = "0.12", features = ["json"] }
+serde.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
+toml.workspace = true
 uuid = { version = "1", features = ["v4"] }
+argon2 = "0.5.3"
+jiff-sqlx = { version = "0.1.1", features = ["postgres"] }
+
+[dev-dependencies]
+rstest = "0.26.1"

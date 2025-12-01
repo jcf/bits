@@ -26,6 +26,24 @@ use bits_e2e::fixtures::*;  // Hard to trace where create_tenant comes from
 
 ### Function Parameters
 
+**ABSOLUTE RULES - NEVER VIOLATE:**
+
+1. **NEVER use naked booleans as function parameters** - Booleans as parameters are completely banned. Call sites like `foo(true)` are unreadable. Use enums instead.
+
+```rust
+// BANNED: Naked boolean parameter
+pub fn csp_header(development: bool) -> String { /* ... */ }
+csp_header(true)  // What does true mean? Unreadable!
+
+// REQUIRED: Use enum instead
+pub enum CspMode {
+    Strict,
+    Development,
+}
+pub fn csp_header(mode: CspMode) -> String { /* ... */ }
+csp_header(CspMode::Development)  // Clear intent!
+```
+
 **Parameter ordering rules:**
 
 1. **I/O components first** - Any stateful I/O component (AppState, Database, FileHandle, etc.) must be the first parameter. This enables testing via mocking/stubbing.
@@ -81,6 +99,57 @@ pub async fn create_tenant(
 - **Single state object is easier** - Thread one parameter instead of many
 - **Natural ordering is memorable** - `https://example.com` → scheme, host
 - **Structs for complex cases** - Caller doesn't need to remember arbitrary positional order
+
+### SQL
+
+Use lowercase for all SQL keywords and identifiers. Uppercase SQL is harder to read and visually jarring.
+
+```rust
+// Good: Lowercase SQL
+sqlx::query_as::<_, User>(
+    "select id, email from users where id = $1"
+)
+
+// Bad: Uppercase SQL
+sqlx::query_as::<_, User>(
+    "SELECT id, email FROM users WHERE id = $1"
+)
+```
+
+### Configuration and Database Pools
+
+Use a single `Config` with serde defaults for optional fields. Use `AppState::new()` to create database pools - don't manually create them.
+
+```rust
+// Good: Use AppState for pool creation
+let config = bits_app::Config::from_env()?;
+let state = bits_app::AppState::new(config).await?;
+// Now use state.db for all database operations
+
+// Bad: Manual pool creation
+let config = bits_app::Config::from_env()?;
+let pool = PgPoolOptions::new()
+    .max_connections(config.max_database_connections)
+    .connect(config.database_url.as_ref())
+    .await?;
+
+// Config with serde defaults (in config.rs):
+fn default_max_database_connections() -> u32 { 5 }
+
+#[derive(Deserialize)]
+pub struct Config {
+    #[serde(default = "default_max_database_connections")]
+    pub max_database_connections: u32,
+    // ...
+}
+```
+
+**Rationale:**
+
+- **One config system** - Don't create config variants for different use cases
+- **Defaults in serde** - Allow fields to be optional in environment
+- **AppState centralizes pool creation** - Reuse logic, don't duplicate
+- **Builder pattern for overrides** - Use `.with_database_url()` etc. when needed (e.g., tests)
 
 ### Testing
 

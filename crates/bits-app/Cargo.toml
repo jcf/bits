@@ -9,7 +9,6 @@ server = ["dioxus/server"]
 colo = []
 
 [dependencies]
-bits-db.workspace = true
 bits-domain.workspace = true
 clap.workspace = true
 dioxus.workspace = true
@@ -34,4 +33,4 @@ tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
-rstest = "0.23"
+rstest = "0.26"

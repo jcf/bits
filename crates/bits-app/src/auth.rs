@@ -67,10 +67,11 @@ impl Authentication<User, i64, PgPool> for User {
             return Err(anyhow::anyhow!("No database pool"));
         };
 
-        let user = sqlx::query_as::<_, User>(
-            "select user_id as id, email from logins where user_id = $1 limit 1",
+        let user = sqlx::query_as!(
+            User,
+            "select user_id as \"id!\", email as \"email!\" from logins where user_id = $1 limit 1",
+            userid
         )
-        .bind(userid)
         .fetch_one(pool)
         .await?;
 
@@ -110,48 +111,89 @@ pub struct JoinForm {
     pub password: String,
 }
 
-#[post("/api/auth")]
+#[cfg(feature = "server")]
+async fn extract_auth_session() -> anyhow::Result<AuthSession> {
+    use anyhow::Context;
+    use dioxus::fullstack::FullstackContext;
+
+    FullstackContext::extract::<AuthSession, _>()
+        .await
+        .context("Failed to extract auth session from request")
+}
+
+#[cfg(feature = "server")]
+async fn extract_app_state() -> anyhow::Result<crate::AppState> {
+    use anyhow::Context;
+    use dioxus::fullstack::FullstackContext;
+    use dioxus::server::axum::extract::Extension;
+
+    let Extension(state) = FullstackContext::extract::<Extension<crate::AppState>, _>()
+        .await
+        .context("Failed to extract app state from request")?;
+    Ok(state)
+}
+
+#[cfg(feature = "server")]
+#[derive(sqlx::FromRow)]
+struct LoginData {
+    user_id: i64,
+    password_hash: String,
+}
+
+#[cfg(feature = "server")]
+async fn load_login_data(db: &PgPool, email: &str) -> anyhow::Result<Option<LoginData>> {
+    use anyhow::Context;
+
+    sqlx::query_as!(
+        LoginData,
+        "select user_id as \"user_id!\", password_hash as \"password_hash!\" from logins where email = $1 limit 1",
+        email
+    )
+    .fetch_optional(db)
+    .await
+    .context("Failed to query login data")
+}
+
+#[cfg(feature = "server")]
+async fn check_email_exists(db: &PgPool, email: &str) -> anyhow::Result<bool> {
+    use anyhow::Context;
+
+    let exists: Option<i64> = sqlx::query_scalar!(
+        "select user_id from email_addresses where address = $1 and valid_to = 'infinity' limit 1",
+        email
+    )
+    .fetch_optional(db)
+    .await
+    .context("Failed to check if email exists")?;
+
+    Ok(exists.is_some())
+}
+
+#[post("/auth")]
 pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<(), AuthError> {
     #[cfg(feature = "server")]
     {
-        use crate::AppState;
         use argon2::{Argon2, PasswordHash, PasswordVerifier};
-        use dioxus::fullstack::FullstackContext;
-        use dioxus::server::axum::extract::Extension;
 
-        let auth = FullstackContext::extract::<AuthSession, _>()
+        let auth = extract_auth_session()
             .await
-            .map_err(|e| AuthError::Internal(e.to_string()))?;
-        let Extension(state) = FullstackContext::extract::<Extension<AppState>, _>()
+            .map_err(|e| AuthError::Internal(format!("{:#}", e)))?;
+        let state = extract_app_state()
             .await
-            .map_err(|e| AuthError::Internal(e.to_string()))?;
+            .map_err(|e| AuthError::Internal(format!("{:#}", e)))?;
 
-        #[derive(sqlx::FromRow)]
-        struct LoginData {
-            user_id: i64,
-            password_hash: String,
-        }
-
-        let user = sqlx::query_as::<_, LoginData>(
-            "select user_id, password_hash from logins where email = $1 limit 1",
-        )
-        .bind(&form.0.email)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| AuthError::Internal(e.to_string()))?;
+        let user = load_login_data(&state.db, &form.0.email)
+            .await
+            .map_err(|e| AuthError::Internal(format!("{:#}", e)))?;
 
         let user = match user {
             Some(u) => u,
             None => {
-                let email_exists: Option<(i64,)> = sqlx::query_as(
-                    "select user_id from email_addresses where address = $1 and valid_to = 'infinity' limit 1",
-                )
-                .bind(&form.0.email)
-                .fetch_optional(&state.db)
-                .await
-                .map_err(|e| AuthError::Internal(e.to_string()))?;
+                let email_exists = check_email_exists(&state.db, &form.0.email)
+                    .await
+                    .map_err(|e| AuthError::Internal(format!("{:#}", e)))?;
 
-                if email_exists.is_some() {
+                if email_exists {
                     return Err(AuthError::EmailNotVerified);
                 } else {
                     return Err(AuthError::InvalidCredentials);
@@ -159,108 +201,114 @@ pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<(), AuthErr
             }
         };
 
-        let parsed_hash = PasswordHash::new(&user.password_hash)
-            .map_err(|e| AuthError::Internal(e.to_string()))?;
+        // Password verification - any error should return InvalidCredentials for security
+        let parsed_hash =
+            PasswordHash::new(&user.password_hash).map_err(|_| AuthError::InvalidCredentials)?;
 
-        if Argon2::default()
+        Argon2::default()
             .verify_password(form.0.password.as_bytes(), &parsed_hash)
-            .is_err()
-        {
-            return Err(AuthError::InvalidCredentials);
-        }
+            .map_err(|_| AuthError::InvalidCredentials)?;
 
         auth.login_user(user.user_id);
     }
     Ok(())
 }
 
-#[post("/api/sign-out")]
+#[post("/bye")]
 pub async fn sign_out() -> Result<()> {
-    #[cfg(feature = "server")]
-    {
-        use dioxus::fullstack::FullstackContext;
-
-        let auth = FullstackContext::extract::<AuthSession, _>().await?;
-        auth.logout_user();
-    }
+    use dioxus::fullstack::FullstackContext;
+    let auth = FullstackContext::extract::<AuthSession, _>().await?;
+    auth.logout_user();
     Ok(())
 }
 
 #[get("/api/session")]
 pub async fn get_session() -> Result<Option<User>> {
-    #[cfg(feature = "server")]
-    {
-        use dioxus::fullstack::FullstackContext;
+    use dioxus::fullstack::FullstackContext;
 
-        let auth = FullstackContext::extract::<AuthSession, _>().await?;
+    let auth = FullstackContext::extract::<AuthSession, _>().await?;
 
-        if let Some(user) = auth.current_user {
-            if user.is_authenticated() {
-                return Ok(Some(user));
-            }
+    if let Some(user) = auth.current_user {
+        if user.is_authenticated() {
+            return Ok(Some(user));
         }
     }
     Ok(None)
 }
 
-#[post("/api/join")]
+#[cfg(feature = "server")]
+async fn hash_password(password: &str) -> anyhow::Result<String> {
+    use argon2::{
+        password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+        Argon2,
+    };
+
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?
+        .to_string();
+
+    Ok(hash)
+}
+
+#[cfg(feature = "server")]
+async fn create_user_with_email(
+    db: &PgPool,
+    email: &str,
+    password_hash: &str,
+) -> anyhow::Result<i64> {
+    use anyhow::Context;
+
+    let mut tx = db.begin().await.context("Failed to begin transaction")?;
+
+    let user_id: i64 =
+        sqlx::query_scalar("insert into users (password_hash) values ($1) returning id")
+            .bind(password_hash)
+            .fetch_one(&mut *tx)
+            .await
+            .context("Failed to insert user")?;
+
+    sqlx::query("insert into email_addresses (user_id, address) values ($1, $2)")
+        .bind(user_id)
+        .bind(email)
+        .execute(&mut *tx)
+        .await
+        .context("Failed to insert email address")?;
+
+    tx.commit().await.context("Failed to commit transaction")?;
+
+    Ok(user_id)
+}
+
+#[post("/join")]
 pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthError> {
     #[cfg(feature = "server")]
     {
-        use crate::AppState;
-        use argon2::{
-            password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
-            Argon2,
-        };
-        use dioxus::fullstack::FullstackContext;
-        use dioxus::server::axum::extract::Extension;
-
-        let Extension(state) = FullstackContext::extract::<Extension<AppState>, _>()
+        let state = extract_app_state()
             .await
-            .map_err(|e| AuthError::Internal(e.to_string()))?;
+            .map_err(|e| AuthError::Internal(format!("{:#}", e)))?;
 
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        let password_hash = argon2
-            .hash_password(form.0.password.as_bytes(), &salt)
-            .map_err(|e| AuthError::Internal(e.to_string()))?
-            .to_string();
-
-        let mut tx = state
-            .db
-            .begin()
+        let password_hash = hash_password(&form.0.password)
             .await
-            .map_err(|e| AuthError::Internal(e.to_string()))?;
+            .map_err(|e| AuthError::Internal(format!("{:#}", e)))?;
 
-        let user_id: i64 =
-            sqlx::query_scalar("insert into users (password_hash) values ($1) returning id")
-                .bind(&password_hash)
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(|e| AuthError::Internal(e.to_string()))?;
-
-        match sqlx::query("insert into email_addresses (user_id, address) values ($1, $2)")
-            .bind(user_id)
-            .bind(&form.0.email)
-            .execute(&mut *tx)
-            .await
-        {
-            Ok(_) => {
-                tx.commit()
-                    .await
-                    .map_err(|e| AuthError::Internal(e.to_string()))?;
-                Ok(())
-            }
+        match create_user_with_email(&state.db, &form.0.email, &password_hash).await {
+            Ok(_) => Ok(()),
             Err(e) => {
-                tx.rollback()
-                    .await
-                    .map_err(|e| AuthError::Internal(e.to_string()))?;
-                if let Some(db_err) = e.as_database_error() {
-                    if db_err.code().as_deref() == Some("23P01") {
-                        return Err(AuthError::EmailAlreadyRegistered);
+                // Check for exclusion constraint violation on email_addresses table
+                if let Some(source) = e.source() {
+                    if let Some(db_err) = source.downcast_ref::<sqlx::Error>() {
+                        if let Some(pg_err) = db_err.as_database_error() {
+                            // 23P01 = exclusion_violation (temporal unique constraint on email)
+                            if pg_err.code().as_deref() == Some("23P01") {
+                                return Err(AuthError::EmailAlreadyRegistered);
+                            }
+                        }
                     }
                 }
-                Err(AuthError::Internal(e.to_string()))
+                Err(AuthError::Internal(format!("{:#}", e)))
             }
         }
     }

@@ -33,7 +33,7 @@ fn main() {
 
         Some(Commands::Serve) | None => {
             bits_app::init_tracing();
-            dioxus::serve(|| server::server(cli.config.clone()));
+            dioxus::serve(|| server::router(cli.config.clone()));
         }
     }
 }

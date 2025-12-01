@@ -36,27 +36,6 @@ Then one can start an hot-reloading development process via Dioxus like so:
 just serve
 #+end_src
 
-** Dioxus version
-One needs to ensure Dioxus and =dioxus-cli= remain in sync or one might
-encounter errors inside of =link= tags:
-
-#+begin_src html :eval never
-<link rel="stylesheet" href="/assets/This should be replaced by dx as part of the build process. If you see this error, make sure you are using a matching version of dx and dioxus and you are not stripping symbols from your binary."></link>
-#+end_src
-
-#+begin_src sh :results output table :colnames '("Package" "Version") :exports results
-echo -e "dioxus\t$(grep 'dioxus = ' Cargo.toml | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
-echo -e "dioxus-cli\t$(grep 'version = ' nix/overlays/dioxus-cli.nix | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
-echo -e "wasm-bindgen-cli\t$(grep 'version = ' nix/overlays/wasm-bindgen-cli.nix | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
-#+end_src
-
-#+results:
-| Package          | Version |
-|------------------+---------|
-| dioxus           |   0.7.1 |
-| dioxus-cli       |   0.7.1 |
-| wasm-bindgen-cli | 0.2.105 |
-
 ** HTTPS and =*.test= URLs
 *** Setup
 To get our =*.test= URLs to work takes some effort with DNS.
@@ -97,8 +76,8 @@ done
 
 #+results:
 : ✅ https://www.usebits.app.test
-: ❌ https://bits.page.test (502)
-: ❌ https://jcf.bits.page.test (502)
+: ✅ https://bits.page.test
+: ✅ https://jcf.bits.page.test
 
 And with a non-existent tenant, we expect a 404 response:
 
@@ -114,7 +93,7 @@ fi
 #+end_src
 
 #+results:
-: ❌ https://foo.bits.page.test (502)
+: ❌ https://foo.bits.page.test (200)
 
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
@@ -146,7 +125,7 @@ Available recipes:
     dev              # Run Dioxus in co-located mode
     fix              # Fix errors within Bits
     fmt              # Format project files
-    integration      # Run integration tests
+    integrate        # Run integration tests
     lint             # Run lints
     mkcert           # Create self-signed SSL certificates via mkcert
     push             # Verify and push changes
@@ -154,7 +133,8 @@ Available recipes:
     setup            # Setup a local development environment
     solo             # Run Dioxus in solo mode
     tailwind dir     # Watch source code for Tailwind classes
-    test             # Run tests
+    test             # Run unit and integration tests
+    unit             # Run units tests
     www              # Run the marketing site
 
     [docs]
@@ -171,6 +151,7 @@ Available recipes:
     migrate          # Run database migrations
     migration name   # Create a new migration
     psql *args       # Start an interactive psql session connected to the local development database
+    seed             # Seed the database with test data
 #+end_example
 
 ** SLOC
@@ -186,38 +167,122 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- CSS                       8         1556         1552            4            0
+ CSS                       3           11           11            0            0
  HCL                      12          389          323           13           53
  HTML                      3           33           33            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      1          207          121           48           38
+ Just                      1          236          139           53           44
  MDX                       1           56            0           39           17
- Nix                       3          299          244            9           46
- Org                       8         1550         1410            4          136
- SQL                       2          114           97            1           16
- TOML                     13          269          230            0           39
+ Nix                       3          305          249            9           47
+ Org                       8         1596         1449            4          143
+ SQL                       2          115           98            1           16
+ TOML                     13          312          265            2           45
  TypeScript                3           36           30            1            5
  YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1           36            0           23           13
- |- Rust                   1           68           49           10            9
- (Total)                              104           49           33           22
+ Markdown                  1           64            0           40           24
+ |- Rust                   1          109           76           19           14
+ (Total)                              173           76           59           38
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     19         1433         1230            5          198
- |- Markdown               6           16            0           16            0
- (Total)                             1449         1230           21          198
+ Rust                     28         2235         1910           29          296
+ |- Markdown               8           29            0           28            1
+ (Total)                             2264         1910           57          297
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    93        11382         9522          174         1686
+ Total                    97        10846         8786          239         1821
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-c5dc45c-dirty @ 2025/11/26 15:21
+cd890a1-dirty @ 2025/12/01 11:26
 #+end_example
 
-** TODOs
+* Tasks
+** Setup                                                          :NOEXPORT:
+#+begin_src emacs-lisp
+(setq sql-postgres-program (executable-find "psql"))
+#+end_src
+
+#+results:
+: /nix/store/19v6sifj4i7zynjb3r974yhqlx07lppm-postgresql-and-plugins-17.6/bin/psql
+
+** Seed the database
+We have a file:seeds.toml file that contains tenants and users we want to insert
+immediately to speed up development.
+
+#+begin_src sh :results output verbatim :eval query
+just seed
+#+end_src
+
+#+property: header-args:sql  :engine postgresql
+#+property: header-args:sql+ :dbhost     "localhost"
+#+property: header-args:sql+ :database   "bits_dev"
+#+property: header-args:sql+ :dbuser     "bits"
+#+property: header-args:sql+ :dbpassword "please"
+#+begin_src sql
+select
+  t.id,
+  t.name,
+  td.domain
+from tenants t
+join tenant_domains td on td.tenant_id = t.id;
+#+end_src
+
+#+results:
+| id | name                             | domain                  |
+|----+----------------------------------+-------------------------|
+|  1 | Building Bits                    | jcf.bits.page.test      |
+|  2 | Jimmy's Leather Emporium         | emporium.bits.page.test |
+|  3 | Charlie's Countryside Adventures | charlie.bits.page.test  |
+|  4 | Millie's Meat Treats             | milly.bits.page.test    |
+
+** Truncate tables
+To test empty states, one needs to truncate appropriate tables:
+
+#+begin_src sh :results output verbatim :eval query
+just psql 2>&1 <<SQL
+  truncate table tenants;
+SQL
+#+end_src
+
+** Verify email address
+#+begin_src sh :results output verbatim :eval query
+email="$(git config user.email)"
+
+just psql 2>&1 <<SQL
+  insert into email_verifications (email_address_id)
+  values ((select id from email_addresses where address = '${email}'))
+SQL
+#+end_src
+
+#+results:
+: PGPASSWD=please psql --host=localhost --port=5432 --username=bits --dbname=bits_dev
+: INSERT 0 1
+: Time: 6.540 ms
+
+* TODOs
 #+begin_src sh :results output verbatim :exports results
 rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: crates/bits-e2e/tests/solo.rs:    // TODO: Assert no marketing content present
+
+* Troubleshooting
+** Dioxus version
+One needs to ensure Dioxus and =dioxus-cli= remain in sync or one might
+encounter errors inside of =link= tags:
+
+#+begin_src html :eval never
+<link rel="stylesheet" href="/assets/This should be replaced by dx as part of the build process. If you see this error, make sure you are using a matching version of dx and dioxus and you are not stripping symbols from your binary."></link>
+#+end_src
+
+#+begin_src sh :results output table :colnames '("Package" "Version") :exports results
+echo -e "dioxus\t$(grep 'dioxus = ' Cargo.toml | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
+echo -e "dioxus-cli\t$(grep 'version = ' nix/overlays/dioxus-cli.nix | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
+echo -e "wasm-bindgen-cli\t$(grep 'version = ' nix/overlays/wasm-bindgen-cli.nix | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
+#+end_src
+
+#+results:
+| Package          | Version |
+|------------------+---------|
+| dioxus           |   0.7.1 |
+| dioxus-cli       |   0.7.1 |
+| wasm-bindgen-cli | 0.2.105 |

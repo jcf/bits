@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod components;
 pub mod config;
 pub mod http;
 pub mod tenant;
@@ -10,6 +11,7 @@ pub mod server;
 
 pub use auth::{AuthError, AuthForm, JoinForm, User};
 pub use config::Config;
+pub use http::CspMode;
 pub use tenant::{Realm, Tenant};
 
 #[cfg(feature = "server")]
@@ -70,10 +72,8 @@ pub fn App() -> Element {
 }
 
 #[component]
-pub fn Hero() -> Element {
-    use auth::get_realm;
-
-    let realm = use_server_future(move || async move { get_realm().await })?;
+pub fn Header() -> Element {
+    let realm = use_context::<Resource<Result<Realm>>>();
     let session = use_context::<Resource<Result<Option<User>>>>();
 
     rsx! {
@@ -102,29 +102,32 @@ pub fn Hero() -> Element {
                 class: "flex gap-4 items-center",
                 Link {
                     to: Route::Home {},
-                    class: "underline decoration-2 decoration-cyan-400",
+                    class: "underline decoration-2 decoration-indigo-400",
                     "Home"
                 }
                 match session() {
                     Some(Ok(Some(user))) => rsx! {
                         span { "{user.email}" }
+                        SignOutButton {}
                     },
                     _ => rsx! {
-                        Link {
+                        components::ButtonLink {
                             to: Route::Auth {},
-                            class: "underline decoration-2 decoration-cyan-400",
+                            variant: components::ButtonVariant::Secondary,
+                            size: components::ButtonSize::SM,
                             "Sign in"
                         }
-                        Link {
+                        components::ButtonLink {
                             to: Route::Join {},
-                            class: "underline decoration-2 decoration-cyan-400",
+                            variant: components::ButtonVariant::Primary,
+                            size: components::ButtonSize::SM,
                             "Join"
                         }
                     },
                 }
                 a {
                     href: "https://github.com/jcf/bits",
-                    class: "underline decoration-2 decoration-cyan-400",
+                    class: "underline decoration-2 decoration-indigo-400",
                     target: "_blank",
                     "GitHub"
                 }
@@ -136,6 +139,7 @@ pub fn Hero() -> Element {
 #[component]
 fn Auth() -> Element {
     use auth::{auth, AuthForm};
+    use components::Input;
 
     let mut session = use_context::<Resource<Result<Option<User>>>>();
     let mut auth_action = use_action(auth);
@@ -169,32 +173,27 @@ fn Auth() -> Element {
                         }
                     },
                     div {
-                        input {
+                        Input {
                             id: "email",
-                            r#type: "email",
+                            input_type: "email",
                             name: "email",
-                            required: true,
-                            autocomplete: "off",
-                            autocapitalize: "none",
-                            placeholder: "Email address",
-                            class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
+                            placeholder: "Email address"
                         }
                     }
                     div {
-                        input {
+                        Input {
                             id: "password",
-                            r#type: "password",
+                            input_type: "password",
                             name: "password",
-                            required: true,
-                            autocomplete: "off",
-                            placeholder: "Password",
-                            class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
+                            placeholder: "Password"
                         }
                     }
-                    button {
-                        r#type: "submit",
-                        disabled: auth_action.pending(),
-                        class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500",
+                    components::Button {
+                        button_type: "submit",
+                        variant: components::ButtonVariant::Primary,
+                        size: components::ButtonSize::LG,
+                        loading: auth_action.pending(),
+                        class: "w-full",
                         if auth_action.pending() {
                             "Signing in..."
                         } else {
@@ -219,6 +218,7 @@ fn Auth() -> Element {
 #[component]
 fn Join() -> Element {
     use auth::{join, JoinForm};
+    use components::Input;
 
     let mut join_action = use_action(join);
     let nav = navigator();
@@ -256,32 +256,27 @@ fn Join() -> Element {
                         }
                     },
                     div {
-                        input {
+                        Input {
                             id: "email",
-                            r#type: "email",
+                            input_type: "email",
                             name: "email",
-                            required: true,
-                            autocomplete: "off",
-                            autocapitalize: "none",
-                            placeholder: "Email address",
-                            class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
+                            placeholder: "Email address"
                         }
                     }
                     div {
-                        input {
+                        Input {
                             id: "password",
-                            r#type: "password",
+                            input_type: "password",
                             name: "password",
-                            required: true,
-                            autocomplete: "off",
-                            placeholder: "Password",
-                            class: "block w-full rounded-md px-3 py-2 border border-neutral-300 dark:border-neutral-700"
+                            placeholder: "Password"
                         }
                     }
-                    button {
-                        r#type: "submit",
-                        disabled: join_action.pending(),
-                        class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-white hover:bg-indigo-500",
+                    components::Button {
+                        button_type: "submit",
+                        variant: components::ButtonVariant::Primary,
+                        size: components::ButtonSize::LG,
+                        loading: join_action.pending(),
+                        class: "w-full",
                         if join_action.pending() {
                             "Creating account..."
                         } else {
@@ -314,15 +309,63 @@ fn NotFound() -> Element {
     }
 }
 
+#[component]
+pub fn SignOutButton() -> Element {
+    use auth::sign_out;
+
+    let mut session = use_context::<Resource<Result<Option<User>>>>();
+    let mut sign_out_action = use_action(sign_out);
+    let nav = navigator();
+
+    use_effect(move || {
+        if sign_out_action.value().and_then(|r| r.ok()).is_some() {
+            session.restart();
+            nav.push(Route::Home {});
+        }
+    });
+
+    rsx! {
+        components::Button {
+            variant: components::ButtonVariant::Secondary,
+            size: components::ButtonSize::SM,
+            loading: sign_out_action.pending(),
+            onclick: move |_| sign_out_action.call(),
+            if sign_out_action.pending() {
+                "Signing out..."
+            } else {
+                "Sign out"
+            }
+        }
+    }
+}
+
 /// Home page
 #[component]
 fn Home() -> Element {
+    let realm = use_context::<Resource<Result<Realm>>>();
+
     rsx! {
         div {
             class: "flex min-h-full items-center justify-center p-8",
             h1 {
-                class: "text-4xl font-bold",
-                "Welcome to Bits"
+                class: "text-4xl font-bold text-neutral-900 dark:text-neutral-100",
+                match realm() {
+                    Some(Ok(Realm::Tenancy(tenant))) => rsx! {
+                        "{tenant.name}"
+                    },
+                    Some(Ok(Realm::Platform)) => rsx! {
+                        "Welcome to Bits"
+                    },
+                    Some(Ok(Realm::UnknownTenant)) => rsx! {
+                        "Unknown Tenant"
+                    },
+                    Some(Err(_)) => rsx! {
+                        "Welcome to Bits"
+                    },
+                    None => rsx! {
+                        "Loading…"
+                    },
+                }
             }
         }
     }
@@ -331,17 +374,19 @@ fn Home() -> Element {
 /// Shared layout component with error handling.
 #[component]
 fn Layout() -> Element {
-    use auth::get_session;
+    use auth::{get_realm, get_session};
 
     let session = use_server_future(move || async move { get_session().await })?;
+    let realm = use_server_future(move || async move { get_realm().await })?;
     use_context_provider(|| session);
+    use_context_provider(|| realm);
 
     rsx! {
         div {
             class: "flex min-h-screen flex-col",
             div {
                 class: "sticky top-0 bg-neutral-100 dark:bg-neutral-900",
-                Hero {}
+                Header {}
             }
             div {
                 class: "flex-grow",

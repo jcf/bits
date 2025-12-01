@@ -65,7 +65,9 @@ in {
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
+    DANGEROUSLY_ALLOW_JAVASCRIPT_EVALUATION = "true";
     DATABASE_URL = "postgres://bits:please@127.0.0.1:5432/bits_dev";
+    DATABASE_URL_TEST = "postgres://bits:please@127.0.0.1:5432/bits_test";
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
     PLATFORM_DOMAIN = dev.hosts.page.domain;

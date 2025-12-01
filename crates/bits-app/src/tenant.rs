@@ -22,14 +22,17 @@ pub enum Realm {
 
 #[cfg(feature = "server")]
 async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Option<Tenant> {
-    sqlx::query_as::<_, Tenant>(
-        "select t.id
+    sqlx::query_as!(
+        Tenant,
+        "select
+           t.id,
+           t.name
          from tenants t
          join tenant_domains td on td.tenant_id = t.id
          where td.domain = $1
-           and td.valid_to = 'infinity'",
+         and td.valid_to = 'infinity'",
+        domain,
     )
-    .bind(domain)
     .fetch_optional(pool)
     .await
     .ok()
