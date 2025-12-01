@@ -19,6 +19,7 @@
 /.direnv
 /.mcp.json
 /certs/
+/creators/data/
 /dist
 /target
 node_modules/

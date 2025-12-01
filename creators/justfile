@@ -1,0 +1,17 @@
+default:
+    @just --list
+
+# Scrape Instagram profiles
+scrape:
+    bb src/scrape.clj profiles.edn
+
+# Convert EDN to JSON for analysis
+convert:
+    bb src/analyze.clj
+
+# Run DuckDB analysis
+analyze: convert
+    duckdb :memory: < analysis.sql
+
+# Full pipeline: scrape, convert, analyze
+all: scrape convert analyze

@@ -100,6 +100,10 @@ in {
     shfmt
     taplo
     treefmt
+
+    # Scraping
+    firefox
+    geckodriver
   ];
 
   languages.javascript.enable = true;

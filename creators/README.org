@@ -1,0 +1,180 @@
+#+title: Creator Monetization Research
+#+author: James Conroy-Finn
+#+email: jcf@bits.page
+#+startup: content
+
+* Overview
+Open source intelligence research analyzing how creators monetize their
+audiences through link-in-bio platforms and destination pages.
+
+This research informs the development of [[https://bits.page][Bits]], a self-hostable link-in-bio[fn:1]
+platform for creators who value platform independence.
+
+* Purpose
+We're building tools to help creators own their audience relationships. To build
+the right features, we need to understand:
+
+- Which link-in-bio platforms creators currently use
+- Where creators direct their audiences (products, services, content)
+- How creators structure their monetization (pricing, tiers, platforms)
+- What the visual presentation and user experience looks like
+
+This research helps us prioritize features, design better UX, and understand
+what integrations matter most.
+
+* Methodology
+** Data Collection
+1. Curated list of public Instagram profiles across multiple niches:
+   - Gaming/streaming
+   - Visual arts and design
+   - Crafts and woodworking
+   - Tech/developer education
+   - Food and lifestyle
+
+2. Automated scraping using Babashka and Etaoin (headless browser):
+   - Instagram bio and link-in-bio URLs
+   - Link-in-bio platform pages (Linktree, Link.me, custom sites)
+   - Outbound destination pages (products, services, content)
+   - Screenshots at each stage for visual analysis
+
+3. Data stored in EDN format, converted to JSON for SQL analysis via DuckDB
+
+** Analysis
+Queries examine:
+
+- Platform usage distribution
+- Common destination types (e-commerce, Patreon, courses, etc.)
+- Pricing models and tiers
+- Link density and funnel complexity
+
+* Ethics and Privacy
+** Public Information
+All data collected is from publicly accessible profiles and pages. No private
+accounts, no authentication circumvention, no personal information beyond what
+creators choose to share publicly.
+
+** Intent
+This research serves product development for creator-focused tools, not data
+resale, advertising, or exploitation. The goal is to build better platforms that
+serve creator needs.
+
+** Transparency and Reproducibility
+This research is open source. Anyone can:
+
+- Review the methodology (=src/scrape.clj=)
+- Run the scraper themselves
+- Reproduce the analysis (=analysis.sql=)
+- Examine the findings
+
+** Opt-Out
+If you are a creator included in this research and wish to have your profile
+removed, please email =jcf@bits.page= with:
+
+- Your Instagram handle
+- Confirmation that you'd like to be excluded
+
+I will promptly remove your profile from the research dataset and respect your
+boundary. No questions asked, no justification required.
+
+* Usage
+** Available Tasks
+#+begin_src sh :results output verbatim
+just --list
+#+end_src
+
+#+results:
+: Available recipes:
+:     all     # Full pipeline: scrape, convert, analyze
+:     analyze # Run DuckDB analysis
+:     convert # Convert EDN to JSON for analysis
+:     default
+:     scrape  # Scrape Instagram profiles
+
+** Prerequisites
+- Babashka
+- DuckDB
+- Firefox with geckodriver
+- Instagram cookies (for authenticated discovery of creator's bits)
+
+** Configuration
+Edit =config.edn= to adjust scraper behavior:
+
+#+begin_src clojure
+{:data-dir      "./data"
+ :browser       :firefox
+ :headless      true
+ :rate-limit-ms 2000}
+#+end_src
+
+** Running the Scraper
+Scrape all profiles in profiles.edn:
+
+#+begin_src sh
+just scrape
+#+end_src
+
+Scrape a single profile:
+
+#+begin_src sh
+bb src/scrape.clj https://www.instagram.com/username/
+#+end_src
+
+** Analysis Pipeline
+#+begin_example
+TODO Just use JSON
+#+end_example
+
+Convert EDN to JSON and run analysis:
+
+#+begin_src sh
+just analyze
+#+end_src
+
+Run the full pipeline:
+
+#+begin_src sh
+just all
+#+end_src
+
+* Project Structure
+#+begin_example
+creators/
+├── README.org              # This file
+├── config.edn              # Scraper configuration
+├── profiles.edn            # List of Instagram profiles to scrape
+├── analysis.sql            # DuckDB queries for analysis
+├── src/
+│   ├── scrape.clj         # Main scraper (Instagram + destinations)
+│   └── analyze.clj        # EDN to JSON converter
+├── data/
+│   ├── scraped/           # Raw EDN output
+│   ├── json/              # Converted for DuckDB
+│   └── screenshots/       # Visual captures
+└── justfile               # Task runner
+#+end_example
+
+* Findings
+Analysis reveals:
+
+- Platform usage patterns (52% Instagram cross-links, 31% Threads, 9% Linktree)
+- Creator monetization strategies by niche
+- Pricing models and subscription tiers
+- Visual design patterns on destination pages
+
+Results inform feature prioritization and product direction for Bits.
+
+* Contact
+For questions, opt-out requests, or collaboration inquiries:
+
+- Email: jcf@bits.page
+- Project: https://bits.page
+
+* License
+Research methodology (code) is open source. Scraped data is for internal product
+development and academic research purposes.
+
+* Footnotes
+[fn:1] This is an oversimplification in the long term as the mission is to
+empower creative individuals to connect with their audiences and make money
+doing something meaningful. In the short term (as of right now) I'm being
+generous. This will change.

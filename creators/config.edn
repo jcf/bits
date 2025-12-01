@@ -1,0 +1,4 @@
+{:data-dir "./data"
+ :browser :firefox
+ :headless true
+ :rate-limit-ms 2000}
