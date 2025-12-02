@@ -18,3 +18,19 @@ module "fastmail" {
   zone_id     = each.value.id
   domain_name = each.value.name
 }
+
+resource "cloudflare_dns_record" "bits_page_spf" {
+  zone_id = cloudflare_zone.main["bits.page"].id
+  name    = "@"
+  type    = "TXT"
+  content = format("\"%s\"", "v=spf1 include:spf.messagingengine.com include:spf.mtasv.net -all")
+  ttl     = 3600
+}
+
+resource "cloudflare_dns_record" "usebits_app_spf" {
+  zone_id = cloudflare_zone.main["usebits.app"].id
+  name    = "@"
+  type    = "TXT"
+  content = format("\"%s\"", "v=spf1 include:spf.messagingengine.com -all")
+  ttl     = 3600
+}

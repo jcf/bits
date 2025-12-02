@@ -235,6 +235,11 @@ apply dir:
     @just _terraform {{ dir }} apply {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
     rm {{ plan_dir }}/{{ replace(dir, '/', '-') }}.tfplan
 
+# Import into a Terraform project
+[group('iac')]
+import dir *args:
+    @just _terraform {{ dir }} import {{ args }}
+
 # Interact with outputs one or all Terraform projects
 [group('iac')]
 output dir *args:

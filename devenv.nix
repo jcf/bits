@@ -71,6 +71,9 @@ in {
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
     PLATFORM_DOMAIN = dev.hosts.page.domain;
+
+    # TODO Create a dedicated Bits Postmark account.
+    POSTMARK_ACCOUNT_TOKEN = "op://Invetica/Postmark/bits/account-api-token";
   };
 
   packages = with pkgs; [

@@ -1,0 +1,65 @@
+#+title:   Email
+#+startup: overview
+
+* Postmark outputs
+#+begin_src sh :results output verbatim
+just output postmark
+#+end_src
+
+#+results:
+: dev_server_api_token = <sensitive>
+: dev_server_id = "17593333"
+: dev_transactional_stream_token = <sensitive>
+: prod_server_api_token = <sensitive>
+: prod_server_id = "17593336"
+: prod_transactional_stream_token = <sensitive>
+: sender_signature_confirmed = true
+: sender_signature_email = "hello@bits.page"
+: sender_signature_id = "5593456"
+
+** Dev API token
+#+name: postmark-token
+#+begin_src sh :results silent
+just output postmark -raw prod_server_api_token
+#+end_src
+
+** Send an email
+#+name: recipient
+#+begin_src sh :results output verbatim
+echo -n "$(git config user.name) <$(git config user.email)>"
+#+end_src
+
+#+results: recipient
+: James Conroy-Finn <james@invetica.co.uk>
+
+#+begin_src sh :results output verbatim :var to=recipient token=postmark-token :wrap src json
+jq -n \
+  --arg from "hello@bits.page" \
+  --arg to "$to" \
+  --arg subject "Just a quick hello 👋" \
+  --arg body "<bold>Hello</bold> deer 🦌" \
+  '{
+    From: $from,
+    To: $to,
+    Subject: $subject,
+    HtmlBody: $body,
+    MessageStream: "outbound"
+  }' | curl "https://api.postmarkapp.com/email" \
+  -X POST \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -H "X-Postmark-Server-Token: $token" \
+  -d @- |
+  jq .
+#+end_src
+
+#+results:
+#+begin_src json
+{
+  "ErrorCode": 0,
+  "Message": "OK",
+  "MessageID": "d7c26a79-f154-4271-b531-27cd13068a55",
+  "SubmittedAt": "2025-12-03T12:42:42.0827144Z",
+  "To": "James Conroy-Finn <james@invetica.co.uk>"
+}
+#+end_src

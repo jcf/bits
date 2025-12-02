@@ -26,10 +26,3 @@ resource "cloudflare_dns_record" "mx" {
   ttl      = var.ttl
 }
 
-resource "cloudflare_dns_record" "spf" {
-  zone_id = var.zone_id
-  name    = "@"
-  type    = "TXT"
-  content = format("\"%s\"", "v=spf1 include:spf.messagingengine.com -all")
-  ttl     = var.ttl
-}
