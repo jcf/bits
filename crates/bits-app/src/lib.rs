@@ -16,9 +16,9 @@ pub use http::CspMode;
 pub use tenant::{Realm, Tenant};
 
 #[cfg(feature = "server")]
-pub use middleware::{RealmLayer, RealmMiddleware};
+pub use middleware::{CsrfLayer, CsrfMiddleware, RealmLayer, RealmMiddleware};
 #[cfg(feature = "server")]
-pub use server::{init, init_tracing, setup_session_store};
+pub use server::{init, init_tracing, router, setup_session_store};
 
 #[cfg(feature = "server")]
 use dioxus::fullstack::FullstackContext;
@@ -51,6 +51,22 @@ impl axum_core::extract::FromRef<FullstackContext> for AppState {
 
 // App module
 use dioxus::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+pub fn init_client() {
+    use ::http::{HeaderMap, HeaderName, HeaderValue};
+
+    let version = option_env!("BITS_VERSION").unwrap_or("dev");
+    let header_value = format!("bits/{}", version);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("requested-with"),
+        HeaderValue::from_str(&header_value).unwrap(),
+    );
+
+    dioxus_fullstack::set_request_headers(headers);
+}
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]

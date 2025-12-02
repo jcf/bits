@@ -11,6 +11,11 @@ impl Request {
         self
     }
 
+    pub fn header(mut self, name: &str, value: &str) -> Self {
+        self.builder = self.builder.header(name, value);
+        self
+    }
+
     pub async fn send(self) -> Response {
         self.builder.send().await.expect("Request failed")
     }

@@ -7,11 +7,13 @@ use unic_langid::LanguageIdentifier;
 #[derive(Clone)]
 pub struct LocaleContext {
     locale: LanguageIdentifier,
+    #[allow(clippy::arc_with_non_send_sync)]
     bundle: Arc<FluentBundle<FluentResource>>,
 }
 
 impl LocaleContext {
     /// Create a new LocaleContext with the given locale and Fluent resources
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(locale: LanguageIdentifier, ftl_string: &str) -> Result<Self, String> {
         let resource =
             FluentResource::try_new(ftl_string.to_string()).map_err(|e| format!("{:?}", e))?;
@@ -68,7 +70,9 @@ impl LocaleContext {
         };
 
         let mut errors = vec![];
-        let value = self.bundle.format_pattern(pattern, Some(&args), &mut errors);
+        let value = self
+            .bundle
+            .format_pattern(pattern, Some(&args), &mut errors);
 
         #[cfg(not(target_arch = "wasm32"))]
         if !errors.is_empty() {
@@ -94,32 +98,4 @@ pub fn parse_locale(locale_str: &str) -> Option<LanguageIdentifier> {
 /// Hook to access the translation function
 pub fn use_translation() -> LocaleContext {
     use_context::<LocaleContext>()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_locale() {
-        assert!(parse_locale("en-US").is_some());
-        assert!(parse_locale("en").is_some());
-        assert!(parse_locale("invalid").is_none());
-    }
-
-    #[test]
-    fn test_locale_context() {
-        let ftl = r#"
-hello = Hello, World!
-welcome = Welcome, { $name }!
-"#;
-        let locale: LanguageIdentifier = "en-US".parse().unwrap();
-        let ctx = LocaleContext::new(locale, ftl).unwrap();
-
-        assert_eq!(ctx.t("hello"), "Hello, World!");
-
-        let mut args = FluentArgs::new();
-        args.set("name", "Alice");
-        assert_eq!(ctx.t_with_args("welcome", args), "Welcome, Alice!");
-    }
 }

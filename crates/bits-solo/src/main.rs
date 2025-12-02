@@ -40,6 +40,7 @@ fn main() {
 
 #[cfg(not(feature = "server"))]
 fn main() {
+    bits_app::init_client();
     dioxus::launch(App);
 }
 

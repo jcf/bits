@@ -136,6 +136,7 @@ pub fn config() -> Result<bits_app::config::Config> {
             .expect("Invalid database URL");
 
         bits_app::config::Config {
+            version: "test".to_string(),
             database_url,
             max_database_connections: 5,
             port: 0,

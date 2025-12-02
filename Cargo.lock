@@ -425,9 +425,11 @@ dependencies = [
  "bits-domain",
  "clap",
  "dioxus",
+ "dioxus-fullstack",
  "dioxus-html",
  "figment",
  "fluent-bundle",
+ "http",
  "icu",
  "rstest",
  "serde",
@@ -435,6 +437,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tower",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
  "unic-langid",
@@ -5091,6 +5094,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

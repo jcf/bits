@@ -13,8 +13,16 @@ fn default_port() -> u16 {
     3000
 }
 
+fn default_version() -> String {
+    option_env!("BITS_VERSION").unwrap_or("dev").to_string()
+}
+
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
+    /// Application version (typically git commit hash)
+    #[arg(long, env = "BITS_VERSION", default_value = "dev")]
+    #[serde(default = "default_version")]
+    pub version: String,
     /// Dangerously allow JavaScript evaluation to allow hydration during
     /// development.
     #[arg(
@@ -62,5 +70,16 @@ impl Config {
     pub fn with_port(mut self, port: u16) -> Self {
         self.port = port;
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn version_defaults_to_dev() {
+        let config = Config::from_env().expect("Unable to configure from env");
+        assert_eq!(config.version, "dev");
     }
 }
