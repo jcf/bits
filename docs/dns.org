@@ -1,5 +1,5 @@
 #+title:   DNS
-#+startup: content
+#+startup: overview
 
 * Name servers
 #+begin_src sh :results output verbatim :wrap src json :shebang "#!/usr/bin/env zsh"
@@ -9,4 +9,108 @@ just output dns -json |
 
 #+results:
 #+begin_src json
+{
+  "bits.page": [
+    "keyla.ns.cloudflare.com",
+    "mustafa.ns.cloudflare.com"
+  ],
+  "usebits.app": [
+    "keyla.ns.cloudflare.com",
+    "mustafa.ns.cloudflare.com"
+  ]
+}
 #+end_src
+
+#+results:
+#+begin_example
+{
+  "bits.page": [
+    "keyla.ns.cloudflare.com",
+    "mustafa.ns.cloudflare.com"
+  ],
+  "usebits.app": [
+    "keyla.ns.cloudflare.com",
+    "mustafa.ns.cloudflare.com"
+  ]
+}
+#+end_example
+
+* Email
+For this we need some state from our Postmark Terraform project.
+
+#+name: postmark-return-path
+#+begin_src sh :results output verbatim :dir ..
+just output postmark -raw return_path
+#+end_src
+
+#+results: postmark-return-path
+: pm-bounces.bits.page
+
+** Return path CNAME
+#+begin_src sh :results output verbatim
+drill CNAME pm-bounces.bits.page | rg '^pm-bounces'
+#+end_src
+
+#+results:
+: pm-bounces.bits.page.	3600	IN	CNAME	pm.mtasv.net.
+
+** MX
+*** =bits.page=
+#+begin_src sh :results output verbatim
+drill MX bits.page | rg '^bits.page'
+#+end_src
+
+#+results:
+: bits.page.	3600	IN	MX	10 in1-smtp.messagingengine.com.
+: bits.page.	3600	IN	MX	20 in2-smtp.messagingengine.com.
+
+*** =usebits.app=
+#+begin_src sh :results output verbatim
+drill MX usebits.app | rg '^usebits.app'
+#+end_src
+
+#+results:
+: usebits.app.	3600	IN	MX	10 in1-smtp.messagingengine.com.
+: usebits.app.	3600	IN	MX	20 in2-smtp.messagingengine.com.
+
+** SPF
+*** =bits.page=
+#+begin_src sh :results output verbatim
+drill TXT bits.page | rg '^bits.page'
+#+end_src
+
+#+results:
+: bits.page.	3600	IN	TXT	"v=spf1 include:spf.messagingengine.com include:spf.mtasv.net -all"
+
+*** =usebits.app=
+#+begin_src sh :results output verbatim
+drill TXT usebits.app | rg '^usebits.app'
+#+end_src
+
+#+results:
+: usebits.app.	3600	IN	TXT	"v=spf1 include:spf.messagingengine.com -all"
+
+** DKIM
+*** =bits.page=
+#+begin_src sh :results output verbatim
+for sub in fm{1,2,3}; do
+  drill CNAME "${sub}._domainkey.bits.page" | rg "^${sub}" || echo "${sub} not found."
+done
+#+end_src
+
+#+results:
+: fm1._domainkey.bits.page.	3600	IN	CNAME	fm1.bits.page.dkim.fmhosted.com.
+: fm2._domainkey.bits.page.	3600	IN	CNAME	fm2.bits.page.dkim.fmhosted.com.
+: fm3._domainkey.bits.page.	3600	IN	CNAME	fm3.bits.page.dkim.fmhosted.com.
+
+*** =usebits.app=
+#+begin_src sh :results output verbatim
+for sub in fm{1,2,3}; do
+  drill CNAME "${sub}._domainkey.usebits.app" | rg "^${sub}" || echo "${sub} not found."
+done
+#+end_src
+
+#+results:
+: fm1._domainkey.usebits.app.	3600	IN	CNAME	fm1.usebits.app.dkim.fmhosted.com.
+: fm2._domainkey.usebits.app.	3600	IN	CNAME	fm2.usebits.app.dkim.fmhosted.com.
+: fm3._domainkey.usebits.app.	3600	IN	CNAME	fm3.usebits.app.dkim.fmhosted.com.

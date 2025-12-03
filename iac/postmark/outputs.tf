@@ -1,5 +1,12 @@
 # ------------------------------------------------------------------------------
-# Sender Signature (shared)
+# Return path
+
+output "return_path" {
+  value = postmark_domain.main.return_path_domain
+}
+
+# ------------------------------------------------------------------------------
+# Sender signature
 
 output "sender_signature_id" {
   description = "Sender signature ID"
