@@ -33,14 +33,21 @@ async-trait = "0.1"
 axum-core = "0.5"
 axum_session.workspace = true
 axum_session_auth.workspace = true
-axum_session_sqlx.workspace = true
+base64.workspace = true
+bits-axum-session-sqlx.workspace = true
 bits-db.workspace = true
+cookie = "0.18"
+http-body-util = "0.1"
+orion = "0.17"
+rand.workspace = true
 sqlx.workspace = true
+subtle.workspace = true
 tokio.workspace = true
 tower = "0.5"
-tower-http = { version = "0.6", features = ["request-id", "timeout", "limit", "cors", "util"] }
+tower-http = { version = "0.6", features = ["request-id", "timeout", "limit", "cors", "util", "set-header"] }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+urlencoding.workspace = true
 
 [dev-dependencies]
 rstest = "0.26"

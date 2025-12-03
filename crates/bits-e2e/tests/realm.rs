@@ -11,8 +11,15 @@ async fn resolve_realm_returns_platform_for_apex_domain() {
         .expect("Failed to setup test");
 
     let state = bits_app::AppState {
+        config: std::sync::Arc::new(config),
         db: ctx.db_pool.clone(),
-        config,
+        argon2: ctx.argon2.clone(),
+        crypto: bits_app::crypto::EncryptionService::new(
+            &fixtures::config()
+                .expect("Failed to load config")
+                .master_key,
+        )
+        .expect("Failed to create crypto service"),
     };
 
     let realm = bits_app::tenant::resolve_realm(&state, Scheme::Https, "example.com").await;
@@ -40,8 +47,15 @@ async fn resolve_realm_returns_tenancy_for_subdomain() {
         .expect("Failed to create tenant");
 
     let state = bits_app::AppState {
+        config: std::sync::Arc::new(config),
         db: ctx.db_pool.clone(),
-        config,
+        argon2: ctx.argon2.clone(),
+        crypto: bits_app::crypto::EncryptionService::new(
+            &fixtures::config()
+                .expect("Failed to load config")
+                .master_key,
+        )
+        .expect("Failed to create crypto service"),
     };
 
     let realm = bits_app::tenant::resolve_realm(&state, Scheme::Https, "test.example.com").await;
@@ -65,8 +79,15 @@ async fn resolve_realm_returns_unknown_for_nonexistent_subdomain() {
         .expect("Failed to setup test");
 
     let state = bits_app::AppState {
+        config: std::sync::Arc::new(config),
         db: ctx.db_pool.clone(),
-        config,
+        argon2: ctx.argon2.clone(),
+        crypto: bits_app::crypto::EncryptionService::new(
+            &fixtures::config()
+                .expect("Failed to load config")
+                .master_key,
+        )
+        .expect("Failed to create crypto service"),
     };
 
     let realm =

@@ -10,7 +10,7 @@ async fn main() -> Result<()> {
     let seeds = seeds::load_seeds(&seeds_path)
         .context("Failed to load seeds.toml (expected at workspace root)")?;
 
-    let result = seeds::seed_all(&state.db, &seeds)
+    let result = seeds::seed_all(&state.db, &state.argon2, &seeds)
         .await
         .context("Failed to seed database")?;
 

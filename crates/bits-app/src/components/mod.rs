@@ -359,11 +359,7 @@ pub fn Header() -> Element {
                                         Link {
                                             to: Route::Home {},
                                             span { class: "sr-only", "{t.t(\"brand-company-name\")}" }
-                                            img {
-                                                src: "https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600",
-                                                alt: "",
-                                                class: "h-8 w-auto",
-                                            }
+                                            div { class: "size-8 rounded bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center text-neutral-500 font-bold", "B"}
                                         }
                                     }
 
@@ -461,11 +457,7 @@ pub fn Header() -> Element {
                                         to: Route::Home {},
                                         class: "lg:hidden",
                                         span { class: "sr-only", "{t.t(\"brand-company-name\")}" }
-                                        img {
-                                            src: "https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600",
-                                            alt: "",
-                                            class: "h-8 w-auto",
-                                        }
+                                        div { class: "size-8 bg-neutral-100 dark:bg-neutral-900 rounded flex items-center justify-center text-neutral-500 font-bold", "B" }
                                     }
 
                                     div { class: "flex flex-1 items-center justify-end",

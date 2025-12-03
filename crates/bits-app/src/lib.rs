@@ -6,17 +6,23 @@ pub mod i18n;
 pub mod tenant;
 
 #[cfg(feature = "server")]
+pub mod crypto;
+#[cfg(feature = "server")]
+pub mod csrf;
+#[cfg(feature = "server")]
 pub mod middleware;
 #[cfg(feature = "server")]
 pub mod server;
 
-pub use auth::{AuthError, AuthForm, JoinForm, User};
+pub use auth::{AuthError, AuthForm, ChangePasswordForm, JoinForm, User};
 pub use config::Config;
 pub use http::CspMode;
 pub use tenant::{Realm, Tenant};
 
 #[cfg(feature = "server")]
-pub use middleware::{CsrfLayer, CsrfMiddleware, RealmLayer, RealmMiddleware};
+pub use middleware::{
+    CsrfVerificationLayer, CsrfVerificationMiddleware, RealmLayer, RealmMiddleware,
+};
 #[cfg(feature = "server")]
 pub use server::{init, init_tracing, router, setup_session_store};
 
@@ -26,8 +32,10 @@ use dioxus::fullstack::FullstackContext;
 #[cfg(feature = "server")]
 #[derive(Clone, Debug)]
 pub struct AppState {
-    pub config: Config,
+    pub config: std::sync::Arc<Config>,
     pub db: sqlx::PgPool,
+    pub argon2: argon2::Argon2<'static>,
+    pub crypto: crypto::EncryptionService,
 }
 
 #[cfg(feature = "server")]
@@ -38,7 +46,31 @@ impl AppState {
             .connect(config.database_url.as_ref())
             .await?;
 
-        Ok(Self { config, db })
+        // Configure Argon2id with explicit parameters per OWASP recommendations
+        let argon2_params = argon2::Params::new(
+            config.argon2_m_cost,
+            config.argon2_t_cost,
+            config.argon2_p_cost,
+            Some(argon2::Params::DEFAULT_OUTPUT_LEN),
+        )
+        .map_err(|e| anyhow::anyhow!("Invalid Argon2 parameters: {}", e))?;
+
+        let argon2 = argon2::Argon2::new(
+            argon2::Algorithm::Argon2id,
+            argon2::Version::V0x13,
+            argon2_params,
+        );
+
+        // Initialize encryption service from master key
+        let crypto = crypto::EncryptionService::new(&config.master_key)
+            .map_err(|e| anyhow::anyhow!("Failed to initialize encryption service: {}", e))?;
+
+        Ok(Self {
+            config: std::sync::Arc::new(config),
+            db,
+            argon2,
+            crypto,
+        })
     }
 }
 
@@ -64,6 +96,25 @@ pub fn init_client() {
         HeaderName::from_static("requested-with"),
         HeaderValue::from_str(&header_value).unwrap(),
     );
+
+    // Read CSRF token from meta tag
+    if let Some(window) = web_sys::window() {
+        if let Some(document) = window.document() {
+            if let Some(meta) = document
+                .query_selector("meta[name='csrf-token']")
+                .ok()
+                .flatten()
+            {
+                if let Some(token) = meta.get_attribute("content") {
+                    if !token.is_empty() {
+                        if let Ok(value) = HeaderValue::from_str(&token) {
+                            headers.insert(HeaderName::from_static("csrf-token"), value);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     dioxus_fullstack::set_request_headers(headers);
 }
@@ -301,6 +352,44 @@ fn Home() -> Element {
     }
 }
 
+#[cfg(feature = "server")]
+fn get_csrf_token_for_ssr() -> String {
+    use dioxus::fullstack::FullstackContext;
+
+    let ctx = match FullstackContext::current() {
+        Some(ctx) => ctx,
+        None => {
+            tracing::warn!("SSR: FullstackContext not available");
+            return String::new();
+        }
+    };
+
+    // Get session to access CSRF token
+    let session =
+        match ctx.extension::<axum_session::Session<bits_axum_session_sqlx::SessionPgPool>>() {
+            Some(s) => s,
+            None => {
+                tracing::warn!("SSR: Session not found in request extensions");
+                return String::new();
+            }
+        };
+
+    // Try to get existing token from session memory
+    match session.get::<String>("csrf_token") {
+        Some(token) => {
+            tracing::debug!("SSR: Using existing CSRF token from session");
+            token
+        }
+        None => {
+            // Generate new token and store in session memory
+            let token = csrf::generate_token();
+            session.set("csrf_token", &token);
+            tracing::debug!("SSR: Generated new CSRF token for session");
+            token
+        }
+    }
+}
+
 /// Shared layout component with error handling.
 #[component]
 fn Layout() -> Element {
@@ -315,7 +404,17 @@ fn Layout() -> Element {
     use_context_provider(|| realm);
     use_context_provider(|| locale);
 
+    // TODO Make csrf_token a proper type akin to Option<String>.
+    #[cfg(feature = "server")]
+    let csrf_token = get_csrf_token_for_ssr();
+    #[cfg(not(feature = "server"))]
+    let csrf_token = String::new();
+
     rsx! {
+        if !csrf_token.is_empty() {
+            document::Meta { name: "csrf-token", content: "{csrf_token}" }
+        }
+
         div { class: "flex min-h-screen flex-col",
             header { class: "bg-neutral-100 dark:bg-neutral-900",
                 components::Header {}

@@ -173,32 +173,35 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
+ Clojure                   2          559          456           32           71
  CSS                       3           12           12            0            0
- HCL                      12          389          323           13           53
+ Edn                       4           47           47            0            0
+ FreeMarker                1           74           63            0           11
+ HCL                      23          746          570           67          109
  HTML                      3           33           33            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      1          241          142           54           45
+ Just                      2          263          154           59           50
  MDX                       1           56            0           39           17
- Nix                       3          305          249            9           47
- Org                       8         1628         1477            4          147
- SQL                       2          115           98            1           16
- TOML                     13          319          271            2           46
+ Nix                       3          312          252           11           49
+ Org                      10         1952         1742            4          206
+ SQL                       5          258          210           21           27
+ TOML                     14          345          295            2           48
  TypeScript                3           36           30            1            5
  YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1           64            0           40           24
- |- Rust                   1          109           76           19           14
- (Total)                              173           76           59           38
+ Markdown                  2          150            0          109           41
+ |- Rust                   1          126           88           22           16
+ (Total)                              276           88          131           57
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     29         2308         1966           29          313
- |- Markdown               8           29            0           28            1
- (Total)                             2337         1966           57          314
+ Rust                     33         3765         3239           39          487
+ |- Markdown               7           36            0           35            1
+ (Total)                             3801         3239           74          488
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    98        10964         8880          240         1844
+ Total                   128        14090        11394          442         2254
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-d68d58e-dirty @ 2025/12/01 12:25
+d94a1db-dirty @ 2025/12/03 13:24
 #+end_example
 
 * Tasks
@@ -245,7 +248,8 @@ To test empty states, one needs to truncate appropriate tables:
 
 #+begin_src sh :results output verbatim :eval query
 just psql 2>&1 <<SQL
-  truncate table tenants;
+  truncate table tenants cascade;
+  truncate table sessions cascade;
 SQL
 #+end_src
 
@@ -270,6 +274,8 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
+: crates/bits-app/src/auth.rs:// TODO Use #[patch] when Dioxus next ships
+: devenv.nix:    # TODO Create a dedicated Bits Postmark account.
 
 * Troubleshooting
 ** Dioxus version

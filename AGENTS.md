@@ -171,3 +171,42 @@ async fn test_behavior() {
     // Test logic
 }
 ```
+
+### Session Security
+
+Follow OWASP guidelines for session management:
+
+**Session rotation:**
+- Rotate session IDs on authentication state changes (login, logout)
+- Prevents session fixation attacks
+- Use `auth.session.renew()` after successful authentication
+
+**Cookie security:**
+- `Secure`: Transmit only over HTTPS
+- `HttpOnly`: Prevent JavaScript access
+- `SameSite=Strict`: CSRF protection
+
+**Password changes:**
+- Invalidate ALL sessions when password changes (including current session)
+- Forces re-authentication with new credentials
+- If attacker compromised password, they're immediately logged out everywhere
+
+```rust
+// Good: Rotate session on login
+Argon2::default()
+    .verify_password(password.as_bytes(), &hash)
+    .map_err(|_| AuthError::InvalidCredentials)?;
+auth.session.renew();  // Prevent session fixation
+auth.login_user(user_id);
+
+// Good: Configure secure cookies
+SessionConfig::default()
+    .with_secure(true)
+    .with_http_only(true)
+    .with_cookie_same_site(SameSite::Strict)
+
+// Good: Invalidate all sessions on password change
+update_password_hash(&db, user_id, new_hash).await?;
+invalidate_all_sessions(&db, user_id).await?;
+auth.logout_user();  // Force re-authentication
+```

@@ -29,14 +29,10 @@ pub fn load_seeds(path: impl AsRef<Path>) -> Result<Seeds> {
     toml::from_str(&content).context("Failed to parse seeds TOML")
 }
 
-fn hash_password(password: &str) -> Result<String> {
-    use argon2::{
-        password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
-        Argon2,
-    };
+fn hash_password(argon2: &argon2::Argon2<'_>, password: &str) -> Result<String> {
+    use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
 
     let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
     let hash = argon2
         .hash_password(password.as_bytes(), &salt)
         .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?
@@ -45,7 +41,11 @@ fn hash_password(password: &str) -> Result<String> {
     Ok(hash)
 }
 
-async fn seed_user(pool: &PgPool, seed: &SeedUser) -> Result<Option<(User, EmailAddress)>> {
+async fn seed_user(
+    pool: &PgPool,
+    argon2: &argon2::Argon2<'_>,
+    seed: &SeedUser,
+) -> Result<Option<(User, EmailAddress)>> {
     // Check if email already exists
     let existing: Option<(i64,)> = sqlx::query_as(
         "select id from email_addresses where address = $1 and valid_to = 'infinity'",
@@ -59,7 +59,7 @@ async fn seed_user(pool: &PgPool, seed: &SeedUser) -> Result<Option<(User, Email
         return Ok(None);
     }
 
-    let password_hash = hash_password(&seed.password)?;
+    let password_hash = hash_password(argon2, &seed.password)?;
 
     let user = sqlx::query_as::<_, User>(
         "insert into users (password_hash) values ($1) returning id, created_at",
@@ -144,13 +144,17 @@ async fn seed_tenant(
     Ok(Some((tenant, tenant_domain)))
 }
 
-pub async fn seed_all(pool: &PgPool, seeds: &Seeds) -> Result<SeedData> {
+pub async fn seed_all(
+    pool: &PgPool,
+    argon2: &argon2::Argon2<'_>,
+    seeds: &Seeds,
+) -> Result<SeedData> {
     let mut users = vec![];
     let mut tenants = vec![];
 
     // Seed users first
     for seed in &seeds.user {
-        if let Some(user_data) = seed_user(pool, seed).await? {
+        if let Some(user_data) = seed_user(pool, argon2, seed).await? {
             users.push(user_data);
         }
     }

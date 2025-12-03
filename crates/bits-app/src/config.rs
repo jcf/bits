@@ -17,7 +17,26 @@ fn default_version() -> String {
     option_env!("BITS_VERSION").unwrap_or("dev").to_string()
 }
 
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+fn default_session_name() -> String {
+    "bits".to_string()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn default_argon2_m_cost() -> u32 {
+    122880 // 120 MiB - Server-grade memory cost per OWASP recommendations
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn default_argon2_t_cost() -> u32 {
+    3 // 3 iterations - Balance between security and performance
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn default_argon2_p_cost() -> u32 {
+    4 // 4 threads - Leverage multi-core processors
+}
+
+#[derive(Args, Clone, Debug, Deserialize)]
 pub struct Config {
     /// Application version (typically git commit hash)
     #[arg(long, env = "BITS_VERSION", default_value = "dev")]
@@ -42,9 +61,38 @@ pub struct Config {
     #[serde(default = "default_max_database_connections")]
     pub max_database_connections: u32,
 
+    /// Argon2 memory cost in KiB (default: 122880 = 120 MiB)
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "ARGON2_M_COST", default_value = "122880")]
+    #[serde(default = "default_argon2_m_cost")]
+    pub argon2_m_cost: u32,
+
+    /// Argon2 time cost (iterations, default: 3)
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "ARGON2_T_COST", default_value = "3")]
+    #[serde(default = "default_argon2_t_cost")]
+    pub argon2_t_cost: u32,
+
+    /// Argon2 parallelism (threads, default: 4)
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "ARGON2_P_COST", default_value = "4")]
+    #[serde(default = "default_argon2_p_cost")]
+    pub argon2_p_cost: u32,
+
+    /// Master key for encryption and HMAC operations (base64-encoded 64-byte key)
+    /// REQUIRED: Must be set via MASTER_KEY environment variable
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "MASTER_KEY")]
+    pub master_key: String,
+
     #[arg(short, long, env = "PORT", default_value = "3000")]
     #[serde(default = "default_port")]
     pub port: u16,
+
+    /// Session cookie name
+    #[arg(long, env = "SESSION_NAME", default_value = "bits")]
+    #[serde(default = "default_session_name")]
+    pub session_name: String,
 
     /// Platform domain (e.g., "bits.page") used for tenant routing
     #[cfg(feature = "colo")]
@@ -79,6 +127,16 @@ mod tests {
 
     #[test]
     fn version_defaults_to_dev() {
+        // Set required environment variables for test
+        std::env::set_var(
+            "DATABASE_URL",
+            "postgres://bits:please@localhost:5432/bits_test",
+        );
+        std::env::set_var(
+            "MASTER_KEY",
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        );
+
         let config = Config::from_env().expect("Unable to configure from env");
         assert_eq!(config.version, "dev");
     }

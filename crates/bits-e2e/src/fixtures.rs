@@ -38,6 +38,7 @@ pub struct TestContext {
     pub server: TestServer,
     pub db_pool: PgPool,
     pub client: reqwest::Client,
+    pub argon2: argon2::Argon2<'static>,
 }
 
 impl TestContext {
@@ -49,13 +50,43 @@ impl TestContext {
         .fetch_one(&self.db_pool)
         .await?;
 
-        sqlx::query("insert into email_addresses (user_id, address) values ($1, $2)")
-            .bind(user.id)
-            .bind(email)
-            .execute(&self.db_pool)
-            .await?;
+        sqlx::query!(
+            "insert into email_addresses (user_id, address) values ($1, $2)",
+            user.id,
+            email
+        )
+        .execute(&self.db_pool)
+        .await?;
 
         Ok(user)
+    }
+
+    pub async fn verify_email(&self, user_id: i64) -> Result<()> {
+        sqlx::query!(
+            "insert into email_verifications (email_address_id)
+             select id from email_addresses where user_id = $1",
+            user_id
+        )
+        .execute(&self.db_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn create_verified_user(&self, email: &str, password: &str) -> Result<(User, String)> {
+        use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
+
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = self
+            .argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?
+            .to_string();
+
+        let user = self.create_user(email, &password_hash).await?;
+        self.verify_email(user.id).await?;
+
+        Ok((user, password_hash))
     }
 
     pub async fn create_tenant(&self, name: &str) -> Result<Tenant> {
@@ -139,7 +170,12 @@ pub fn config() -> Result<bits_app::config::Config> {
             version: "test".to_string(),
             database_url,
             max_database_connections: 5,
+            argon2_m_cost: 19456, // Use lower memory cost for faster tests (19 MiB)
+            argon2_t_cost: 2,     // Use lower time cost for faster tests
+            argon2_p_cost: 1,     // Single thread for simpler test environment
+            master_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string(), // Test key (64 bytes)
             port: 0,
+            session_name: "b".to_string(),
             platform_domain: None,
             dangerously_allow_javascript_evaluation: false,
         }
@@ -160,7 +196,21 @@ pub fn config() -> Result<bits_app::config::Config> {
 
 pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext> {
     let (test_url, db_pool) = create_test_database(&config.database_url).await?;
-    let test_config = config.with_database_url(test_url);
+    let test_config = config.clone().with_database_url(test_url);
+
+    // Create Argon2 instance with same config as AppState
+    let argon2_params = argon2::Params::new(
+        config.argon2_m_cost,
+        config.argon2_t_cost,
+        config.argon2_p_cost,
+        Some(argon2::Params::DEFAULT_OUTPUT_LEN),
+    )
+    .map_err(|e| anyhow::anyhow!("Invalid Argon2 parameters: {}", e))?;
+    let argon2 = argon2::Argon2::new(
+        argon2::Algorithm::Argon2id,
+        argon2::Version::V0x13,
+        argon2_params,
+    );
 
     let server = crate::server::spawn_solo(test_config).await?;
     let client = reqwest::Client::new();
@@ -169,12 +219,27 @@ pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext>
         server,
         db_pool,
         client,
+        argon2,
     })
 }
 
 pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext> {
     let (test_url, db_pool) = create_test_database(&config.database_url).await?;
-    let test_config = config.with_database_url(test_url);
+    let test_config = config.clone().with_database_url(test_url);
+
+    // Create Argon2 instance with same config as AppState
+    let argon2_params = argon2::Params::new(
+        config.argon2_m_cost,
+        config.argon2_t_cost,
+        config.argon2_p_cost,
+        Some(argon2::Params::DEFAULT_OUTPUT_LEN),
+    )
+    .map_err(|e| anyhow::anyhow!("Invalid Argon2 parameters: {}", e))?;
+    let argon2 = argon2::Argon2::new(
+        argon2::Algorithm::Argon2id,
+        argon2::Version::V0x13,
+        argon2_params,
+    );
 
     let server = crate::server::spawn_colo(test_config).await?;
     let client = reqwest::Client::new();
@@ -183,5 +248,6 @@ pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext>
         server,
         db_pool,
         client,
+        argon2,
     })
 }

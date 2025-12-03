@@ -70,6 +70,7 @@ in {
     DATABASE_URL_TEST = "postgres://bits:please@127.0.0.1:5432/bits_test";
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
+    MASTER_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     PLATFORM_DOMAIN = dev.hosts.page.domain;
 
     # TODO Create a dedicated Bits Postmark account.

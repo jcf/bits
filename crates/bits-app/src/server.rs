@@ -1,8 +1,9 @@
-use crate::{AppState, Config, CspMode, CsrfLayer, User};
+use crate::{AppState, Config, CspMode, CsrfVerificationLayer, User};
 use axum::http::{header, HeaderValue, StatusCode};
 use axum_session::{SessionConfig, SessionLayer, SessionStore};
 use axum_session_auth::{AuthConfig, AuthSessionLayer};
-use axum_session_sqlx::SessionPgPool;
+use bits_axum_session_sqlx::SessionPgPool;
+use cookie::SameSite;
 use dioxus::prelude::Element;
 use dioxus::server::axum::{self, Extension};
 use sqlx::PgPool;
@@ -55,7 +56,12 @@ async fn run_migrations(pool: &PgPool) -> Result<(), anyhow::Error> {
 pub async fn setup_session_store(
     state: &AppState,
 ) -> Result<SessionStore<SessionPgPool>, anyhow::Error> {
-    let session_config = SessionConfig::default().with_table_name("sessions");
+    let session_config = SessionConfig::default()
+        .with_session_name(state.config.session_name.clone())
+        .with_table_name("sessions")
+        .with_secure(true)
+        .with_http_only(true)
+        .with_cookie_same_site(SameSite::Strict);
     let session_store =
         SessionStore::<SessionPgPool>::new(Some(state.db.clone().into()), session_config).await?;
     Ok(session_store)
@@ -67,6 +73,7 @@ pub async fn router(config: Config, app: fn() -> Element) -> Result<axum::Router
     let session_store = setup_session_store(&state).await?;
 
     let auth_config = AuthConfig::<i64>::default().with_anonymous_user_id(Some(-1));
+
     let auth_layer =
         AuthSessionLayer::<User, i64, SessionPgPool, sqlx::PgPool>::new(Some(state.db.clone()))
             .with_config(auth_config);
@@ -87,7 +94,7 @@ pub async fn router(config: Config, app: fn() -> Element) -> Result<axum::Router
     }
 
     Ok(router
-        .layer(CsrfLayer)
+        .layer(CsrfVerificationLayer)
         .layer(SetResponseHeaderLayer::overriding(
             header::HeaderName::from_static("content-security-policy"),
             HeaderValue::try_from(csp).unwrap(),
