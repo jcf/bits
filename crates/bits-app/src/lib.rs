@@ -152,7 +152,7 @@ fn Auth() -> Element {
     rsx! {
         div { class: "flex min-h-full items-center justify-center px-4 py-12",
             div { class: "w-full max-w-sm space-y-10",
-                h2 { class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
+                h2 { class: "mt-10 text-center text-2xl font-bold text-gray-900 dark:text-white",
                     "{t.t(\"auth-sign-in-title\")}"
                 }
                 if let Some(Err(err)) = auth_action.value() {
@@ -199,7 +199,7 @@ fn Auth() -> Element {
                         }
                     }
                 }
-                p { class: "text-center text-sm text-neutral-500",
+                p { class: "text-center text-sm text-gray-500",
                     "{t.t(\"auth-not-member\")} "
                     Link {
                         to: Route::Join {},
@@ -224,7 +224,7 @@ fn Join() -> Element {
     rsx! {
         div { class: "flex min-h-full items-center justify-center px-4 py-12",
             div { class: "w-full max-w-sm space-y-10",
-                h2 { class: "mt-10 text-center text-2xl font-bold text-neutral-900 dark:text-white",
+                h2 { class: "mt-10 text-center text-2xl font-bold text-gray-900 dark:text-white",
                     "{t.t(\"auth-create-account-title\")}"
                 }
                 if let Some(Err(err)) = join_action.value() {
@@ -275,7 +275,7 @@ fn Join() -> Element {
                         }
                     }
                 }
-                p { class: "text-center text-sm text-neutral-500",
+                p { class: "text-center text-sm text-gray-500",
                     "{t.t(\"auth-already-member\")} "
                     Link {
                         to: Route::Auth {},
@@ -339,7 +339,7 @@ fn Home() -> Element {
 
     rsx! {
         div { class: "flex min-h-full items-center justify-center p-8",
-            h1 { class: "text-4xl font-bold text-neutral-900 dark:text-neutral-100",
+            h1 { class: "text-4xl font-bold text-gray-900 dark:text-gray-100",
                 match realm() {
                     Some(Ok(Realm::Tenancy(tenant))) => rsx! { "{tenant.name}" },
                     Some(Ok(Realm::Platform)) => rsx! { "{t.t(\"home-welcome\")}" },
@@ -416,10 +416,10 @@ fn Layout() -> Element {
         }
 
         div { class: "flex min-h-screen flex-col",
-            header { class: "bg-neutral-100 dark:bg-neutral-900",
+            header { class: "bg-gray-100 dark:bg-gray-900",
                 components::Header {}
             }
-            main { class: "grow",
+            main { class: "grow bg-white dark:bg-gray-900",
                 ErrorBoundary {
                     handle_error: move |err: ErrorContext| {
                         let t = i18n::use_translation();
