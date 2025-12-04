@@ -1,15 +1,20 @@
 use reqwest::{header, Client};
+use scraper::{Html, Selector};
 use serde::Serialize;
 
 pub struct BitsClient {
     client: Client,
     base_url: String,
+    csrf_token: Option<String>,
 }
 
 impl BitsClient {
     pub fn new(base_url: String) -> Self {
         let mut headers = header::HeaderMap::new();
-        headers.insert("requested-with", header::HeaderValue::from_static("bits/test"));
+        headers.insert(
+            "requested-with",
+            header::HeaderValue::from_static("bits/test"),
+        );
 
         let client = Client::builder()
             .cookie_store(true)
@@ -17,12 +22,42 @@ impl BitsClient {
             .build()
             .expect("Failed to build client");
 
-        Self { client, base_url }
+        Self {
+            client,
+            base_url,
+            csrf_token: None,
+        }
+    }
+
+    pub async fn fetch_csrf_token(&mut self) {
+        let response = self
+            .client
+            .get(&self.base_url)
+            .send()
+            .await
+            .expect("Failed to load home page for CSRF token");
+
+        let html = response.text().await.expect("Failed to read HTML");
+        let document = Html::parse_document(&html);
+        let selector = Selector::parse("meta[name='csrf-token']").unwrap();
+
+        self.csrf_token = document
+            .select(&selector)
+            .next()
+            .and_then(|el| el.value().attr("content"))
+            .map(String::from);
+    }
+
+    fn post(&self, url: String) -> reqwest::RequestBuilder {
+        let mut builder = self.client.post(url);
+        if let Some(token) = &self.csrf_token {
+            builder = builder.header("csrf-token", token);
+        }
+        builder
     }
 
     pub async fn login(&self, email: &str, password: &str) -> reqwest::Response {
         let response = self
-            .client
             .post(format!("{}/api/sessions", self.base_url))
             .form(&[("email", email), ("password", password)])
             .send()
@@ -48,16 +83,16 @@ impl BitsClient {
             .await
             .expect("Session request failed");
 
-        response.json().await.ok().flatten()
+        let session_state: bits_app::SessionState = response.json().await.ok()?;
+        match session_state {
+            bits_app::SessionState::Authenticated(user) => Some(user),
+            bits_app::SessionState::Anonymous => None,
+        }
     }
 
-    pub async fn change_password<T: Serialize>(
-        &self,
-        payload: &T,
-    ) -> reqwest::Response {
-        self.client
-            .post(format!("{}/api/passwords", self.base_url))
-            .json(payload)
+    pub async fn change_password<T: Serialize>(&self, payload: &T) -> reqwest::Response {
+        self.post(format!("{}/api/passwords", self.base_url))
+            .form(payload)
             .send()
             .await
             .expect("Change password request failed")

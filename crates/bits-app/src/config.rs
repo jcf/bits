@@ -2,7 +2,7 @@
 use bits_db::PgUrl;
 use clap::Args;
 use figment::{providers::Env, Figment};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn default_max_database_connections() -> u32 {
@@ -94,6 +94,12 @@ pub struct Config {
     #[serde(default = "default_session_name")]
     pub session_name: String,
 
+    /// Bearer token for /metrics endpoint (optional - if not set, endpoint is unprotected)
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "METRICS_AUTH_TOKEN")]
+    #[serde(default)]
+    pub metrics_auth_token: Option<String>,
+
     /// Platform domain (e.g., "bits.page") used for tenant routing
     #[cfg(feature = "colo")]
     #[arg(long, env = "PLATFORM_DOMAIN")]
@@ -127,16 +133,6 @@ mod tests {
 
     #[test]
     fn version_defaults_to_dev() {
-        // Set required environment variables for test
-        std::env::set_var(
-            "DATABASE_URL",
-            "postgres://bits:please@localhost:5432/bits_test",
-        );
-        std::env::set_var(
-            "MASTER_KEY",
-            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-        );
-
         let config = Config::from_env().expect("Unable to configure from env");
         assert_eq!(config.version, "dev");
     }

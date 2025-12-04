@@ -96,7 +96,11 @@ async fn csrf_allows_requests_with_valid_token() {
         .expect("Failed to send POST request");
 
     // Should pass CSRF check (auth will fail with invalid credentials)
-    assert_eq!(response.status(), 401, "Expected auth failure, not CSRF rejection");
+    assert_eq!(
+        response.status(),
+        401,
+        "Expected auth failure, not CSRF rejection"
+    );
 }
 
 #[tokio::test]
@@ -178,7 +182,11 @@ async fn csrf_allows_token_in_form_body() {
         .expect("Failed to send POST request");
 
     // Should pass CSRF check (auth will fail with invalid credentials)
-    assert_eq!(response.status(), 401, "Expected auth failure, not CSRF rejection");
+    assert_eq!(
+        response.status(),
+        401,
+        "Expected auth failure, not CSRF rejection"
+    );
 }
 
 #[tokio::test]
@@ -194,7 +202,11 @@ async fn csrf_supports_multi_tab_usage() {
     let base_url = ctx.server.url("/");
 
     // Load home page to get CSRF token (simulating tab 1)
-    let response = client.get(&base_url).send().await.expect("Failed to load home page");
+    let response = client
+        .get(&base_url)
+        .send()
+        .await
+        .expect("Failed to load home page");
     let html = response.text().await.expect("Failed to read HTML");
     let document = Html::parse_document(&html);
     let selector = Selector::parse("meta[name='csrf-token']").unwrap();
@@ -215,7 +227,11 @@ async fn csrf_supports_multi_tab_usage() {
         .send()
         .await
         .expect("Failed to send first POST");
-    assert_eq!(response1.status(), 401, "First tab: expected auth failure, not CSRF rejection");
+    assert_eq!(
+        response1.status(),
+        401,
+        "First tab: expected auth failure, not CSRF rejection"
+    );
 
     // Second request with same token (simulating form submit from tab 2)
     // This should work because we use session-lifetime tokens
@@ -228,7 +244,11 @@ async fn csrf_supports_multi_tab_usage() {
         .send()
         .await
         .expect("Failed to send second POST");
-    assert_eq!(response2.status(), 401, "Second tab: expected auth failure, not CSRF rejection (multi-tab should work)");
+    assert_eq!(
+        response2.status(),
+        401,
+        "Second tab: expected auth failure, not CSRF rejection (multi-tab should work)"
+    );
 }
 
 #[tokio::test]
@@ -243,7 +263,11 @@ async fn csrf_rejects_cross_session_tokens() {
     // Client 1: Get CSRF token in session A
     let client1 = request::cookie_client();
     let base_url = ctx.server.url("/");
-    let response = client1.get(&base_url).send().await.expect("Failed to load page");
+    let response = client1
+        .get(&base_url)
+        .send()
+        .await
+        .expect("Failed to load page");
     let html = response.text().await.expect("Failed to read HTML");
     let document = Html::parse_document(&html);
     let selector = Selector::parse("meta[name='csrf-token']").unwrap();
@@ -256,7 +280,11 @@ async fn csrf_rejects_cross_session_tokens() {
     // Client 2: Different session (session B)
     let client2 = request::cookie_client();
     // Load page to establish session B (but we'll use token from session A)
-    let _ = client2.get(&base_url).send().await.expect("Failed to load page");
+    let _ = client2
+        .get(&base_url)
+        .send()
+        .await
+        .expect("Failed to load page");
 
     // Try to use token from session A in session B
     let login_url = format!("{}/api/sessions", base_url.trim_end_matches('/'));
@@ -270,7 +298,11 @@ async fn csrf_rejects_cross_session_tokens() {
         .await
         .expect("Failed to send POST");
 
-    assert_eq!(response.status(), 403, "Cross-session token should be rejected");
+    assert_eq!(
+        response.status(),
+        403,
+        "Cross-session token should be rejected"
+    );
 }
 
 #[tokio::test]
@@ -310,7 +342,11 @@ async fn csrf_blocks_post_from_fresh_session() {
         .await
         .expect("Failed to send POST");
 
-    assert_eq!(response.status(), 403, "POST without page load should be blocked");
+    assert_eq!(
+        response.status(),
+        403,
+        "POST without page load should be blocked"
+    );
 }
 
 fn get_request_id(response: &reqwest::Response) -> &str {

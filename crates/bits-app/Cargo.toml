@@ -22,7 +22,9 @@ unic-langid = "0.9"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 dioxus-fullstack = "0.7"
+gloo-timers = { version = "0.3", features = ["futures"] }
 http = "1"
+js-sys = "0.3"
 web-sys = { version = "0.3", features = ["Document", "Element", "HtmlElement", "MouseEvent", "EventTarget", "Window"] }
 wasm-bindgen = "0.2"
 
@@ -37,7 +39,11 @@ base64.workspace = true
 bits-axum-session-sqlx.workspace = true
 bits-db.workspace = true
 cookie = "0.18"
+jiff = "0.1"
 http-body-util = "0.1"
+ipnetwork = "0.20"
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.16", default-features = false, features = ["http-listener"] }
 orion = "0.17"
 rand.workspace = true
 sqlx.workspace = true

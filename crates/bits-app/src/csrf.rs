@@ -34,12 +34,9 @@ pub async fn store_token(db: &PgPool, session_id: &str, token: &str) -> Result<(
 
 /// Retrieve the CSRF token for a given session
 pub async fn get_token(db: &PgPool, session_id: &str) -> Result<Option<String>, sqlx::Error> {
-    let result = sqlx::query!(
-        "select csrf_token from sessions where id = $1",
-        session_id
-    )
-    .fetch_optional(db)
-    .await?;
+    let result = sqlx::query!("select csrf_token from sessions where id = $1", session_id)
+        .fetch_optional(db)
+        .await?;
 
     Ok(result.and_then(|r| r.csrf_token))
 }

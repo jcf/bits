@@ -1,18 +1,18 @@
 use dioxus::prelude::*;
 
-use crate::auth::{sign_out, User};
+use crate::auth::{sign_out, SessionState};
 use crate::Route;
 
 #[component]
 pub fn SignOutLink(class: Option<String>) -> Element {
-    let mut session = use_context::<Resource<Result<Option<User>>>>();
+    let mut session = use_context::<Resource<Result<SessionState>>>();
     let mut sign_out_action = use_action(sign_out);
     let nav = navigator();
     let t = crate::i18n::use_translation();
 
     use_effect(move || {
         if sign_out_action.value().and_then(|r| r.ok()).is_some() {
-            session.restart();
+            session.set(Some(Ok(SessionState::Anonymous)));
             nav.push(Route::Home {});
         }
     });

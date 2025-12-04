@@ -5,6 +5,7 @@ pub mod footer;
 pub mod header;
 pub mod input;
 pub mod navigation_popover;
+pub mod sign_out_button;
 pub mod sign_out_link;
 
 pub use avatar::Avatar;
@@ -14,4 +15,5 @@ pub use footer::Footer;
 pub use header::Header;
 pub use input::Input;
 pub use navigation_popover::NavigationPopover;
+pub use sign_out_button::SignOutButton;
 pub use sign_out_link::SignOutLink;

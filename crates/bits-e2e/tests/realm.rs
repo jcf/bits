@@ -10,19 +10,7 @@ async fn resolve_realm_returns_platform_for_apex_domain() {
         .await
         .expect("Failed to setup test");
 
-    let state = bits_app::AppState {
-        config: std::sync::Arc::new(config),
-        db: ctx.db_pool.clone(),
-        argon2: ctx.argon2.clone(),
-        crypto: bits_app::crypto::EncryptionService::new(
-            &fixtures::config()
-                .expect("Failed to load config")
-                .master_key,
-        )
-        .expect("Failed to create crypto service"),
-    };
-
-    let realm = bits_app::tenant::resolve_realm(&state, Scheme::Https, "example.com").await;
+    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "example.com").await;
 
     assert!(matches!(realm, Realm::Platform));
 }
@@ -46,19 +34,8 @@ async fn resolve_realm_returns_tenancy_for_subdomain() {
         .await
         .expect("Failed to create tenant");
 
-    let state = bits_app::AppState {
-        config: std::sync::Arc::new(config),
-        db: ctx.db_pool.clone(),
-        argon2: ctx.argon2.clone(),
-        crypto: bits_app::crypto::EncryptionService::new(
-            &fixtures::config()
-                .expect("Failed to load config")
-                .master_key,
-        )
-        .expect("Failed to create crypto service"),
-    };
-
-    let realm = bits_app::tenant::resolve_realm(&state, Scheme::Https, "test.example.com").await;
+    let realm =
+        bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "test.example.com").await;
 
     match realm {
         Realm::Tenancy(t) => {
@@ -78,20 +55,8 @@ async fn resolve_realm_returns_unknown_for_nonexistent_subdomain() {
         .await
         .expect("Failed to setup test");
 
-    let state = bits_app::AppState {
-        config: std::sync::Arc::new(config),
-        db: ctx.db_pool.clone(),
-        argon2: ctx.argon2.clone(),
-        crypto: bits_app::crypto::EncryptionService::new(
-            &fixtures::config()
-                .expect("Failed to load config")
-                .master_key,
-        )
-        .expect("Failed to create crypto service"),
-    };
-
     let realm =
-        bits_app::tenant::resolve_realm(&state, Scheme::Https, "nonexistent.example.com").await;
+        bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "nonexistent.example.com").await;
 
     assert!(matches!(realm, Realm::UnknownTenant));
 }

@@ -211,7 +211,10 @@ where
             }
 
             // Get session from extensions to check token in memory
-            let session = match req.extensions().get::<axum_session::Session<bits_axum_session_sqlx::SessionPgPool>>() {
+            let session = match req
+                .extensions()
+                .get::<axum_session::Session<bits_axum_session_sqlx::SessionPgPool>>()
+            {
                 Some(s) => s,
                 None => {
                     tracing::error!("CSRF verification failed: Session not found in extensions");

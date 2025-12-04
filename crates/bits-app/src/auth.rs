@@ -2,6 +2,8 @@
 use axum_session_auth::{Authentication, HasPermission};
 #[cfg(feature = "server")]
 use dioxus::server::axum::extract::Extension;
+#[cfg(feature = "server")]
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use sqlx::PgPool;
@@ -60,6 +62,12 @@ impl dioxus::fullstack::AsStatusCode for AuthError {
 pub struct User {
     pub id: i64,
     pub email: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum SessionState {
+    Anonymous,
+    Authenticated(User),
 }
 
 #[cfg(feature = "server")]
@@ -131,6 +139,12 @@ pub struct ChangePasswordForm {
     pub confirm_password: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum AuthResponse {
+    Success(User),
+    NeedsVerification { email: String },
+}
+
 #[cfg(feature = "server")]
 #[derive(sqlx::FromRow)]
 struct LoginData {
@@ -152,70 +166,56 @@ async fn load_login_data(db: &PgPool, email: &str) -> anyhow::Result<Option<Logi
     .context("Failed to query login data")
 }
 
-#[cfg(feature = "server")]
-async fn check_email_exists(db: &PgPool, email: &str) -> anyhow::Result<bool> {
-    use anyhow::Context;
-
-    let exists: Option<i64> = sqlx::query_scalar!(
-        "select user_id from email_addresses where address = $1 and valid_to = 'infinity' limit 1",
-        email
-    )
-    .fetch_optional(db)
-    .await
-    .context("Failed to check if email exists")?;
-
-    Ok(exists.is_some())
-}
-
 #[post("/api/sessions", auth: AuthSession, state: Extension<crate::AppState>)]
-pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<(), AuthError> {
-    #[cfg(feature = "server")]
-    {
-        use argon2::{PasswordHash, PasswordVerifier};
+pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<User, AuthError> {
+    use argon2::{PasswordHash, PasswordVerifier};
 
-        let user = load_login_data(&state.db, &form.0.email).await?;
+    let user = load_login_data(&state.db, &form.0.email).await?;
 
-        let user = match user {
-            Some(u) => u,
-            None => {
-                let email_exists = check_email_exists(&state.db, &form.0.email).await?;
+    let user = match user {
+        Some(u) => u,
+        None => {
+            return Err(AuthError::InvalidCredentials);
+        }
+    };
 
-                if email_exists {
-                    return Err(AuthError::EmailNotVerified);
-                } else {
-                    return Err(AuthError::InvalidCredentials);
-                }
-            }
-        };
+    let parsed_hash =
+        PasswordHash::new(&user.password_hash).map_err(|_| AuthError::InvalidCredentials)?;
 
-        let parsed_hash =
-            PasswordHash::new(&user.password_hash).map_err(|_| AuthError::InvalidCredentials)?;
+    state
+        .argon2
+        .verify_password(form.0.password.as_bytes(), &parsed_hash)
+        .map_err(|_| {
+            crate::metrics::record_auth_event("login", false);
+            AuthError::InvalidCredentials
+        })?;
 
-        state
-            .argon2
-            .verify_password(form.0.password.as_bytes(), &parsed_hash)
-            .map_err(|_| AuthError::InvalidCredentials)?;
+    auth.session.renew();
+    auth.login_user(user.user_id);
+    crate::metrics::record_auth_event("login", true);
 
-        auth.session.renew();
-        auth.login_user(user.user_id);
-    }
-    Ok(())
+    Ok(User {
+        id: user.user_id,
+        email: form.0.email.clone(),
+    })
 }
 
 #[delete("/api/session", auth: AuthSession)]
 pub async fn sign_out() -> Result<()> {
     auth.logout_user();
+    #[cfg(feature = "server")]
+    crate::metrics::record_auth_event("logout", true);
     Ok(())
 }
 
 #[get("/api/session", auth: AuthSession)]
-pub async fn get_session() -> Result<Option<User>> {
+pub async fn get_session() -> Result<SessionState> {
     if let Some(user) = auth.current_user {
         if user.is_authenticated() {
-            return Ok(Some(user));
+            return Ok(SessionState::Authenticated(user));
         }
     }
-    Ok(None)
+    Ok(SessionState::Anonymous)
 }
 
 #[cfg(feature = "server")]
@@ -281,13 +281,101 @@ async fn update_password_hash(
 }
 
 #[cfg(feature = "server")]
-async fn invalidate_all_sessions(db: &PgPool, user_id: i64) -> anyhow::Result<()> {
+async fn get_email_address_id(db: &PgPool, user_id: i64) -> anyhow::Result<i64> {
     use anyhow::Context;
 
-    sqlx::query!("delete from sessions where user_id = $1", user_id)
-        .execute(db)
-        .await
-        .context("Failed to invalidate user sessions")?;
+    let email_address_id = sqlx::query_scalar!(
+        "select id from email_addresses where user_id = $1 and valid_to = 'infinity' limit 1",
+        user_id
+    )
+    .fetch_one(db)
+    .await
+    .context("Failed to get email address for user")?;
+
+    Ok(email_address_id)
+}
+
+#[cfg(feature = "server")]
+#[allow(dead_code)]
+async fn is_email_verified(db: &PgPool, user_id: i64) -> anyhow::Result<bool> {
+    use anyhow::Context;
+
+    let verified = sqlx::query_scalar!(
+        "select exists(
+            select 1
+            from email_addresses ea
+            join email_verifications ev on ev.email_address_id = ea.id
+            where ea.user_id = $1 and ea.valid_to = 'infinity'
+        )",
+        user_id
+    )
+    .fetch_one(db)
+    .await
+    .context("Failed to check email verification status")?;
+
+    Ok(verified.unwrap_or(false))
+}
+
+#[cfg(feature = "server")]
+async fn invalidate_other_sessions(
+    db: &PgPool,
+    session_store: &std::sync::Arc<
+        tokio::sync::Mutex<bits_axum_session_sqlx::SessionPgSessionStore>,
+    >,
+    user_id: i64,
+    current_session_id: &str,
+) -> anyhow::Result<()> {
+    use anyhow::Context;
+
+    let count_before =
+        sqlx::query_scalar!("select count(*) from sessions where user_id = $1", user_id)
+            .fetch_one(db)
+            .await
+            .context("Failed to count sessions before deletion")?;
+
+    eprintln!(
+        "[invalidate_other_sessions] user_id={} current_session_id={} total_sessions={}",
+        user_id,
+        current_session_id,
+        count_before.unwrap_or(0)
+    );
+
+    tracing::info!(
+        user_id = user_id,
+        current_session_id = %current_session_id,
+        total_sessions = count_before,
+        "Invalidating other sessions"
+    );
+
+    let result = sqlx::query!(
+        "delete from sessions where user_id = $1 and id != $2",
+        user_id,
+        current_session_id
+    )
+    .execute(db)
+    .await
+    .context("Failed to invalidate other sessions")?;
+
+    // Clear session cache so deleted sessions aren't served from memory
+    session_store.lock().await.clear().await;
+
+    let count_after =
+        sqlx::query_scalar!("select count(*) from sessions where user_id = $1", user_id)
+            .fetch_one(db)
+            .await
+            .context("Failed to count sessions after deletion")?;
+
+    eprintln!(
+        "[invalidate_other_sessions] deleted={} remaining={}",
+        result.rows_affected(),
+        count_after.unwrap_or(0)
+    );
+
+    tracing::info!(
+        deleted = result.rows_affected(),
+        remaining = count_after,
+        "Sessions deleted"
+    );
 
     Ok(())
 }
@@ -299,17 +387,59 @@ pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthErr
         let password_hash = hash_password(&state.argon2, &form.0.password).await?;
 
         match create_user_with_email(&state.db, &form.0.email, &password_hash).await {
-            Ok(_) => Ok(()),
+            Ok(user_id) => {
+                crate::metrics::record_auth_event("register", true);
+
+                // Generate verification code for new user
+                match get_email_address_id(&state.db, user_id).await {
+                    Ok(email_address_id) => {
+                        match state
+                            .email_verification
+                            .create_code(&state.db, email_address_id)
+                            .await
+                        {
+                            Ok(code) => {
+                                tracing::info!(
+                                    user_id = user_id,
+                                    email = %form.0.email,
+                                    code = %code,
+                                    "User registered, verification code generated"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    user_id = user_id,
+                                    email = %form.0.email,
+                                    error = %e,
+                                    "Failed to generate verification code"
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            user_id = user_id,
+                            email = %form.0.email,
+                            error = %e,
+                            "Failed to get email address id"
+                        );
+                    }
+                }
+
+                Ok(())
+            }
             Err(e) => {
                 if let Some(source) = e.source() {
                     if let Some(db_err) = source.downcast_ref::<sqlx::Error>() {
                         if let Some(pg_err) = db_err.as_database_error() {
                             if pg_err.code().as_deref() == Some("23P01") {
+                                crate::metrics::record_auth_event("register", false);
                                 return Err(AuthError::EmailAlreadyRegistered);
                             }
                         }
                     }
                 }
+                crate::metrics::record_auth_event("register", false);
                 Err(AuthError::Internal(format!("{:#}", e)))
             }
         }
@@ -352,9 +482,19 @@ pub async fn change_password(
 
         let new_hash = hash_password(&state.argon2, &form.0.new_password).await?;
         update_password_hash(&state.db, user.id, &new_hash).await?;
-        invalidate_all_sessions(&state.db, user.id).await?;
 
-        auth.logout_user();
+        let session_id = auth.session.get_session_id();
+        eprintln!(
+            "[change_password] user_id={} session_id={}",
+            user.id, session_id
+        );
+
+        invalidate_other_sessions(&state.db, &state.session_store, user.id, &session_id).await?;
+
+        // Clear user from auth cache so other sessions can't use cached auth
+        auth.cache_clear_user(user.id);
+        eprintln!("[change_password] Cleared user {} from auth cache", user.id);
+        tracing::info!(user_id = user.id, "Cleared user from auth cache");
     }
     Ok(())
 }
@@ -362,4 +502,143 @@ pub async fn change_password(
 #[get("/api/realm", realm: crate::Realm)]
 pub async fn get_realm() -> Result<crate::Realm> {
     Ok(realm)
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct VerifyEmailForm {
+    pub email: String,
+    pub code: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ResendForm {
+    pub email: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ResendResponse {
+    pub next_resend_at: i64,
+}
+
+#[post("/api/email-verifications", state: Extension<crate::AppState>)]
+pub async fn verify_email_code(
+    form: dioxus::fullstack::Form<VerifyEmailForm>,
+) -> Result<(), AuthError> {
+    #[cfg(feature = "server")]
+    {
+        // Look up user by email
+        let user_id = sqlx::query_scalar!(
+            "select user_id from email_addresses where address = $1 and valid_to = 'infinity' limit 1",
+            form.0.email
+        )
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| AuthError::from(anyhow::Error::from(e)))?
+        .ok_or(AuthError::InvalidCredentials)?;
+
+        let email_address_id = get_email_address_id(&state.db, user_id).await?;
+
+        // Verify the code
+        state
+            .email_verification
+            .verify_code(&state.db, email_address_id, &form.0.code)
+            .await
+            .map_err(|e| match e {
+                crate::verification::VerificationError::InvalidCode => {
+                    AuthError::Internal("Invalid verification code".to_string())
+                }
+                crate::verification::VerificationError::TooManyAttempts => {
+                    AuthError::Internal("Too many attempts. Please request a new code.".to_string())
+                }
+                crate::verification::VerificationError::Expired => AuthError::Internal(
+                    "Verification code has expired. Please request a new code.".to_string(),
+                ),
+                _ => AuthError::Internal("Verification failed".to_string()),
+            })?;
+
+        tracing::info!(
+            user_id = user_id,
+            email = %form.0.email,
+            "Email verified successfully"
+        );
+
+        Ok(())
+    }
+    #[cfg(not(feature = "server"))]
+    Ok(())
+}
+
+#[post("/api/email-verifications/resend", state: Extension<crate::AppState>)]
+pub async fn resend_verification_code(
+    form: dioxus::fullstack::Form<ResendForm>,
+) -> Result<ResendResponse, AuthError> {
+    #[cfg(feature = "server")]
+    {
+        // Look up user by email
+        let user_id = sqlx::query_scalar!(
+            "select user_id from email_addresses where address = $1 and valid_to = 'infinity' limit 1",
+            form.0.email
+        )
+        .fetch_optional(&state.db)
+        .await
+        .map_err(|e| AuthError::from(anyhow::Error::from(e)))?
+        .ok_or(AuthError::InvalidCredentials)?;
+
+        let email_address_id = get_email_address_id(&state.db, user_id).await?;
+
+        // Check rate limits (IP is None for now - Phase 6 will add IP extraction)
+        state
+            .email_verification
+            .check_resend_limits(&state.db, email_address_id, None)
+            .await
+            .map_err(|e| match e {
+                crate::verification::RateLimitError::Cooldown(secs) => {
+                    AuthError::Internal(format!(
+                        "Please wait {} seconds before requesting another code",
+                        secs
+                    ))
+                }
+                crate::verification::RateLimitError::TooManyRequests => AuthError::Internal(
+                    "Too many resend requests. Please try again later.".to_string(),
+                ),
+                crate::verification::RateLimitError::Database(e) => {
+                    AuthError::Internal(format!("Database error: {}", e))
+                }
+            })?;
+
+        // Get or create code (same code if still valid)
+        let code = state
+            .email_verification
+            .create_code(&state.db, email_address_id)
+            .await
+            .map_err(|e| AuthError::Internal(e.to_string()))?;
+
+        // Log the resend
+        state
+            .email_verification
+            .log_resend(&state.db, email_address_id, None)
+            .await
+            .map_err(|e| AuthError::Internal(e.to_string()))?;
+
+        tracing::info!(
+            user_id = user_id,
+            email = %form.0.email,
+            code = %code,
+            "Verification code resent"
+        );
+
+        // Get next resend time
+        let next_resend = state
+            .email_verification
+            .next_resend_at(&state.db, email_address_id)
+            .await
+            .map_err(|e| AuthError::Internal(e.to_string()))?
+            .unwrap_or_else(Timestamp::now);
+
+        Ok(ResendResponse {
+            next_resend_at: next_resend.as_second(),
+        })
+    }
+    #[cfg(not(feature = "server"))]
+    Ok(ResendResponse { next_resend_at: 0 })
 }

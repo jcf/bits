@@ -33,7 +33,14 @@ fn main() {
 
         Some(Commands::Serve) | None => {
             bits_app::init_tracing();
-            dioxus::serve(|| server::router(cli.config.clone()));
+            let config = cli.config.clone();
+            dioxus::serve(move || {
+                let config = config.clone();
+                async move {
+                    let state = bits_app::init(config).await?;
+                    bits_app::build_router(state, server::app).await
+                }
+            });
         }
     }
 }

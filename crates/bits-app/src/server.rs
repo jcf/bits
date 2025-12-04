@@ -1,5 +1,6 @@
 use crate::{AppState, Config, CspMode, CsrfVerificationLayer, User};
 use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
 use axum_session::{SessionConfig, SessionLayer, SessionStore};
 use axum_session_auth::{AuthConfig, AuthSessionLayer};
 use bits_axum_session_sqlx::SessionPgPool;
@@ -67,10 +68,44 @@ pub async fn setup_session_store(
     Ok(session_store)
 }
 
+/// Metrics endpoint handler with optional bearer token authentication
+async fn metrics_handler(
+    Extension(state): Extension<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    // Check if auth token is configured
+    if let Some(required_token) = &state.config.metrics_auth_token {
+        // Extract bearer token from Authorization header
+        let auth_header = headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok());
+
+        let provided_token = auth_header.and_then(|h| h.strip_prefix("Bearer "));
+
+        // Compare tokens using constant-time comparison to prevent timing attacks
+        use subtle::ConstantTimeEq;
+        let authorized = provided_token
+            .map(|token| token.as_bytes().ct_eq(required_token.as_bytes()).into())
+            .unwrap_or(false);
+
+        if !authorized {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "Unauthorized: Invalid or missing bearer token",
+            )
+                .into_response();
+        }
+    }
+
+    state.metrics_handle.render().into_response()
+}
+
 /// Build a production-ready router with security middleware
-pub async fn router(config: Config, app: fn() -> Element) -> Result<axum::Router, anyhow::Error> {
-    let state = init(config.clone()).await?;
-    let session_store = setup_session_store(&state).await?;
+pub async fn build_router(
+    state: AppState,
+    app: fn() -> Element,
+) -> Result<axum::Router, anyhow::Error> {
+    let session_store = state.session_store.lock().await.clone();
 
     let auth_config = AuthConfig::<i64>::default().with_anonymous_user_id(Some(-1));
 
@@ -78,7 +113,7 @@ pub async fn router(config: Config, app: fn() -> Element) -> Result<axum::Router
         AuthSessionLayer::<User, i64, SessionPgPool, sqlx::PgPool>::new(Some(state.db.clone()))
             .with_config(auth_config);
 
-    let csp_mode = if config.dangerously_allow_javascript_evaluation {
+    let csp_mode = if state.config.dangerously_allow_javascript_evaluation {
         CspMode::Development
     } else {
         CspMode::Strict
@@ -88,12 +123,18 @@ pub async fn router(config: Config, app: fn() -> Element) -> Result<axum::Router
     #[allow(unused_mut)]
     let mut router = dioxus::server::router(app);
 
+    // Add metrics endpoint
+    router = router.route("/metrics", axum::routing::get(metrics_handler));
+
     #[cfg(feature = "colo")]
     {
         router = router.layer(RealmLayer);
     }
 
-    Ok(router
+    let router = router
+        .layer(axum::middleware::from_fn(
+            crate::middleware::metrics::track_metrics,
+        ))
         .layer(CsrfVerificationLayer)
         .layer(SetResponseHeaderLayer::overriding(
             header::HeaderName::from_static("content-security-policy"),
@@ -140,6 +181,8 @@ pub async fn router(config: Config, app: fn() -> Element) -> Result<axum::Router
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         .layer(auth_layer)
         .layer(SessionLayer::new(session_store))
-        .layer(Extension(config))
-        .layer(Extension(state)))
+        .layer(Extension(state.config.clone()))
+        .layer(Extension(state));
+
+    Ok(router)
 }

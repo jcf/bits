@@ -26,14 +26,15 @@ jiff.workspace = true
 jiff-sqlx = { version = "0.1.1", features = ["postgres"] }
 rand.workspace = true
 reqwest = { version = "0.12", features = ["json", "cookies"] }
+scraper = "0.22"
 serde.workspace = true
 serde_json = "1"
 sqlx.workspace = true
 tokio.workspace = true
 toml.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 rstest = "0.26.1"
-scraper = "0.22"
 urlencoding = "2"

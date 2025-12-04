@@ -46,7 +46,11 @@ impl EncryptionService {
     ///
     /// This allows deriving different keys for different purposes from the master key.
     /// For example: "email-verification", "password-reset", "data-encryption"
-    pub fn derive_key(&self, purpose: &str, salt: &[u8]) -> Result<Vec<u8>, EncryptionServiceError> {
+    pub fn derive_key(
+        &self,
+        purpose: &str,
+        salt: &[u8],
+    ) -> Result<Vec<u8>, EncryptionServiceError> {
         let mut output = [0u8; 32];
         let info = Some(purpose.as_bytes());
 
@@ -99,7 +103,11 @@ impl EncryptionService {
     /// Verify base64-encoded signature
     ///
     /// Convenience method that decodes base64 signature and verifies it.
-    pub fn verify_base64(&self, signature_base64: &str, data: &[u8]) -> Result<(), EncryptionServiceError> {
+    pub fn verify_base64(
+        &self,
+        signature_base64: &str,
+        data: &[u8],
+    ) -> Result<(), EncryptionServiceError> {
         let signature = BASE64
             .decode(signature_base64)
             .map_err(|e| EncryptionServiceError::Verification(e.to_string()))?;

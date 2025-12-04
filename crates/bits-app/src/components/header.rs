@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::auth::User;
+use crate::auth::SessionState;
 use crate::tenant::Realm;
 use crate::Route;
 
@@ -9,7 +9,7 @@ use super::{Avatar, CategoryItem, MobileCategoryItem, NavigationPopover, SignOut
 #[component]
 pub fn Header() -> Element {
     let realm = use_context::<Resource<Result<Realm>>>();
-    let session = use_context::<Resource<Result<Option<User>>>>();
+    let session = use_context::<Resource<Result<SessionState>>>();
     let mut mobile_menu_open = use_signal(|| false);
     let mut mobile_tab_index = use_signal(|| 0);
     let mut women_popover_open = use_signal(|| false);
@@ -171,7 +171,7 @@ pub fn Header() -> Element {
 
                             div { class: "space-y-6 border-t border-gray-200 px-4 py-6 dark:border-gray-700",
                                 match session() {
-                                    Some(Ok(Some(user))) => rsx! {
+                                    Some(Ok(SessionState::Authenticated(user))) => rsx! {
                                         div { class: "flow-root",
                                             div { class: "-m-2 flex items-center p-2",
                                                 Avatar { email: user.email.clone() }
@@ -268,7 +268,7 @@ pub fn Header() -> Element {
 
                             div { class: "flex items-center space-x-6",
                                 match session() {
-                                    Some(Ok(Some(user))) => rsx! {
+                                    Some(Ok(SessionState::Authenticated(user))) => rsx! {
                                         div { class: "flex items-center",
                                             Avatar { email: user.email.clone() }
                                             span { class: "ml-3 text-sm font-medium text-white", "{user.email}" }

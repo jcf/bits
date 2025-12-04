@@ -15,7 +15,8 @@ async fn user_stays_signed_in_across_requests() {
         .await
         .expect("Failed to create user");
 
-    let client = BitsClient::new(ctx.server.url(""));
+    let mut client = BitsClient::new(ctx.server.url(""));
+    client.fetch_csrf_token().await;
 
     client.login(email, password).await;
 
@@ -50,10 +51,12 @@ async fn password_change_invalidates_all_other_sessions() {
         .await
         .expect("Failed to create user");
 
-    let client1 = BitsClient::new(ctx.server.url(""));
+    let mut client1 = BitsClient::new(ctx.server.url(""));
+    client1.fetch_csrf_token().await;
     client1.login(email, old_password).await;
 
-    let client2 = BitsClient::new(ctx.server.url(""));
+    let mut client2 = BitsClient::new(ctx.server.url(""));
+    client2.fetch_csrf_token().await;
     client2.login(email, old_password).await;
 
     let session1 = client1.get_session().await;
@@ -70,7 +73,7 @@ async fn password_change_invalidates_all_other_sessions() {
         "Client 2 should be signed in before password change"
     );
 
-    client1
+    let response = client1
         .change_password(&serde_json::json!({
             "current_password": old_password,
             "new_password": new_password,
@@ -78,17 +81,264 @@ async fn password_change_invalidates_all_other_sessions() {
         }))
         .await;
 
+    eprintln!(
+        "[TEST] Password change response status: {}",
+        response.status()
+    );
+    if !response.status().is_success() {
+        eprintln!(
+            "[TEST] Password change failed: {}",
+            response.text().await.unwrap()
+        );
+        panic!("Password change failed");
+    }
+
     let session1_after = client1.get_session().await;
     assert_eq!(
-        session1_after,
-        None,
-        "Client 1 should be logged out after changing their own password"
+        session1_after.as_ref().map(|u| u.id),
+        Some(user.id),
+        "Client 1 should remain logged in after changing their own password"
     );
 
     let session2_after = client2.get_session().await;
     assert_eq!(
-        session2_after,
-        None,
+        session2_after, None,
         "Client 2 session should be invalidated when user changes password on client 1"
     );
+}
+
+#[tokio::test]
+async fn valid_code_verifies_email() {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    // Create unverified user
+    let user = ctx
+        .create_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    // Generate verification code
+    let email_address_id =
+        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
+            .bind(user.id)
+            .fetch_one(&ctx.db_pool)
+            .await
+            .expect("Failed to get email address id");
+
+    let code = ctx
+        .state
+        .email_verification
+        .create_code(&ctx.db_pool, email_address_id)
+        .await
+        .expect("Failed to create verification code");
+
+    // Verify the code
+    let result = ctx
+        .state
+        .email_verification
+        .verify_code(&ctx.db_pool, email_address_id, &code)
+        .await;
+
+    assert!(result.is_ok(), "Valid code should verify successfully");
+
+    // Check that email_verifications record was created
+    let is_verified = sqlx::query_scalar::<_, bool>(
+        "select exists(select 1 from email_verifications where email_address_id = $1)",
+    )
+    .bind(email_address_id)
+    .fetch_one(&ctx.db_pool)
+    .await
+    .expect("Failed to check verification status");
+
+    assert!(is_verified, "Email should be marked as verified");
+}
+
+#[tokio::test]
+async fn invalid_code_fails_verification() {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    let user = ctx
+        .create_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    let email_address_id =
+        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
+            .bind(user.id)
+            .fetch_one(&ctx.db_pool)
+            .await
+            .expect("Failed to get email address id");
+
+    ctx.state
+        .email_verification
+        .create_code(&ctx.db_pool, email_address_id)
+        .await
+        .expect("Failed to create verification code");
+
+    // Try to verify with wrong code
+    let result = ctx
+        .state
+        .email_verification
+        .verify_code(&ctx.db_pool, email_address_id, "000000")
+        .await;
+
+    assert!(result.is_err(), "Invalid code should fail verification");
+}
+
+#[tokio::test]
+async fn expired_code_fails_verification() {
+    use bits_app::verification::{EmailVerificationConfig, EmailVerificationService};
+
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    let user = ctx
+        .create_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    let email_address_id =
+        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
+            .bind(user.id)
+            .fetch_one(&ctx.db_pool)
+            .await
+            .expect("Failed to get email address id");
+
+    // Create service with immediate expiration
+    let test_config = EmailVerificationConfig {
+        code_expiry_hours: -1, // Expired immediately
+        max_verification_attempts: 3,
+        resend_cooldown_secs: 60,
+        max_resends_per_hour: 5,
+    };
+    let service = EmailVerificationService::new(ctx.state.crypto.clone(), test_config);
+
+    let code = service
+        .create_code(&ctx.db_pool, email_address_id)
+        .await
+        .expect("Failed to create verification code");
+
+    // Try to verify expired code
+    let result = service
+        .verify_code(&ctx.db_pool, email_address_id, &code)
+        .await;
+
+    assert!(result.is_err(), "Expired code should fail verification");
+}
+
+#[tokio::test]
+async fn too_many_attempts_blocks_verification() {
+    use bits_app::verification::{EmailVerificationConfig, EmailVerificationService};
+
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    let user = ctx
+        .create_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    let email_address_id =
+        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
+            .bind(user.id)
+            .fetch_one(&ctx.db_pool)
+            .await
+            .expect("Failed to get email address id");
+
+    // Create service with only 1 attempt allowed
+    let test_config = EmailVerificationConfig {
+        code_expiry_hours: 1,
+        max_verification_attempts: 1,
+        resend_cooldown_secs: 60,
+        max_resends_per_hour: 5,
+    };
+    let service = EmailVerificationService::new(ctx.state.crypto.clone(), test_config);
+
+    service
+        .create_code(&ctx.db_pool, email_address_id)
+        .await
+        .expect("Failed to create verification code");
+
+    // First wrong attempt
+    let _ = service
+        .verify_code(&ctx.db_pool, email_address_id, "000000")
+        .await;
+
+    // Second attempt should be blocked
+    let result = service
+        .verify_code(&ctx.db_pool, email_address_id, "111111")
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Verification should be blocked after max attempts"
+    );
+}
+
+#[tokio::test]
+async fn resend_respects_cooldown() {
+    use bits_app::verification::{EmailVerificationConfig, EmailVerificationService};
+
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    let user = ctx
+        .create_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    let email_address_id =
+        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
+            .bind(user.id)
+            .fetch_one(&ctx.db_pool)
+            .await
+            .expect("Failed to get email address id");
+
+    // Create service with long cooldown
+    let test_config = EmailVerificationConfig {
+        code_expiry_hours: 1,
+        max_verification_attempts: 3,
+        resend_cooldown_secs: 3600, // 1 hour
+        max_resends_per_hour: 5,
+    };
+    let service = EmailVerificationService::new(ctx.state.crypto.clone(), test_config);
+
+    service
+        .create_code(&ctx.db_pool, email_address_id)
+        .await
+        .expect("Failed to create verification code");
+
+    // Try to resend immediately
+    let result = service
+        .check_resend_limits(&ctx.db_pool, email_address_id, None)
+        .await;
+
+    assert!(result.is_err(), "Resend should be blocked by cooldown");
 }
