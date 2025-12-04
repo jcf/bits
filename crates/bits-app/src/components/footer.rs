@@ -92,7 +92,7 @@ pub fn Footer() -> Element {
                 }
                 p { class: "mt-8 text-center text-sm/6 text-gray-600 md:order-1 md:mt-0 dark:text-gray-400",
                     match realm() {
-                        Some(Ok(Realm::Tenancy(tenant))) => rsx! {
+                        Some(Ok(Realm::Creator(tenant))) => rsx! {
                             "{tenant.name}"
                         },
                         Some(Ok(_)) => rsx! {

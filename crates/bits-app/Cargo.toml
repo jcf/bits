@@ -10,6 +10,7 @@ colo = []
 
 [dependencies]
 bits-domain.workspace = true
+bits-tailwind-merge.workspace = true
 clap.workspace = true
 dioxus.workspace = true
 dioxus-html = { version = "0.7", features = ["serialize"] }

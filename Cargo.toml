@@ -7,6 +7,7 @@ members = [
     "crates/bits-domain",
     "crates/bits-e2e",
     "crates/bits-solo",
+    "crates/bits-tailwind-merge",
 ]
 
 [workspace.package]
@@ -21,6 +22,7 @@ bits-db = { path = "crates/bits-db" }
 bits-app = { path = "crates/bits-app" }
 bits-solo = { path = "crates/bits-solo" }
 bits-colo = { path = "crates/bits-colo" }
+bits-tailwind-merge = { path = "crates/bits-tailwind-merge" }
 
 anyhow = "1"
 axum_session = "0.17.1"

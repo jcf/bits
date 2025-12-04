@@ -122,42 +122,63 @@ just --list
 #+results:
 #+begin_example
 Available recipes:
-    [dev]
-    build            # Build fullstack web packages
-    check            # Run checks
-    clean            # Clear build caches
-    colo             # Run Dioxus in co-located mode
-    dev              # Run Dioxus in co-located mode
-    fix              # Fix errors within Bits
-    fmt              # Format project files
-    integrate        # Run integration tests
-    lint             # Run lints
-    mkcert           # Create self-signed SSL certificates via mkcert
-    push             # Verify and push changes
-    release
-    setup            # Setup a local development environment
-    solo             # Run Dioxus in solo mode
-    tailwind dir     # Watch source code for Tailwind classes
-    test             # Run unit and integration tests
-    unit             # Run units tests
-    www              # Run the marketing site
+    [build]
+    build                # Build fullstack web packages
+    clean                # Clear build caches
+    release              # Bundle a release build via dioxus-cli
+
+    [db]
+    db-migrate           # Run database migrations
+    db-migration name    # Create a new migration
+    db-reset             # Reset all development PostgreSQL state
+    db-seed              # Seed the database with test data
+    psql *args           # Start an interactive psql session connected to the local development database
+
+    [deploy]
+    deploy-prod          # Deploy to production
+    image-build          # Build container image
+    image-push           # Push container to GitHub Container Registry
+    rollback-prod        # Rollback to previous deployment
 
     [docs]
-    decide +title    # Create a new decision record
+    decide +title        # Create a new decision record
+    prompt +title        # Create a new prompt
 
-    [iac]
-    apply dir        # Apply one or all Terraform projects
-    import dir *args # Import into a Terraform project
-    init dir *args   # Initialize one or all Terraform projects
-    output dir *args # Interact with outputs one or all Terraform projects
-    plan dir         # Plan one or all Terraform projects
+    [infra]
+    apply dir            # Apply one or all Terraform projects
+    import dir *args     # Import into a Terraform project
+    init dir *args       # Initialize one or all Terraform projects
+    output dir *args     # Interact with outputs one or all Terraform projects
+    plan dir             # Plan one or all Terraform projects
+    snapshot-build       # Build NixOS image snapshot
+    snapshot-delete name # Delete NixOS image snapshot
+    snapshot-list        # List NixOS image snapshots
 
-    [postgres]
-    db-destroy       # Delete all development PostgreSQL state
-    migrate          # Run database migrations
-    migration name   # Create a new migration
-    psql *args       # Start an interactive psql session connected to the local development database
-    seed             # Seed the database with test data
+    [quality]
+    check                # Run checks
+    fix                  # Fix errors within Bits
+    fmt                  # Format project files
+    lint                 # Run lints
+
+    [serve]
+    colo                 # Run Dioxus in co-located mode
+    dev                  # Run Dioxus in co-located mode
+    solo                 # Run Dioxus in solo mode
+    tailwind dir         # Watch source code for Tailwind classes
+    www                  # Run the marketing site
+
+    [setup]
+    hetzner-contexts     # Upsert Bits contexts
+    mkcert               # Create self-signed SSL certificates via mkcert
+    setup                # Setup a local development environment
+
+    [test]
+    integrate            # Run integration tests
+    test                 # Run unit and integration tests
+    unit                 # Run units tests
+
+    [workflows]
+    push                 # Verify and push changes
 #+end_example
 
 ** SLOC
@@ -218,7 +239,7 @@ We have a file:seeds.toml file that contains tenants and users we want to insert
 immediately to speed up development.
 
 #+begin_src sh :results output verbatim :eval query
-just seed
+just db-seed
 #+end_src
 
 #+property: header-args:sql  :engine postgresql

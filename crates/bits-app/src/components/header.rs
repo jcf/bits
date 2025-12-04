@@ -66,7 +66,7 @@ pub fn Header() -> Element {
         div { class: "bg-white dark:bg-black",
             {
                 match realm() {
-                    Some(Ok(Realm::Tenancy(tenant))) => rsx! {
+                    Some(Ok(Realm::Creator(tenant))) => rsx! {
                         document::Title { "{tenant.name}" }
                     },
                     _ => rsx! {},

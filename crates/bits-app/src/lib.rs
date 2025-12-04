@@ -6,12 +6,15 @@ pub mod config;
 pub mod http;
 pub mod i18n;
 pub mod pages;
+pub mod subdomain;
 pub mod tenant;
 
 #[cfg(feature = "server")]
 pub mod crypto;
 #[cfg(feature = "server")]
 pub mod csrf;
+#[cfg(feature = "server")]
+pub mod demos;
 #[cfg(feature = "server")]
 pub mod metrics;
 #[cfg(feature = "server")]
@@ -42,7 +45,7 @@ pub use config::Config;
 pub use http::CspMode;
 
 // Re-exports - Tenant
-pub use tenant::{Realm, Tenant};
+pub use tenant::{Handle, HandleError, Realm, Tenant};
 
 // Re-exports - Server middleware
 #[cfg(feature = "server")]

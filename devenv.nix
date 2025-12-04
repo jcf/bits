@@ -64,7 +64,6 @@ in {
   };
 
   env = {
-    CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
     DANGEROUSLY_ALLOW_JAVASCRIPT_EVALUATION = "true";
     DATABASE_URL = "postgres://bits:please@127.0.0.1:5432/bits_dev";
     DATABASE_URL_TEST = "postgres://bits:please@127.0.0.1:5432/bits_test";
@@ -72,6 +71,14 @@ in {
     DOMAIN_WWW = dev.hosts.www.domain;
     MASTER_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     PLATFORM_DOMAIN = dev.hosts.page.domain;
+
+    # Infrastructure
+    CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
+    HCLOUD_TOKEN = "op://Employee/Hetzner/token";
+    NEON_API_KEY = "op://Employee/Neon/token";
+
+    # Terraform (expires 2026/03/04)
+    TF_VAR_tailscale_authkey = "op://Employee/nr5wtbd6s3agpgdtc45sumstvm/n7c2tvejlbjjpwzd2trlo576xu";
 
     # TODO Create a dedicated Bits Postmark account.
     POSTMARK_ACCOUNT_TOKEN = "op://Invetica/Postmark/bits/account-api-token";
@@ -109,6 +116,11 @@ in {
     # Scraping
     firefox
     geckodriver
+
+    # Deploy
+    hcloud
+    packer
+    wrangler
   ];
 
   languages.javascript.enable = true;

@@ -38,11 +38,11 @@ async fn resolve_realm_returns_tenancy_for_subdomain() {
         bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "test.example.com").await;
 
     match realm {
-        Realm::Tenancy(t) => {
+        Realm::Creator(t) => {
             assert_eq!(t.id, tenant.id);
             assert_eq!(t.name, "Test Tenant");
         }
-        _ => panic!("Expected Tenancy realm, got {:?}", realm),
+        _ => panic!("Expected Creator realm, got {:?}", realm),
     }
 }
 
@@ -58,5 +58,5 @@ async fn resolve_realm_returns_unknown_for_nonexistent_subdomain() {
     let realm =
         bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "nonexistent.example.com").await;
 
-    assert!(matches!(realm, Realm::UnknownTenant));
+    assert!(matches!(realm, Realm::NotFound));
 }

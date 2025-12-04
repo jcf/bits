@@ -9,6 +9,7 @@ use dioxus::prelude::Element;
 use dioxus::server::axum::{self, Extension};
 use sqlx::PgPool;
 use std::time::Duration;
+use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
@@ -131,10 +132,18 @@ pub async fn build_router(
         router = router.layer(RealmLayer);
     }
 
+    // Explicitly reject all cross-origin requests
+    // Each tenant accesses their own domain, no cross-origin requests needed
+    let cors = CorsLayer::new()
+        .allow_methods(vec![])
+        .allow_headers(vec![])
+        .allow_origin(tower_http::cors::AllowOrigin::predicate(|_, _| false));
+
     let router = router
         .layer(axum::middleware::from_fn(
             crate::middleware::metrics::track_metrics,
         ))
+        .layer(cors)
         .layer(CsrfVerificationLayer)
         .layer(SetResponseHeaderLayer::overriding(
             header::HeaderName::from_static("content-security-policy"),
