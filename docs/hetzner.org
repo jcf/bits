@@ -1,0 +1,41 @@
+#+title:   Hetzner
+#+startup: content
+
+* Contexts
+** List
+#+begin_src sh :results output list :wrap quote
+hcloud context list | awk '/bits-/ { print $2 }' | sort
+#+end_src
+
+#+results:
+#+begin_quote
+- bits-prod
+#+end_quote
+
+** Upsert
+#+begin_src sh :results output verbatim :wrap example
+for ctx in bits-{dev,prod}; do
+  hcloud context list | grep "$ctx" &>/dev/null \
+    && echo "$ctx found." \
+    || hcloud context create $ctx
+done
+#+end_src
+
+#+results:
+#+begin_example
+bits-dev found.
+bits-prod found.
+#+end_example
+
+* Images
+#+begin_src sh :results output verbatim
+hcloud images list | head -1
+hcloud images list | grep ubuntu
+#+end_src
+
+#+results:
+: ID          TYPE     NAME                 DESCRIPTION          ARCHITECTURE   IMAGE SIZE   DISK SIZE   CREATED                        DEPRECATED
+: 67794396    system   ubuntu-22.04         Ubuntu 22.04         x86            -            5 GB        Thu Apr 21 14:32:38 BST 2022   -
+: 103908130   system   ubuntu-22.04         Ubuntu 22.04         arm            -            5 GB        Mon Mar 20 10:10:04 GMT 2023   -
+: 161547269   system   ubuntu-24.04         Ubuntu 24.04         x86            -            5 GB        Thu Apr 25 14:26:27 BST 2024   -
+: 161547270   system   ubuntu-24.04         Ubuntu 24.04         arm            -            5 GB        Thu Apr 25 14:26:51 BST 2024   -
