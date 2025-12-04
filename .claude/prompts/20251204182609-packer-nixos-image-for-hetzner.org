@@ -1,0 +1,351 @@
+#+title:    Packer NixOS Image for Hetzner
+#+date:     2025-12-04
+#+property: header-args :dir ../..
+
+* Context
+
+Hetzner Cloud doesn't provide official NixOS images. Create a Packer-based build
+system that generates NixOS snapshots we can reference in Terraform.
+
+**Goal:** Reproducible NixOS base images for Hetzner Cloud servers.
+
+**Dependencies:** None - can work on this independently
+
+* CRITICAL ISSUES - DO NOT USE ORIGINAL APPROACH
+
+** Problem 1: Cloud-init Does Not Work
+
+The original approach enables =services.cloud-init.enable = true=, but this is
+fundamentally broken for NixOS snapshots:
+
+- **Confirmed non-functional**: Multiple sources (selaux/nixos-hcloud-packer,
+  NixOS Wiki) explicitly state "cloud-init does not work" with NixOS snapshots
+- **Philosophical conflict**: Cloud-init makes imperative system changes that
+  conflict with NixOS's declarative configuration model. The NixOS cloud-init
+  module docs warn: "configuration done by cloud-init might be overridden by a
+  subsequent nixos-rebuild call"
+- **Technical issues**: dhclient dependency missing, network configuration
+  crashes (Issue #215571)
+- **SSH key injection broken**: Cannot inject SSH keys via Hetzner Cloud Console
+  when using cloud-init
+
+**Impact**: Success criteria item "Cloud-init works for further provisioning" is
+impossible to achieve.
+
+**Solution**: Use Hetzner metadata service or bake SSH keys into the image.
+Remove cloud-init entirely.
+
+** Problem 2: nixos-infect + Reboot Timing
+
+The bootstrap script uses:
+
+#+begin_src bash
+curl ... | bash -s -- --no-reboot --no-swap
+nixos-rebuild boot
+reboot
+#+end_src
+
+This approach has a critical flaw:
+
+- Packer connects to Ubuntu, runs nixos-infect, then system reboots
+- After reboot, system is now NixOS (different kernel, different SSH host keys)
+- Packer loses connection and cannot complete the snapshot
+- The =--no-reboot= flag followed by manual =reboot= doesn't solve this - Packer
+  still can't reconnect after the reboot
+
+**Solution**: Use Hetzner rescue mode approach instead (see below).
+
+** Problem 3: Wrong Boot Loader Configuration
+
+The configuration uses:
+
+#+begin_src nix
+boot.loader.grub = {
+  enable = true;
+  device = "/dev/sda";
+}
+#+end_src
+
+Issues:
+
+- Hetzner Cloud uses UEFI, not legacy BIOS
+- =/dev/sda= is inappropriate for cloud instances
+- systemd-boot is the modern, recommended approach for UEFI systems
+
+**Solution**: Use systemd-boot with EFI configuration.
+
+** Problem 4: Insufficient Server Size
+
+The original approach uses =server_type = "cx23"= (2 vCPU, 4GB RAM).
+
+**Issue**: During rescue mode, downloading and unsquashing NixOS packages
+requires more disk space than cx23 provides.
+
+**Solution**: Use minimum =cax31= (4 vCPU, 8GB RAM, sufficient storage). Note
+that snapshot server type limits future image capabilities.
+
+** Problem 5: Better Approach - Use Rescue Mode
+
+Modern best practice (Developer Friendly Blog, Jan 2025):
+
+1. Boot into Hetzner rescue mode
+2. Download NixOS minimal ISO
+3. Partition disk properly with GPT
+4. Install NixOS from ISO
+5. Configure system
+6. Snapshot the result
+
+This avoids:
+- Ubuntu → NixOS conversion complexity
+- Reboot timing issues
+- cloud-init problems
+- Boot loader misconfigurations
+
+See: https://developer-friendly.blog/blog/2025/01/20/packer-how-to-build-nixos-24-snapshot-on-hetzner-cloud/
+
+* RECOMMENDED APPROACH - Use jktr/hcloud-packer-templates
+
+** Why This Template
+
+Instead of implementing rescue mode installation from scratch, use the proven
+jktr/hcloud-packer-templates:
+
+- **Tested and maintained**: Actively used in production
+- **Handles complexity**: Rescue mode installation, metadata service, SSH keys
+- **Customizable**: Supports =nix-config-path= to inject custom configuration
+- **SSH key injection**: Includes =hcloud-dl-metadata.service= for dynamic SSH keys
+- **No cloud-init**: Uses Hetzner metadata service natively
+
+** How It Works
+
+1. Packer boots server into rescue mode
+2. Downloads NixOS from official channels
+3. Partitions disk with GPT (EFI + root)
+4. Installs NixOS with custom configuration
+5. Configures =hcloud-dl-metadata.service= to fetch SSH keys on boot
+6. Takes snapshot
+
+** Setup
+
+Clone the template repository as a submodule:
+
+#+begin_src bash
+mkdir -p iac/images
+cd iac/images
+git submodule add https://github.com/jktr/hcloud-packer-templates hcloud-packer
+#+end_src
+
+Create our NixOS configuration directory:
+
+#+begin_src bash
+mkdir -p iac/images/nixos-config
+#+end_src
+
+* Requirements
+
+- Build NixOS 25.05 image on Hetzner Cloud using rescue mode
+- Create snapshot after provisioning
+- Minimal base system with essential packages (git, vim, curl, htop)
+- Support SSH key injection via Hetzner metadata service
+- Output snapshot ID/labels for Terraform consumption
+- Automate via just tasks
+- Use systemd-boot for UEFI boot
+- Minimum server size: cax31 (ARM64 for cost efficiency)
+
+* Directory Structure
+
+#+begin_example
+iac/
+└── images/
+    ├── hcloud-packer/             # Submodule: jktr/hcloud-packer-templates
+    │   └── nixos/                 # Template's NixOS builder
+    └── nixos-config/              # Our custom NixOS configuration
+        ├── configuration.nix      # Base configuration
+        └── hcloud.nix             # Hetzner metadata integration
+#+end_example
+
+* Building the Snapshot
+
+The jktr template uses Nix to build Packer configurations. We'll use their
+=nixos= template with our custom configuration path.
+
+** Build Command
+
+#+begin_src bash
+cd iac/images/hcloud-packer/nixos
+nix-build \
+  --arg hcloud-token "$(op read 'op://dev/hetzner-cloud-dev/api-token')" \
+  --arg snapshot-name "nixos-25.05-$(date +%Y%m%d)" \
+  --arg snapshot-description "NixOS 25.05 base image for Bits" \
+  --arg nix-config-path "$(realpath ../../nixos-config)" \
+  --arg server-type "cax31" \
+  --arg server-location "nbg1"
+
+# Run the generated build script
+./result/bin/build-snapshot
+#+end_src
+
+** Key Parameters
+
+- =hcloud-token=: Hetzner Cloud API token (from 1Password)
+- =snapshot-name=: Name with date stamp for versioning
+- =nix-config-path=: Path to our custom NixOS configuration directory
+- =server-type=: =cax31= (ARM64, minimum size for installation)
+- =server-location=: =nbg1= (Nuremberg datacenter)
+
+* NixOS Configuration Files
+
+Create two files in =iac/images/nixos-config/=:
+
+** configuration.nix
+
+This is the entry point for jktr's template. It imports our custom modules.
+
+#+begin_src nix
+{ config, pkgs, modulesPath, ... }:
+
+{
+  imports = [
+    ./hcloud.nix
+    (modulesPath + "/profiles/qemu-guest.nix")
+  ];
+
+  # Boot - systemd-boot for UEFI (Hetzner Cloud standard)
+  boot.loader = {
+    systemd-boot.enable = true;
+    efi.canTouchEfiVariables = true;
+  };
+
+  # Networking - DHCP for IPv4, firewall enabled
+  networking = {
+    useDHCP = true;
+    firewall.enable = true;
+  };
+
+  # Essential packages
+  environment.systemPackages = with pkgs; [
+    curl
+    git
+    htop
+    jq
+    vim
+  ];
+
+  # SSH - Root login with keys only (injected via hcloud metadata)
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = "prohibit-password";
+      PasswordAuthentication = false;
+    };
+  };
+
+  system.stateVersion = "25.05";
+}
+#+end_src
+
+** hcloud.nix
+
+Hetzner Cloud metadata integration (provided by jktr's template). Create a
+minimal version:
+
+#+begin_src nix
+{ config, pkgs, lib, ... }:
+
+{
+  # The jktr template will populate config.hcloud.* from metadata
+  # This file can be empty or contain hcloud-specific overrides
+
+  # Example: Override SSH keys (if needed)
+  # users.users.root.openssh.authorizedKeys.keys =
+  #   lib.mkForce config.hcloud.metadata.public-keys;
+}
+#+end_src
+
+The template's =hcloud-dl-metadata.service= will automatically:
+- Download metadata to =/etc/hcloud-metadata.json=
+- Expose it as =config.hcloud.*= attributes
+- Run =nixos-rebuild= on first boot to apply SSH keys
+
+* Just Tasks
+
+Add to =justfile=:
+
+#+begin_src just
+[group('iac')]
+build-image:
+    #!/usr/bin/env bash
+    set -e
+    cd iac/images/hcloud-packer/nixos
+
+    # Build the Packer configuration with nix-build
+    # HCLOUD_TOKEN is exported via devenv.nix
+    nix-build \
+      --arg hcloud-token "$HCLOUD_TOKEN" \
+      --arg snapshot-name "nixos-25.05-$(date +%Y%m%d)" \
+      --arg snapshot-description "NixOS 25.05 base image for Bits" \
+      --arg nix-config-path "$(realpath ../../nixos-config)" \
+      --arg server-type "cax31" \
+      --arg server-location "nbg1"
+
+    # Execute the generated build script
+    ./result/bin/build-snapshot
+
+[group('iac')]
+list-images:
+    @hcloud image list -t snapshot -o columns=id,name,created,architecture
+
+[group('iac')]
+delete-image name:
+    @hcloud image delete "{{ name }}"
+#+end_src
+
+* Terraform Integration
+
+Update =iac/modules/hetzner/main.tf= to use snapshot:
+
+#+begin_src hcl
+# Query for latest NixOS snapshot
+data "hcloud_image" "nixos" {
+  with_selector = "os=nixos,managed=packer"
+  most_recent   = true
+}
+
+resource "hcloud_server" "main" {
+  name        = var.server_name
+  server_type = var.server_type
+  location    = var.location
+  image       = data.hcloud_image.nixos.id  # Use our custom image
+
+  # ... rest of config
+}
+#+end_src
+
+* Success Criteria
+
+- [ ] =just snapshot-build= successfully creates NixOS snapshot (~6-10 minutes)
+- [ ] Snapshot visible in =just snapshot-list= with correct labels
+- [ ] Terraform can query snapshot via =hcloud_image= data source
+- [ ] Server boots from snapshot and responds to SSH
+- [ ] NixOS version is 25.05 (verify with =nixos-version=)
+- [ ] Boot loader is systemd-boot (verify with =bootctl status=)
+- [ ] Essential packages (git, vim, curl, htop, jq) are available
+- [ ] SSH key injection works via Hetzner metadata or pre-baked keys
+- [ ] Architecture is ARM64 (aarch64)
+
+* Notes
+
+- Build takes ~6-10 minutes (rescue mode install + snapshot)
+- Snapshot costs €0.0119/GB/month (~€0.50 for 40GB image)
+- Rebuild monthly to get latest NixOS updates
+- Consider separate snapshots for different configurations (minimal, docker, k3s)
+- ARM64 (cax31) provides better price/performance than x86 (cx series)
+- Snapshot server type (cax31) limits future deployments to servers >= cax31
+
+* References
+
+- Developer Friendly Blog (Jan 2025): https://developer-friendly.blog/blog/2025/01/20/packer-how-to-build-nixos-24-snapshot-on-hetzner-cloud/
+- jktr/hcloud-packer-templates: https://github.com/jktr/hcloud-packer-templates
+- selaux/nixos-hcloud-packer: https://github.com/selaux/nixos-hcloud-packer
+- NixOS Wiki - Hetzner Cloud: https://wiki.nixos.org/wiki/Install_NixOS_on_Hetzner_Cloud
+- NixOS cloud-init issues: https://github.com/NixOS/nixpkgs/issues/215571

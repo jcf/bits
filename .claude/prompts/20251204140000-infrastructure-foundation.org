@@ -1,0 +1,522 @@
+#+title:    Infrastructure Foundation
+#+date:     2025-12-04
+#+property: header-args :dir ../..
+
+* Overview
+
+Establish infrastructure foundations with two parallel tasks:
+
+1. Terraform modules for Neon, Hetzner, and Cloudflare
+2. Container build system using Docker and Nix
+
+**Dependencies:** None - start immediately
+
+**Parallelization:** Both tasks are independent and can be worked on together
+
+* Task 1: Terraform Modules
+
+** Context
+
+Create Terraform infrastructure for bits.page using composition pattern.
+
+**Architecture:**
+- Neon Postgres (managed database)
+- Hetzner Cloud (NixOS VPS)
+- Cloudflare R2 (asset storage)
+- Cloudflare Tunnel (public traffic, no exposed ports)
+- Tailscale (private management via auth.invetica.team)
+
+** Directory Restructure
+
+Move to composition pattern:
+
+#+begin_example
+ iac/
+├── modules/              # Reusable building blocks
+│   ├── dns/             # Move iac/dns/ here
+│   ├── neon/            # NEW
+│   ├── platform/        # NEW
+│   └── tunnel/          # NEW
+└── environments/
+    └── prod/            # NEW - composes all modules
+        ├── main.tf      # Module composition
+        ├── terraform.tf # Providers, backend
+        └── variables.tf
+#+end_example
+
+** Module: dns (iac/modules/dns/)
+
+Move existing =iac/dns/= to =iac/modules/dns/=. No changes needed initially.
+
+** Module: neon (iac/modules/neon/)
+
+Create managed Postgres database.
+
+Provider: =kislerdm/neon= ~> 0.6
+
+*** Files
+
+- =terraform.tf= - Provider config, versions
+- =main.tf= - Resources
+- =variables.tf= - Inputs
+- =outputs.tf= - Connection strings
+
+*** Resources
+
+#+begin_src hcl
+resource "neon_project" "main" {
+  name   = "bits-${var.environment}"
+  region = "aws-us-east-2"  # Close to Hetzner US regions
+}
+
+resource "neon_database" "main" {
+  project_id = neon_project.main.id
+  name       = "bits"
+  owner_name = neon_project.main.database_user
+}
+#+end_src
+
+*** Outputs
+
+- =connection_url= (pooled, for app)
+- =direct_url= (non-pooled, for migrations)
+
+** Module: platform (iac/modules/platform/)
+
+Create Hetzner VPS with NixOS, Cloudflare R2 buckets, Tailscale.
+
+Providers: =hetznercloud/hcloud=, =cloudflare/cloudflare=
+
+*** Files
+
+- =terraform.tf=
+- =main.tf= - Hetzner server
+- =r2.tf= - Cloudflare R2 buckets
+- =configuration.nix.tftpl= - NixOS config template
+- =variables.tf=
+- =outputs.tf=
+
+*** Hetzner Server
+
+#+begin_src hcl
+resource "hcloud_server" "main" {
+  name        = "bits-${var.environment}"
+  server_type = "cx11"  # €4.15/month
+  location    = "nbg1"  # Nuremberg
+  image       = "nixos-23.11"
+
+  user_data = templatefile("${path.module}/configuration.nix.tftpl", {
+    tailscale_authkey = var.tailscale_authkey
+    tunnel_token      = var.cloudflare_tunnel_token
+    environment       = var.environment
+  })
+}
+
+resource "hcloud_firewall" "main" {
+  name = "bits-${var.environment}"
+
+  # Deny all inbound (Tailscale/Cloudflared are outbound)
+  # Optional: Allow ICMP for monitoring
+  rule {
+    direction  = "in"
+    protocol   = "icmp"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+}
+
+resource "hcloud_firewall_attachment" "main" {
+  firewall_id = hcloud_firewall.main.id
+  server_ids  = [hcloud_server.main.id]
+}
+#+end_src
+
+*** Cloudflare R2 Buckets
+
+#+begin_src hcl
+# In r2.tf
+resource "cloudflare_r2_bucket" "images" {
+  account_id = var.cloudflare_account_id
+  name       = "bits-images-${var.environment}"
+  location   = "auto"
+}
+
+resource "cloudflare_r2_bucket" "videos" {
+  account_id = var.cloudflare_account_id
+  name       = "bits-videos-${var.environment}"
+  location   = "auto"
+}
+
+# Public access for images
+resource "cloudflare_r2_bucket_cors" "images" {
+  bucket_id = cloudflare_r2_bucket.images.id
+
+  cors_rule {
+    allowed_origins = ["*"]
+    allowed_methods = ["GET", "HEAD"]
+    allowed_headers = ["*"]
+  }
+}
+#+end_src
+
+*** NixOS Configuration Template
+
+Create =configuration.nix.tftpl=:
+
+#+begin_src nix
+{ config, pkgs, ... }:
+
+{
+  # Basic system
+  boot.loader.grub.enable = true;
+  boot.loader.grub.device = "/dev/sda";
+
+  networking.hostName = "bits-${environment}";
+
+  # Non-root user
+  users.users.bits = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" "docker" ];
+    openssh.authorizedKeys.keys = [];
+  };
+
+  security.sudo.extraRules = [{
+    users = [ "bits" ];
+    commands = [{ command = "ALL"; options = [ "NOPASSWD" ]; }];
+  }];
+
+  # Tailscale
+  services.tailscale = {
+    enable = true;
+    useRoutingFeatures = "both";
+  };
+
+  systemd.services.tailscale-autoconnect = {
+    description = "Automatic connection to Tailscale";
+    after = [ "network-pre.target" "tailscale.service" ];
+    wants = [ "network-pre.target" "tailscale.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      sleep 2
+      status="$(${pkgs.tailscale}/bin/tailscale status -json | ${pkgs.jq}/bin/jq -r .BackendState)"
+      [ "$status" = "Running" ] && exit 0
+      ${pkgs.tailscale}/bin/tailscale up \
+        --authkey=${tailscale_authkey} \
+        --hostname=bits-${environment} \
+        --advertise-tags=tag:server,tag:bits
+    '';
+  };
+
+  # Cloudflared tunnel
+  services.cloudflared = {
+    enable = true;
+    tunnels."${tunnel_token}" = {
+      credentialsFile = pkgs.writeText "tunnel-credentials.json" ''
+        {"AccountTag":"","TunnelSecret":"${tunnel_token}","TunnelID":""}
+      '';
+      default = "http_status:404";
+      ingress = {
+        "bits.page" = "http://localhost:8080";
+        "*.bits.page" = "http://localhost:8080";
+      };
+    };
+  };
+
+  # Docker
+  virtualisation.docker.enable = true;
+
+  # Firewall
+  networking.firewall.enable = true;
+  networking.firewall.allowedTCPPorts = [];  # None needed
+
+  system.stateVersion = "23.11";
+}
+#+end_src
+
+** Module: tunnel (iac/modules/tunnel/)
+
+Configure Cloudflare Tunnel DNS.
+
+Provider: =cloudflare/cloudflare=
+
+*** Resources
+
+#+begin_src hcl
+resource "cloudflare_tunnel" "main" {
+  account_id = var.cloudflare_account_id
+  name       = "bits-${var.environment}"
+  secret     = var.tunnel_secret  # base64 encoded
+}
+
+resource "cloudflare_record" "bits_page" {
+  zone_id = var.zone_id
+  name    = "@"
+  type    = "CNAME"
+  content = "${cloudflare_tunnel.main.id}.cfargotunnel.com"
+  proxied = true
+}
+
+resource "cloudflare_record" "bits_page_wildcard" {
+  zone_id = var.zone_id
+  name    = "*"
+  type    = "CNAME"
+  content = "${cloudflare_tunnel.main.id}.cfargotunnel.com"
+  proxied = true
+}
+#+end_src
+
+** Environment: prod (iac/environments/prod/)
+
+Compose all modules.
+
+*** main.tf
+
+#+begin_src hcl
+terraform {
+  required_version = ">= 1.0"
+
+  backend "s3" {
+    # Your existing backend config
+  }
+}
+
+data "cloudflare_account" "main" {
+  account_id = "bd3b970e3a969227ad515d124aa7e273"
+}
+
+module "dns" {
+  source = "../../modules/dns"
+}
+
+module "neon" {
+  source      = "../../modules/neon"
+  environment = "prod"
+}
+
+module "platform" {
+  source                   = "../../modules/platform"
+  environment              = "prod"
+  tailscale_authkey        = var.tailscale_authkey
+  cloudflare_account_id    = data.cloudflare_account.main.account_id
+  cloudflare_tunnel_token  = var.cloudflare_tunnel_token
+}
+
+module "tunnel" {
+  source                = "../../modules/tunnel"
+  environment           = "prod"
+  cloudflare_account_id = data.cloudflare_account.main.account_id
+  zone_id               = module.dns.zone_id["bits.page"]
+  tunnel_secret         = var.tunnel_secret
+
+  depends_on = [module.platform]
+}
+
+output "neon_connection_url" {
+  value     = module.neon.connection_url
+  sensitive = true
+}
+
+output "server_ip" {
+  value = module.platform.server_ip
+}
+
+output "r2_images_url" {
+  value = module.platform.r2_images_url
+}
+#+end_src
+
+** Environment Variables
+
+Add to =devenv.nix=:
+
+#+begin_src nix
+TAILSCALE_AUTHKEY = "op://Employee/Tailscale/bits/authkey";
+HETZNER_CLOUD_TOKEN = "op://Employee/Hetzner/api-token";
+NEON_API_KEY = "op://Employee/Neon/api-key";
+CLOUDFLARE_TUNNEL_TOKEN = "op://Employee/Cloudflare/tunnel-token";
+#+end_src
+
+** Success Criteria
+
+- [ ] =just init platform= works
+- [ ] =just plan platform= creates valid plan
+- [ ] All modules have proper =depends_on= chains
+- [ ] NixOS template is valid
+- [ ] No hardcoded secrets
+- [ ] Can validate: =terraform validate -chdir=iac/environments/prod=
+
+* Task 2: Container Build
+
+** Context
+
+Create production container build for =bits-colo= in new =deploy/= directory.
+
+**Goal:** Docker image that runs Axum server on port 8080 for Cloudflare Tunnel.
+
+** Directory Structure
+
+Create =deploy/= directory:
+
+#+begin_example
+deploy/
+├── Dockerfile          # Multi-stage build
+├── .dockerignore      # Exclude unnecessary files
+└── README.org         # Build/deploy instructions
+#+end_example
+
+** Dockerfile
+
+Multi-stage build using Nix:
+
+#+begin_src dockerfile
+# Build stage
+FROM nixos/nix:latest AS builder
+
+WORKDIR /build
+
+# Copy source
+COPY . .
+
+# Build release binary
+RUN nix develop --command cargo build --release --package bits-colo
+
+# Bundle Dioxus assets
+RUN nix develop --command dx bundle --release --package bits-colo
+
+# Runtime stage
+FROM debian:bookworm-slim
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 bits
+
+# Copy binary and assets
+COPY --from=builder /build/target/release/bits-colo /usr/local/bin/
+COPY --from=builder /build/target/dx/bits-colo/release/public /app/public
+
+USER bits
+WORKDIR /app
+
+# Expose port
+EXPOSE 8080
+
+# Run server
+CMD ["bits-colo", "serve"]
+#+end_src
+
+** .dockerignore
+
+#+begin_example
+.git
+.devenv
+.direnv
+target/
+node_modules/
+.env
+*.log
+.terraform/
+.DS_Store
+#+end_example
+
+** Just Tasks
+
+Add to =justfile=:
+
+#+begin_src just
+[group('deploy')]
+container-build:
+    docker build -t bits-platform:latest -f deploy/Dockerfile .
+
+[group('deploy')]
+container-push registry:
+    docker tag bits-platform:latest {{ registry }}/bits-platform:latest
+    docker push {{ registry }}/bits-platform:latest
+
+[group('deploy')]
+deploy-prod:
+    #!/usr/bin/env zsh
+    set -e
+    echo "Deploying to bits-prod via Tailscale..."
+    tailscale ssh bits@bits-prod "docker pull ghcr.io/jcf/bits-platform:latest"
+    tailscale ssh bits@bits-prod "docker stop bits-app || true"
+    tailscale ssh bits@bits-prod "docker rm bits-app || true"
+    tailscale ssh bits@bits-prod "docker run -d \
+      --name bits-app \
+      --restart unless-stopped \
+      -p 8080:8080 \
+      -e DATABASE_URL=\$DATABASE_URL \
+      -e PLATFORM_DOMAIN=bits.page \
+      -e MASTER_KEY=\$MASTER_KEY \
+      -e POSTMARK_ACCOUNT_TOKEN=\$POSTMARK_ACCOUNT_TOKEN \
+      ghcr.io/jcf/bits-platform:latest"
+    echo "✅ Deployed successfully"
+#+end_src
+
+** README.org
+
+Create =deploy/README.org=:
+
+#+begin_example
+#+title: Deployment
+
+* Build
+
+#+begin_src sh
+just image-build
+#+end_src
+
+* Push to Registry
+
+#+begin_src sh
+# GitHub Container Registry
+just image-push ghcr.io/jcf
+#+end_src
+
+* Deploy to Production
+
+#+begin_src sh
+just deploy-prod
+#+end_src
+
+* Environment Variables (on server)
+
+Set via NixOS configuration or systemd:
+- =DATABASE_URL= - From Neon module output
+- =PLATFORM_DOMAIN= - bits.page
+- =MASTER_KEY= - Encryption key
+- =POSTMARK_ACCOUNT_TOKEN= - Email service
+- =ARGON2_M_COST=122880=
+- =ARGON2_T_COST=3=
+- =ARGON2_P_COST=4=
+#+end_example
+
+** Health Check
+
+Container should expose health endpoint:
+
+#+begin_src sh
+curl http://localhost:8080/metrics
+#+end_src
+
+Returns Prometheus metrics (no auth needed via Tailscale).
+
+** Success Criteria
+
+- [ ] =just image-build= succeeds
+- [ ] Image size reasonable (<500MB)
+- [ ] =docker run= starts server on 8080
+- [ ] Health check endpoint responds
+- [ ] Assets load correctly (test with browser)
+- [ ] Binary runs as non-root user
+- [ ] Can build on macOS (your laptop)
+
+* Notes
+
+- Don't apply Terraform yet - just create infrastructure as code
+- Test Terraform with =terraform plan= only
+- Test container build locally before pushing to registry
+- Use existing =devenv.nix= for build environment

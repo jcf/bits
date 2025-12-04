@@ -1,0 +1,198 @@
+#+title:    Type System Refactoring
+#+date:     2025-12-04
+#+property: header-args :dir ../..
+
+* Overview
+
+Add type-safe =Handle= newtype for subdomains and update =Realm= enum to support demo profiles.
+
+**Dependencies:** None - start immediately
+
+**Important:** Must complete before working on features-and-organization.org
+
+* Handle Type (src/tenant.rs)
+
+Add to existing =src/tenant.rs=:
+
+#+begin_src rust
+use std::fmt;
+
+/// A validated subdomain handle (e.g., "jcf" in "jcf.bits.page")
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct Handle(String);
+
+#[derive(Debug, thiserror::Error)]
+pub enum HandleError {
+    #[error("Handle must be 3-63 characters")]
+    InvalidLength,
+    #[error("Handle must contain only lowercase letters, numbers, and hyphens")]
+    InvalidCharacters,
+    #[error("Handle cannot start or end with a hyphen")]
+    InvalidFormat,
+}
+
+impl Handle {
+    /// Create a new handle with validation
+    pub fn new(s: impl Into<String>) -> Result<Self, HandleError> {
+        let s = s.into().to_lowercase();
+
+        if s.len() < 3 || s.len() > 63 {
+            return Err(HandleError::InvalidLength);
+        }
+
+        if !s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+            return Err(HandleError::InvalidCharacters);
+        }
+
+        if s.starts_with('-') || s.ends_with('-') {
+            return Err(HandleError::InvalidFormat);
+        }
+
+        Ok(Handle(s))
+    }
+
+    /// Create from trusted source (e.g., database) without validation
+    pub fn from_trusted(s: String) -> Self {
+        Handle(s)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Handle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for Handle {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+#+end_src
+
+* Realm Enum Update (src/tenant.rs)
+
+Update existing =Realm= enum:
+
+#+begin_src rust
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Realm {
+    Platform,
+    Creator(Tenant),
+    Demo(Handle),      // NEW
+    NotFound,          // RENAMED from UnknownTenant
+}
+#+end_src
+
+* Middleware Update (src/tenant.rs)
+
+Update =resolve_realm= function:
+
+#+begin_src rust
+#[cfg(feature = "server")]
+pub async fn resolve_realm(
+    state: &crate::AppState,
+    scheme: crate::http::Scheme,
+    host: &str,
+) -> Realm {
+    let normalized_host = crate::http::normalize_host(scheme, host);
+
+    #[cfg(feature = "colo")]
+    {
+        if let Some(ref platform_domain) = state.config.platform_domain {
+            if normalized_host == *platform_domain {
+                return Realm::Platform;
+            }
+
+            if normalized_host.ends_with(&format!(".{}", platform_domain)) {
+                let subdomain = normalized_host
+                    .strip_suffix(&format!(".{}", platform_domain))
+                    .unwrap();
+
+                let handle = Handle::from_trusted(subdomain.to_string());
+
+                // Check if demo (no DB hit!)
+                if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+                    return Realm::Demo(handle);
+                }
+
+                // Check database for real tenants
+                if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
+                    return Realm::Creator(tenant);
+                }
+                return Realm::NotFound;
+            }
+        }
+    }
+
+    if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
+        return Realm::Creator(tenant);
+    }
+
+    Realm::NotFound
+}
+#+end_src
+
+* Update All Pattern Matches
+
+Find and update all =match realm= statements:
+
+1. =src/lib.rs= (Home component)
+2. Any other realm pattern matches
+
+Example update:
+
+#+begin_src rust
+// Before
+match realm {
+    Some(Ok(Realm::Tenancy(tenant))) => { /* ... */ }
+    Some(Ok(Realm::Platform)) => { /* ... */ }
+    Some(Ok(Realm::UnknownTenant)) => { /* ... */ }
+    // ...
+}
+
+// After
+match realm {
+    Some(Ok(Realm::Creator(tenant))) => { /* ... */ }
+    Some(Ok(Realm::Demo(handle))) => { /* ... */ }
+    Some(Ok(Realm::Platform)) => { /* ... */ }
+    Some(Ok(Realm::NotFound)) => { /* ... */ }
+    // ...
+}
+#+end_src
+
+* Placeholder for demos Module
+
+Add to =src/lib.rs=:
+
+#+begin_src rust
+#[cfg(feature = "server")]
+pub mod demos;
+#+end_src
+
+Create stub =src/demos.rs=:
+
+#+begin_src rust
+// Placeholder - will be filled in next session
+pub const SUBDOMAINS: &[&str] = &[];
+#+end_src
+
+* Success Criteria
+
+- [ ] =cargo check= passes
+- [ ] =Handle::new("jcf")= succeeds
+- [ ] =Handle::new("a")= fails (too short)
+- [ ] =Handle::new("-foo")= fails (starts with hyphen)
+- [ ] =Handle::new("FOO")= converts to lowercase
+- [ ] All existing pattern matches updated
+- [ ] No compilation errors related to =Realm=
+
+* Notes
+
+- This refactoring touches multiple files
+- Test carefully with =cargo check= after each change
+- The =demos::SUBDOMAINS= is a placeholder - filled in next session

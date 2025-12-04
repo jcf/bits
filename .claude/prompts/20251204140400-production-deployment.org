@@ -1,0 +1,268 @@
+#+title:    Production Deployment
+#+date:     2025-12-04
+#+property: header-args :dir ../..
+
+* Overview
+
+Deploy everything to production and test end-to-end.
+
+**Dependencies:** Requires all previous prompts complete (infrastructure-foundation.org, type-system-refactoring.org, features-and-organization.org, landing-page-ui.org)
+
+* 1. Tailscale Setup
+
+** Generate Auth Key
+
+Visit https://login.tailscale.com/admin/settings/keys
+
+Settings:
+- Reusable: No
+- Ephemeral: Yes
+- Tags: =tag:server=, =tag:bits=
+- Expires: 90 days
+
+Store in 1Password:
+#+begin_src sh
+op item create \
+  --category=password \
+  --title="Tailscale Bits Auth Key" \
+  --vault=Employee \
+  authkey="tskey-auth-..."
+#+end_src
+
+** Configure ACLs
+
+In Tailscale admin (https://login.tailscale.com/admin/acls):
+
+#+begin_src json
+{
+  "tagOwners": {
+    "tag:server": ["you@example.com"],
+    "tag:bits": ["you@example.com"]
+  },
+
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": ["tag:bits"],
+      "users": ["bits", "root"]
+    }
+  ],
+
+  "acls": [
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": ["tag:bits:*"]
+    }
+  ]
+}
+#+end_src
+
+* 2. Apply Terraform
+
+#+begin_src sh
+cd iac/environments/prod
+
+# Initialize
+terraform init
+
+# Plan
+terraform plan -out=bits-prod.tfplan
+
+# Apply
+terraform apply bits-prod.tfplan
+
+# Get outputs
+terraform output -json > /tmp/tf-outputs.json
+#+end_src
+
+* 3. Verify Server Joined Tailnet
+
+#+begin_src sh
+# Wait for server to boot and join
+sleep 60
+
+# Check it appears
+tailscale status | grep bits-prod
+
+# Test SSH
+tailscale ssh bits@bits-prod "echo 'Hello from bits-prod'"
+#+end_src
+
+* 4. Build and Push Container
+
+#+begin_src sh
+# Build
+just image-build
+
+# Tag for registry
+docker tag bits-platform:latest ghcr.io/jcf/bits-platform:latest
+
+# Login to GitHub Container Registry
+echo $GITHUB_TOKEN | docker login ghcr.io -u jcf --password-stdin
+
+# Push
+docker push ghcr.io/jcf/bits-platform:latest
+#+end_src
+
+* 5. Deploy Container
+
+#+begin_src sh
+# Get Neon connection URL from terraform
+DATABASE_URL=$(jq -r '.neon_connection_url.value' /tmp/tf-outputs.json)
+
+# Deploy via just task
+just deploy-prod
+
+# Or manually:
+tailscale ssh bits@bits-prod "docker pull ghcr.io/jcf/bits-platform:latest"
+tailscale ssh bits@bits-prod "docker stop bits-app || true"
+tailscale ssh bits@bits-prod "docker rm bits-app || true"
+tailscale ssh bits@bits-prod "docker run -d \
+  --name bits-app \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -e DATABASE_URL='${DATABASE_URL}' \
+  -e PLATFORM_DOMAIN=bits.page \
+  -e MASTER_KEY='${MASTER_KEY}' \
+  -e POSTMARK_ACCOUNT_TOKEN='${POSTMARK_TOKEN}' \
+  ghcr.io/jcf/bits-platform:latest"
+#+end_src
+
+* 6. Run Migrations
+
+#+begin_src sh
+# Via Tailscale SSH
+tailscale ssh bits@bits-prod "docker exec bits-app bits-colo admin migrate"
+
+# Or connect directly to Neon
+sqlx migrate run --database-url "${DATABASE_URL}"
+#+end_src
+
+* 7. Upload Demo Images to R2
+
+#+begin_src sh
+# Get R2 bucket URL from terraform output
+R2_BUCKET=$(jq -r '.r2_images_url.value' /tmp/tf-outputs.json)
+
+# Configure AWS CLI for R2
+aws configure set aws_access_key_id "${R2_ACCESS_KEY_ID}"
+aws configure set aws_secret_access_key "${R2_SECRET_ACCESS_KEY}"
+
+# Upload jcf demo images
+aws s3 cp ~/Pictures/avatar.jpg \
+  s3://bits-images-prod/jcf/avatar.jpg \
+  --endpoint-url https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+
+aws s3 cp ~/Pictures/banner.jpg \
+  s3://bits-images-prod/jcf/banner.jpg \
+  --endpoint-url https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+
+# Repeat for emporium and charlie
+# ...
+#+end_src
+
+* 8. Test Everything
+
+** Landing Page
+
+#+begin_src sh
+# Should load
+curl -I https://bits.page
+
+# Should return 200
+curl -sI https://bits.page | grep "HTTP/2 200"
+#+end_src
+
+** Subdomain Checker
+
+Visit https://bits.page and test:
+- Type "jcf" → should say "This is a demo profile"
+- Type "god" → should show easter egg
+- Type "test123" → should say "Available"
+- Type "ab" → should say "Must be 3-63 characters"
+
+** Demo Profiles
+
+#+begin_src sh
+curl -I https://jcf.bits.page          # Should return 200
+curl -I https://emporium.bits.page     # Should return 200
+curl -I https://charlie.bits.page      # Should return 200
+#+end_src
+
+Visit in browser:
+- https://jcf.bits.page
+- https://emporium.bits.page
+- https://charlie.bits.page
+
+Verify:
+- Demo banner appears
+- Images load from R2
+- Links work
+- Tailwind styles applied
+
+** SSL Certificates
+
+#+begin_src sh
+# Should have valid cert
+openssl s_client -connect bits.page:443 -servername bits.page < /dev/null 2>/dev/null | grep "Verify return code"
+# Should show: Verify return code: 0 (ok)
+#+end_src
+
+** Metrics Endpoint
+
+#+begin_src sh
+# Via Tailscale (no auth needed)
+curl http://bits-prod:8080/metrics
+
+# Should return Prometheus metrics
+#+end_src
+
+* 9. Troubleshooting
+
+** Check logs
+
+#+begin_src sh
+tailscale ssh bits@bits-prod "docker logs bits-app"
+#+end_src
+
+** Check Cloudflare Tunnel
+
+#+begin_src sh
+tailscale ssh bits@bits-prod "systemctl status cloudflared"
+#+end_src
+
+** Check Tailscale
+
+#+begin_src sh
+tailscale ssh bits@bits-prod "sudo tailscale status"
+#+end_src
+
+** Database connectivity
+
+#+begin_src sh
+tailscale ssh bits@bits-prod "docker exec bits-app bits-colo admin db-test"
+#+end_src
+
+* Success Criteria
+
+- [ ] bits.page loads with landing page
+- [ ] Subdomain checker works (all test cases pass)
+- [ ] jcf.bits.page loads with demo profile
+- [ ] emporium.bits.page loads
+- [ ] charlie.bits.page loads
+- [ ] All images load from R2
+- [ ] Easter eggs work
+- [ ] SSL certificates valid
+- [ ] No console errors in browser
+- [ ] =tailscale ssh bits@bits-prod= works
+- [ ] Metrics endpoint accessible via Tailscale
+
+* Notes
+
+- Take screenshots of working site!
+- Document any issues encountered
+- Update DNS TTLs if needed
+- Monitor for first 24 hours
+- Share URLs with testers

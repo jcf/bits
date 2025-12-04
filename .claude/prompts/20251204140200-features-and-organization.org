@@ -1,0 +1,705 @@
+#+title:    Features and Organization
+#+date:     2025-12-04
+#+property: header-args :dir ../..
+
+* Overview
+
+Implement three parallel features:
+
+1. Demo profile system (hardcoded showcase profiles)
+2. Subdomain availability checker (server function with easter eggs)
+3. Page component organization (follow CLAUDE.md guidelines)
+
+**Dependencies:** Requires type-system-refactoring.org complete (Handle type and Realm enum)
+
+**Parallelization:** All three tasks are independent and can be worked on together
+
+* Task 1: Demo Profile System
+
+** Context
+
+Create demo profile system to showcase different creator verticals using production-ready template.
+
+** Directory Structure
+
+Create =src/demos/= directory:
+
+#+begin_example
+src/demos/
+├── mod.rs          # Registry and re-exports
+├── template.rs     # Shared Profile, Link, Layout
+├── jcf.rs          # Tech creator
+├── emporium.rs     # Leather craftsperson
+└── charlie.rs      # Adult content creator
+#+end_example
+
+** Template (src/demos/template.rs)
+
+Shared types and layout component:
+
+#+begin_src rust
+use dioxus::prelude::*;
+
+pub struct Profile {
+    pub display_name: String,
+    pub bio: String,
+    pub avatar_url: String,
+    pub banner_url: String,
+    pub links: Vec<Link>,
+}
+
+pub struct Link {
+    pub icon: String,      // emoji
+    pub title: String,
+    pub url: String,
+}
+
+#[component]
+pub fn Layout(profile: Profile) -> Element {
+    rsx! {
+        // Demo banner
+        div {
+            class: "bg-yellow-50 border-b border-yellow-200 p-3 text-center",
+            p {
+                class: "text-sm text-yellow-800",
+                "🎭 Demo Profile - Showcasing platform features"
+            }
+        }
+
+        div { class: "max-w-2xl mx-auto",
+            // Banner
+            img {
+                class: "w-full h-48 object-cover",
+                src: "{profile.banner_url}"
+            }
+
+            // Avatar + Bio
+            div { class: "p-6 text-center",
+                img {
+                    class: "w-24 h-24 rounded-full mx-auto -mt-12 border-4 border-white",
+                    src: "{profile.avatar_url}"
+                }
+                h1 {
+                    class: "text-2xl font-bold mt-4 text-gray-900 dark:text-white",
+                    "{profile.display_name}"
+                }
+                p {
+                    class: "text-gray-600 dark:text-gray-400 mt-2",
+                    "{profile.bio}"
+                }
+            }
+
+            // Links
+            div { class: "space-y-3 p-6",
+                for link in profile.links {
+                    a {
+                        href: "{link.url}",
+                        target: "_blank",
+                        class: "block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition",
+                        div { class: "flex items-center gap-3",
+                            span { class: "text-2xl", "{link.icon}" }
+                            span { class: "font-medium text-gray-900 dark:text-white", "{link.title}" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#+end_src
+
+** Registry (src/demos/mod.rs)
+
+#+begin_src rust
+pub mod jcf;
+pub mod emporium;
+pub mod charlie;
+mod template;
+
+use crate::tenant::Handle;
+use dioxus::prelude::*;
+
+/// Get demo component by handle
+pub fn get_demo(handle: &Handle) -> Option<fn() -> Element> {
+    match handle.as_str() {
+        "jcf" => Some(jcf::Component),
+        "emporium" => Some(emporium::Component),
+        "charlie" => Some(charlie::Component),
+        _ => None,
+    }
+}
+
+/// List of demo subdomains (for reservation)
+pub const SUBDOMAINS: &[&str] = &[
+    "jcf",
+    "emporium",
+    "charlie",
+];
+#+end_src
+
+** Demo: jcf (src/demos/jcf.rs)
+
+Tech creator profile:
+
+#+begin_src rust
+use super::template::{Profile, Layout, Link};
+use dioxus::prelude::*;
+
+#[component]
+pub fn Component() -> Element {
+    let profile = Profile {
+        display_name: "James Conroy-Finn".to_string(),
+        bio: "Building Bits. Your audience. Your revenue. Your rules.".to_string(),
+        avatar_url: "https://images.bits.page/jcf/avatar.jpg".to_string(),
+        banner_url: "https://images.bits.page/jcf/banner.jpg".to_string(),
+        links: vec![
+            Link {
+                icon: "🐙".to_string(),
+                title: "GitHub".to_string(),
+                url: "https://github.com/jcf".to_string(),
+            },
+            Link {
+                icon: "🐘".to_string(),
+                title: "Mastodon".to_string(),
+                url: "https://mastodon.social/@jcf".to_string(),
+            },
+            Link {
+                icon: "📧".to_string(),
+                title: "Email".to_string(),
+                url: "mailto:james@invetica.co.uk".to_string(),
+            },
+        ],
+    };
+
+    rsx! { Layout { profile } }
+}
+#+end_src
+
+** Demo: emporium (src/demos/emporium.rs)
+
+Leather craftsperson:
+
+#+begin_src rust
+use super::template::{Profile, Layout, Link};
+use dioxus::prelude::*;
+
+#[component]
+pub fn Component() -> Element {
+    let profile = Profile {
+        display_name: "Jimmy's Leather Emporium".to_string(),
+        bio: "Handcrafted leather goods for discerning customers. Custom orders welcome.".to_string(),
+        avatar_url: "https://images.bits.page/emporium/avatar.jpg".to_string(),
+        banner_url: "https://images.bits.page/emporium/workshop.jpg".to_string(),
+        links: vec![
+            Link {
+                icon: "🛍️".to_string(),
+                title: "Shop Catalog".to_string(),
+                url: "#".to_string(),
+            },
+            Link {
+                icon: "✉️".to_string(),
+                title: "Custom Orders".to_string(),
+                url: "mailto:orders@example.com".to_string(),
+            },
+            Link {
+                icon: "📸".to_string(),
+                title: "Instagram".to_string(),
+                url: "#".to_string(),
+            },
+        ],
+    };
+
+    rsx! { Layout { profile } }
+}
+#+end_src
+
+** Demo: charlie (src/demos/charlie.rs)
+
+Adult content creator:
+
+#+begin_src rust
+use super::template::{Profile, Layout, Link};
+use dioxus::prelude::*;
+
+#[component]
+pub fn Component() -> Element {
+    let profile = Profile {
+        display_name: "Charlie's Countryside Adventures".to_string(),
+        bio: "Adult content creator. Subscribe for exclusive content. 18+ only.".to_string(),
+        avatar_url: "https://images.bits.page/charlie/avatar.jpg".to_string(),
+        banner_url: "https://images.bits.page/charlie/countryside.jpg".to_string(),
+        links: vec![
+            Link {
+                icon: "🔞".to_string(),
+                title: "Subscribe (18+)".to_string(),
+                url: "#".to_string(),
+            },
+            Link {
+                icon: "💬".to_string(),
+                title: "Message Me".to_string(),
+                url: "#".to_string(),
+            },
+            Link {
+                icon: "🎥".to_string(),
+                title: "Video Library".to_string(),
+                url: "#".to_string(),
+            },
+        ],
+    };
+
+    rsx! { Layout { profile } }
+}
+#+end_src
+
+** Update src/lib.rs
+
+Replace placeholder with actual module:
+
+#+begin_src rust
+#[cfg(feature = "server")]
+pub mod demos;
+#+end_src
+
+** Success Criteria
+
+- [ ] =cargo check= passes
+- [ ] =just dev= starts without errors
+- [ ] Visit =https://jcf.bits.page.test= shows tech creator demo
+- [ ] Visit =https://emporium.bits.page.test= shows craftsperson demo
+- [ ] Visit =https://charlie.bits.page.test= shows adult creator demo
+- [ ] Demo banner appears on all demos
+- [ ] Tailwind styles load correctly
+
+* Task 2: Subdomain Availability Checker
+
+** Context
+
+Create server function to check subdomain availability with easter eggs.
+
+** Create src/subdomain.rs
+
+New file for subdomain logic:
+
+#+begin_src rust
+use crate::tenant::{Handle, HandleError};
+use dioxus::prelude::*;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum SubdomainStatus {
+    Available,
+    Reserved(String),    // With custom message (for easter eggs)
+    Invalid(String),     // With error message
+}
+
+#[server]
+pub async fn check_subdomain(input: String) -> Result<SubdomainStatus, ServerFnError> {
+    // Try to create validated Handle
+    let handle = match Handle::new(input) {
+        Ok(h) => h,
+        Err(HandleError::InvalidLength) => {
+            return Ok(SubdomainStatus::Invalid("Must be 3-63 characters".into()));
+        }
+        Err(HandleError::InvalidCharacters) => {
+            return Ok(SubdomainStatus::Invalid(
+                "Only lowercase letters, numbers, and hyphens".into()
+            ));
+        }
+        Err(HandleError::InvalidFormat) => {
+            return Ok(SubdomainStatus::Invalid("Cannot start or end with hyphen".into()));
+        }
+    };
+
+    // Check reserved system words
+    match handle.as_str() {
+        "www" | "api" | "app" | "admin" | "dashboard" | "cdn" | "assets" => {
+            return Ok(SubdomainStatus::Reserved("Reserved for platform use".into()));
+        }
+        _ => {}
+    }
+
+    // Easter eggs!
+    match handle.as_str() {
+        "god" => {
+            return Ok(SubdomainStatus::Reserved(
+                "Sorry, this one's taken by a higher power".into()
+            ));
+        }
+        "jesus" | "christ" => {
+            return Ok(SubdomainStatus::Reserved(
+                "He'll be back in three days to claim it".into()
+            ));
+        }
+        "satan" | "devil" | "lucifer" => {
+            return Ok(SubdomainStatus::Reserved(
+                "Already reserved in hell.bits.page".into()
+            ));
+        }
+        "nsfw" => {
+            return Ok(SubdomainStatus::Reserved(
+                "Too on the nose, try something creative!".into()
+            ));
+        }
+        "porn" | "xxx" | "sex" => {
+            return Ok(SubdomainStatus::Reserved(
+                "We get it, but be more subtle".into()
+            ));
+        }
+        "test" | "demo" | "example" | "sample" => {
+            return Ok(SubdomainStatus::Reserved(
+                "Reserved for testing and demos".into()
+            ));
+        }
+        "fuck" | "shit" | "damn" => {
+            return Ok(SubdomainStatus::Reserved(
+                "Creative profanity is an art. This isn't it.".into()
+            ));
+        }
+        _ => {}
+    }
+
+    // Check if demo
+    if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+        return Ok(SubdomainStatus::Reserved("This is a demo profile".into()));
+    }
+
+    // Check database for existing tenant
+    let state = crate::AppState::from_context();
+    let domain = format!("{}.{}", handle, state.config.platform_domain.as_ref().unwrap());
+
+    let exists = sqlx::query_scalar!(
+        "select exists(
+            select 1
+            from tenant_domains
+            where domain = $1
+            and valid_to = 'infinity'
+        )",
+        domain
+    )
+    .fetch_one(&state.db)
+    .await?
+    .unwrap_or(false);
+
+    if exists {
+        return Ok(SubdomainStatus::Reserved("Already taken".into()));
+    }
+
+    Ok(SubdomainStatus::Available)
+}
+#+end_src
+
+** Update src/lib.rs
+
+Add module declaration:
+
+#+begin_src rust
+#[cfg(feature = "server")]
+pub mod subdomain;
+
+// Re-export
+pub use subdomain::{check_subdomain, SubdomainStatus};
+#+end_src
+
+** Success Criteria
+
+- [ ] =cargo check= passes
+- [ ] =check_subdomain("jcf")= returns Reserved (demo)
+- [ ] =check_subdomain("god")= returns Reserved with easter egg
+- [ ] =check_subdomain("ab")= returns Invalid (too short)
+- [ ] =check_subdomain("-foo")= returns Invalid (bad format)
+- [ ] =check_subdomain("newhandle")= returns Available
+- [ ] Database check works for existing tenants
+
+* Task 3: Page Component Organization
+
+** Context
+
+Reorganize Dioxus app per CLAUDE.md guidelines: one component per file in =src/pages/=.
+
+** Create src/pages/ Directory
+
+#+begin_example
+src/pages/
+├── mod.rs         # Module declarations + re-exports
+├── layout.rs      # Shared Layout with error boundaries
+├── home.rs        # Home page (realm routing)
+├── auth.rs        # Auth/login page
+├── join.rs        # Registration page
+└── verify_email.rs # Email verification page
+#+end_example
+
+** layout.rs
+
+#+begin_src rust
+use crate::{auth, i18n, Route};
+use dioxus::prelude::*;
+
+#[component]
+pub fn Layout() -> Element {
+    let session = use_server_future(move || async move { auth::get_session().await })?;
+    let realm = use_server_future(move || async move { auth::get_realm().await })?;
+    let locale = i18n::create_default_locale()
+        .unwrap_or_else(|e| panic!("Failed to create default locale: {}", e));
+
+    use_context_provider(|| session);
+    use_context_provider(|| realm);
+    use_context_provider(|| locale);
+
+    #[cfg(feature = "server")]
+    let csrf_token = get_csrf_token_for_ssr();
+    #[cfg(not(feature = "server"))]
+    let csrf_token = String::new();
+
+    rsx! {
+        if !csrf_token.is_empty() {
+            document::Meta { name: "csrf-token", content: "{csrf_token}" }
+        }
+
+        div { class: "flex min-h-screen flex-col",
+            header { class: "bg-gray-100 dark:bg-gray-900",
+                components::Header {}
+            }
+            main { class: "grow bg-white dark:bg-gray-900",
+                ErrorBoundary {
+                    handle_error: move |err: ErrorContext| {
+                        let t = i18n::use_translation();
+
+                        #[cfg(feature = "server")]
+                        let http_error = dioxus::fullstack::FullstackContext::commit_error_status(
+                            err.error().unwrap(),
+                        );
+
+                        #[cfg(not(feature = "server"))]
+                        let http_error = err.error().unwrap();
+
+                        rsx! {
+                            div { class: "text-red-500",
+                                h1 { "{t.t(\"common-error\")}" }
+                                p { "{http_error:?}" }
+                            }
+                        }
+                    },
+                    Outlet::<Route> {}
+                }
+            }
+            components::Footer {}
+        }
+    }
+}
+
+#[cfg(feature = "server")]
+fn get_csrf_token_for_ssr() -> String {
+    // Move existing implementation from lib.rs
+    // ...
+}
+#+end_src
+
+** home.rs
+
+#+begin_src rust
+use crate::{demos, tenant::Realm, i18n};
+use dioxus::prelude::*;
+
+#[component]
+pub fn Home() -> Element {
+    let realm = use_context::<Resource<Result<Realm>>>();
+    let t = i18n::use_translation();
+
+    match realm() {
+        Some(Ok(Realm::Demo(handle))) => {
+            // Render demo component
+            if let Some(demo_component) = demos::get_demo(&handle) {
+                rsx! { {demo_component()} }
+            } else {
+                rsx! { NotFound {} }
+            }
+        }
+        Some(Ok(Realm::Creator(tenant))) => {
+            // Future: Real tenant profile from database
+            rsx! {
+                div { class: "flex min-h-full items-center justify-center p-8",
+                    h1 { class: "text-4xl font-bold text-gray-900 dark:text-gray-100",
+                        "{tenant.name}"
+                    }
+                }
+            }
+        }
+        Some(Ok(Realm::Platform)) => {
+            // Landing page (will be created in next session)
+            rsx! {
+                div { class: "flex min-h-full items-center justify-center p-8",
+                    h1 { class: "text-4xl font-bold text-gray-900 dark:text-gray-100",
+                        "{t.t(\"home-welcome\")}"
+                    }
+                }
+            }
+        }
+        Some(Ok(Realm::NotFound)) => {
+            rsx! { NotFound {} }
+        }
+        Some(Err(_)) => rsx! { div { "{t.t(\"common-error\")}" } },
+        None => rsx! { div { "{t.t(\"common-loading\")}" } },
+    }
+}
+
+#[component]
+fn NotFound() -> Element {
+    let t = i18n::use_translation();
+
+    rsx! {
+        div { class: "text-red-500",
+            h1 { "{t.t(\"error-404-title\")}" }
+            p { "{t.t(\"error-404-message\")}" }
+        }
+    }
+}
+#+end_src
+
+** auth.rs, join.rs, verify_email.rs
+
+Move existing Auth, Join, VerifyEmail components from =src/lib.rs= to separate files (no changes to logic, just extraction).
+
+** Update src/pages/mod.rs
+
+#+begin_src rust
+pub mod layout;
+pub mod home;
+pub mod auth;
+pub mod join;
+pub mod verify_email;
+
+pub use layout::Layout;
+pub use home::Home;
+pub use auth::Auth;
+pub use join::Join;
+pub use verify_email::VerifyEmail;
+#+end_src
+
+** Create src/app.rs
+
+Move Route enum and App component from =src/lib.rs=:
+
+#+begin_src rust
+use crate::pages::{Layout, Home, Auth, Join, VerifyEmail};
+use dioxus::prelude::*;
+
+#[cfg(feature = "server")]
+#[derive(Clone)]
+pub struct AppState {
+    pub config: std::sync::Arc<Config>,
+    pub db: sqlx::PgPool,
+    pub argon2: argon2::Argon2<'static>,
+    pub crypto: crypto::EncryptionService,
+    pub email_verification: verification::EmailVerificationService,
+    pub metrics_handle: metrics_exporter_prometheus::PrometheusHandle,
+}
+
+// AppState implementation...
+
+#[derive(Debug, Clone, Routable, PartialEq)]
+#[rustfmt::skip]
+pub enum Route {
+    #[layout(Layout)]
+    #[route("/")]
+    Home {},
+    #[route("/auth")]
+    Auth {},
+    #[route("/join")]
+    Join {},
+    #[route("/verify-email")]
+    VerifyEmail {},
+}
+
+#[component]
+pub fn App() -> Element {
+    rsx! {
+        document::Link { rel: "icon", href: "data:" }
+        Router::<Route> {}
+    }
+}
+#+end_src
+
+** Update src/lib.rs
+
+Reorganize to use new structure:
+
+#+begin_src rust
+// Module declarations
+pub mod app;
+pub mod auth;
+pub mod components;
+pub mod config;
+pub mod http;
+pub mod i18n;
+pub mod pages;
+pub mod tenant;
+
+#[cfg(feature = "server")]
+pub mod crypto;
+#[cfg(feature = "server")]
+pub mod csrf;
+#[cfg(feature = "server")]
+pub mod demos;
+#[cfg(feature = "server")]
+pub mod metrics;
+#[cfg(feature = "server")]
+pub mod middleware;
+#[cfg(feature = "server")]
+pub mod server;
+#[cfg(feature = "server")]
+pub mod subdomain;
+#[cfg(feature = "server")]
+pub mod verification;
+
+// Re-exports - Core app
+#[cfg(target_arch = "wasm32")]
+pub use app::init_client;
+pub use app::{App, Route};
+
+#[cfg(feature = "server")]
+pub use app::AppState;
+
+// Re-exports - Auth
+pub use auth::{
+    AuthError, AuthForm, AuthResponse, ChangePasswordForm, JoinForm, ResendForm, ResendResponse,
+    SessionState, User, VerifyEmailForm,
+};
+
+// Re-exports - Config
+pub use config::Config;
+
+// Re-exports - HTTP
+pub use http::CspMode;
+
+// Re-exports - Tenant
+pub use tenant::{Realm, Tenant, Handle};
+
+// Re-exports - Subdomain
+pub use subdomain::{check_subdomain, SubdomainStatus};
+
+// Re-exports - Server middleware
+#[cfg(feature = "server")]
+pub use middleware::{
+    CsrfVerificationLayer, CsrfVerificationMiddleware, RealmLayer, RealmMiddleware,
+};
+
+// Re-exports - Server functions
+#[cfg(feature = "server")]
+pub use server::{build_router, init, init_tracing, setup_session_store};
+#+end_src
+
+** Success Criteria
+
+- [ ] =cargo check= passes
+- [ ] =just dev= starts without errors
+- [ ] All pages still render correctly
+- [ ] No duplicate code between files
+- [ ] =src/lib.rs= is clean with just module declarations
+- [ ] Each page in its own file
+
+* Notes
+
+- Image URLs point to R2 buckets (will upload in final session)
+- If images don't exist yet, placeholders are fine
+- Focus on structure and layout
+- Can refine content/styling later
+- Have fun with easter eggs!
