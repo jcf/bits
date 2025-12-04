@@ -92,6 +92,7 @@ in {
     just
     tokei
     tree
+    xh
     zsh
 
     # SSL
