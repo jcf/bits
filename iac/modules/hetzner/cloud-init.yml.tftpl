@@ -1,0 +1,63 @@
+#cloud-config
+
+users:
+  - name: bits
+    groups: sudo, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+${ssh_keys}
+
+packages:
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - git
+  - htop
+  - jq
+  - vim
+
+runcmd:
+  # Install Tailscale
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  - |
+    tailscale up \
+      --authkey=${tailscale_authkey} \
+      --hostname=${server_name} \
+      --advertise-tags=tag:server,tag:bits \
+      --ssh
+
+  # Install Cloudflared
+  - curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o /tmp/cloudflared.deb
+  - dpkg -i /tmp/cloudflared.deb
+  - rm /tmp/cloudflared.deb
+
+  # Configure Cloudflared tunnel
+  - mkdir -p /etc/cloudflared
+  - |
+    cat > /etc/cloudflared/config.yml <<EOF
+    tunnel: ${tunnel_token}
+    credentials-file: /etc/cloudflared/credentials.json
+
+    ingress:
+      - hostname: bits.page
+        service: http://localhost:8080
+      - hostname: "*.bits.page"
+        service: http://localhost:8080
+      - service: http_status:404
+    EOF
+
+  # Note: credentials.json created after tunnel provisioning
+  # Install as systemd service
+  - cloudflared service install
+
+  # Configure UFW firewall
+  - ufw --force enable
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow from any to any proto icmp
+
+  # Enable Docker
+  - systemctl enable docker
+  - systemctl start docker
