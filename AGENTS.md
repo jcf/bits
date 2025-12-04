@@ -172,21 +172,126 @@ async fn test_behavior() {
 }
 ```
 
+## Dioxus
+
+### Application Structure
+
+Organize Dioxus applications with clear separation between pages, components, and app configuration:
+
+```
+src/
+├── app.rs              # AppState, Route enum, root App component
+├── components/         # Reusable UI components
+│   ├── mod.rs         # Module declarations + re-exports
+│   ├── button.rs      # Button component
+│   ├── header.rs      # Header component
+│   └── ...
+├── pages/             # Route-level page components
+│   ├── mod.rs        # Module declarations + re-exports
+│   ├── layout.rs     # Shared layout with error boundaries
+│   ├── home.rs       # Home page
+│   ├── auth.rs       # Auth page
+│   └── ...
+├── lib.rs            # Module declarations + public API
+└── ...
+```
+
+**Organization principles:**
+
+1. **One component per file** - Each component gets its own dedicated file
+2. **Pages vs components** - Pages correspond to routes, components are reusable UI elements
+3. **Explicit module declarations** - Use `mod.rs` to declare modules and re-export public items
+4. **Centralized routing** - Define routes in `app.rs` alongside the root `App` component
+5. **Server-only modules** - Use `#[cfg(feature = "server")]` for server-side code
+
+**Module pattern (`mod.rs`):**
+
+```rust
+// src/components/mod.rs
+pub mod button;
+pub mod header;
+pub mod avatar;
+
+pub use button::{Button, ButtonVariant, ButtonSize};
+pub use header::Header;
+pub use avatar::Avatar;
+```
+
+**App module (`app.rs`):**
+
+```rust
+use crate::pages::{Auth, Home, Join, Layout};
+
+#[cfg(feature = "server")]
+#[derive(Clone)]
+pub struct AppState {
+    pub config: std::sync::Arc<Config>,
+    pub db: sqlx::PgPool,
+    // ...
+}
+
+#[derive(Debug, Clone, Routable, PartialEq)]
+pub enum Route {
+    #[layout(Layout)]
+    #[route("/")]
+    Home {},
+    #[route("/auth")]
+    Auth {},
+    // ...
+}
+
+#[component]
+pub fn App() -> Element {
+    rsx! {
+        Router::<Route> {}
+    }
+}
+```
+
+**Public API (`lib.rs`):**
+
+```rust
+// Module declarations
+pub mod app;
+pub mod components;
+pub mod pages;
+
+#[cfg(feature = "server")]
+pub mod middleware;
+#[cfg(feature = "server")]
+pub mod server;
+
+// Re-exports for public API
+pub use app::{App, AppState, Route};
+pub use components::{Button, Header};
+```
+
+**Rationale:**
+
+- **Clear boundaries** - Pages handle routing, components handle UI, app handles configuration
+- **Discoverability** - One component per file makes it easy to find code
+- **Explicit exports** - Re-exports in `mod.rs` and `lib.rs` define the public API
+- **Feature gating** - Server code only compiles when needed, reducing WASM bundle size
+- **Layout component** - Shared layout with error boundaries provides consistent structure
+
 ### Session Security
 
 Follow OWASP guidelines for session management:
 
 **Session rotation:**
+
 - Rotate session IDs on authentication state changes (login, logout)
 - Prevents session fixation attacks
 - Use `auth.session.renew()` after successful authentication
 
 **Cookie security:**
+
 - `Secure`: Transmit only over HTTPS
 - `HttpOnly`: Prevent JavaScript access
 - `SameSite=Strict`: CSRF protection
 
 **Password changes:**
+
 - Invalidate ALL sessions when password changes (including current session)
 - Forces re-authentication with new credentials
 - If attacker compromised password, they're immediately logged out everywhere
