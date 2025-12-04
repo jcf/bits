@@ -28,6 +28,21 @@ decide +title:
     EOF
     echo "🎯 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
 
+# Create a new prompt
+[group('docs')]
+prompt +title:
+    #!/usr/bin/env zsh
+    timestamp=$(date +%Y%m%d%H%M%S)
+    normalized=$(echo "{{ title }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g' | sed 's/^-\|-$//g')
+    filename=".claude/prompts/${timestamp}-${normalized}.org"
+    mkdir -p .claude/prompts
+    cat > "$filename" <<EOF
+    #+title:    {{ title }}
+    #+date:     $(date +%Y-%m-%d)
+    #+property: header-args :dir ../..
+    EOF
+    echo "💭 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
+
 # ------------------------------------------------------------------------------
 # Development
 
