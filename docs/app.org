@@ -1,0 +1,324 @@
+#+title:    App
+#+startup:  content
+#+property: header-args :dir ..
+
+All code covered by the [[file:~/code/bits/LICENSE][AGPL]].
+
+* Crates
+#+begin_src sh :results output verbatim :dir ../crates
+ls -1
+#+end_src
+
+#+results:
+: bits-app
+: bits-axum-session-sqlx
+: bits-colo
+: bits-db
+: bits-domain
+: bits-e2e
+: bits-solo
+: bits-tailwind-merge
+
+** =bits-app=
+The heart of the Bits application where views, models, and connective tissue
+reside.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-app
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+#+begin_example
+src/app.rs
+src/auth.rs
+src/components/alert.rs
+src/components/avatar.rs
+src/components/button.rs
+src/components/category_item.rs
+src/components/feature_card.rs
+src/components/footer.rs
+src/components/header.rs
+src/components/icons.rs
+src/components/input.rs
+src/components/mod.rs
+src/components/navigation_popover.rs
+src/components/sign_out_button.rs
+src/components/sign_out_link.rs
+src/config.rs
+src/csrf.rs
+src/db.rs
+src/demos/charlie.rs
+src/demos/emporium.rs
+src/demos/jcf.rs
+src/demos/mod.rs
+src/demos/template.rs
+src/http.rs
+src/i18n.rs
+src/lib.rs
+src/metrics.rs
+src/middleware/csrf.rs
+src/middleware/metrics.rs
+src/middleware/mod.rs
+src/middleware/realm.rs
+src/pages/auth.rs
+src/pages/home.rs
+src/pages/join.rs
+src/pages/landing.rs
+src/pages/layout.rs
+src/pages/mod.rs
+src/pages/not_found.rs
+src/pages/verify_email.rs
+src/server.rs
+src/subdomain.rs
+src/tenant.rs
+src/verification.rs
+#+end_example
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-app
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FreeMarker                1          107           92            0           15
+ TOML                      1           61           56            0            5
+─────────────────────────────────────────────────────────────────────────────────
+ Rust                     43         5115         4426          131          558
+ |- Markdown              13           92            0           88            4
+ (Total)                             5207         4426          219          562
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                    45         5375         4574          219          582
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
+
+** =bits-axum-session-sqlx=
+A customized =sqlx= integration for =axum-session= that is a little more
+relational (i.e. sessions have a =user_id= column that's a foreign key to the
+=users(id)=).
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-axum-session-sqlx
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+: src/lib.rs
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-axum-session-sqlx
+tokei
+#+end_src
+
+#+results:
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+:  Language              Files        Lines         Code     Comments       Blanks
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+:  Rust                      1          219          192            0           27
+:  TOML                      1           12           11            0            1
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+:  Total                     2          231          203            0           28
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** =bits-colo=
+Entrypoint for co-located Bits.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-colo
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+: src/lib.rs
+: src/main.rs
+: src/server.rs
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-colo
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ CSS                       2         1737         1734            1            2
+ HTML                      1           11           11            0            0
+ Rust                      3           76           64            0           12
+ TOML                      2           52           41            1           10
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                     8         1876         1850            2           24
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
+
+** =bits-db=
+PostgreSQL-specific logic and features. Things like timestamp support that
+includes recognition of ='infinity'=.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-db
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+: src/lib.rs
+: src/timestamp.rs
+: src/url.rs
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-db
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ TOML                      1           12           11            0            1
+─────────────────────────────────────────────────────────────────────────────────
+ Rust                      3          166          135            4           27
+ |- Markdown               1            8            0            7            1
+ (Total)                              174          135           11           28
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                     4          186          146           11           29
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
+
+** =bits-domain=
+Shared types and common logic. Empty as of right now.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-domain
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+: src/lib.rs
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-domain
+tokei
+#+end_src
+
+#+results:
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+:  Language              Files        Lines         Code     Comments       Blanks
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+:  Rust                      1            3            1            1            1
+:  TOML                      1            8            7            0            1
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+:  Total                     2           11            8            1            2
+: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+** =bits-e2e=
+End-to-end tests and test utilities for black-box testing Bits.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-e2e
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+#+begin_example
+src/assertions.rs
+src/bin/seed.rs
+src/client.rs
+src/fixtures.rs
+src/lib.rs
+src/request.rs
+src/seeds.rs
+src/server.rs
+tests/auth.rs
+tests/metrics.rs
+tests/realm.rs
+tests/security.rs
+#+end_example
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-e2e
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ TOML                      1           40           36            0            4
+─────────────────────────────────────────────────────────────────────────────────
+ Rust                     12         1562         1252           53          257
+ |- Markdown               1            3            0            3            0
+ (Total)                             1565         1252           56          257
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                    13         1605         1288           56          261
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
+
+** =bits-solo=
+Entrypoint for solo Bits.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-solo
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+: src/lib.rs
+: src/main.rs
+: src/server.rs
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-solo
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ CSS                       2         1737         1734            1            2
+ HTML                      1           11           11            0            0
+ Rust                      3           74           63            0           11
+ TOML                      2           53           42            1           10
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                     8         1875         1850            2           23
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
+
+** =bits-tailwind-merge=
+Rust port of functionality provided by libraries like tailwind-merge in the
+JavaScript ecosystem. Wholly generated and only lightly reviewed so no plans to
+release.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-tailwind-merge
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+#+begin_example
+benches/merge_benchmarks.rs
+src/config.rs
+src/lib.rs
+src/merge.rs
+src/parser.rs
+src/trie.rs
+src/validator.rs
+tests/arbitrary.rs
+tests/conflicts.rs
+tests/integration.rs
+tests/proptest.rs
+tests/tailwind_versions.rs
+#+end_example
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-tailwind-merge
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Org                       1            6            4            0            2
+ TOML                      1           16           13            0            3
+─────────────────────────────────────────────────────────────────────────────────
+ Rust                     12         6221         5062          587          572
+ |- Markdown               9          118            0          107           11
+ (Total)                             6339         5062          694          583
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                    14         6361         5079          694          588
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
