@@ -1,0 +1,288 @@
+#+title:    Improve Error Handling
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Overview
+
+Improve error handling throughout the codebase by removing overly permissive =From<anyhow::Error>= implementations, eliminating silent error discarding with =.ok()=, and adding proper context to database errors.
+
+**Dependencies:** None - can start immediately
+
+**Priority:** MEDIUM - Better error handling improves debugging
+
+* Problems
+
+** Overly Permissive Error Conversions
+
+auth.rs:60-64 has a blanket =From<anyhow::Error>= conversion:
+
+#+begin_src rust
+#[cfg(not(target_arch = "wasm32"))]
+impl From<anyhow::Error> for AuthError {
+    fn from(err: anyhow::Error) -> Self {
+        AuthError::Internal(format!("{:#}", err))
+    }
+}
+#+end_src
+
+This loses type information and context. It's better to be explicit about which errors we handle.
+
+** Silent Error Discarding
+
+Several places use =.ok()= to discard errors:
+
+- tenant.rs:354 - =.ok().flatten()= silently discards database errors
+- app.rs:121,129 - =web_sys= operations silently fail
+- verification.rs:319 - timestamp conversion fails silently
+
+** Inconsistent SQL Error Handling
+
+SQL errors are handled inconsistently:
+- Some use =?= propagation
+- Some use =.context()= with anyhow
+- Some are silently discarded with =.ok()=
+
+* Solutions
+
+** Replace Blanket anyhow Conversions
+
+Instead of:
+#+begin_src rust
+impl From<anyhow::Error> for AuthError {
+    fn from(err: anyhow::Error) -> Self {
+        AuthError::Internal(format!("{:#}", err))
+    }
+}
+#+end_src
+
+Be explicit:
+#+begin_src rust
+impl From<sqlx::Error> for AuthError {
+    fn from(err: sqlx::Error) -> Self {
+        AuthError::Internal(format!("Database error: {}", err))
+    }
+}
+
+// Use explicit conversion for anyhow errors
+auth_error.map_err(|e| AuthError::Internal(e.to_string()))?
+#+end_src
+
+** Add Context to Database Queries
+
+Bad:
+#+begin_src rust
+let result = sqlx::query!("...").fetch_one(db).await?;
+#+end_src
+
+Good:
+#+begin_src rust
+let result = sqlx::query!("...")
+    .fetch_one(db)
+    .await
+    .context("Failed to fetch user by ID")?;
+#+end_src
+
+** Don't Silently Discard Errors
+
+Bad (tenant.rs:340-356):
+#+begin_src rust
+async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Option<Tenant> {
+    sqlx::query_as!(/* ... */)
+        .fetch_optional(pool)
+        .await
+        .ok()        // <-- Silently discards errors!
+        .flatten()
+}
+#+end_src
+
+Good:
+#+begin_src rust
+async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(/* ... */)
+        .fetch_optional(pool)
+        .await
+}
+#+end_src
+
+* Specific Fixes
+
+** auth.rs - Remove blanket From<anyhow::Error>
+
+Remove lines 60-64 and add explicit conversions where needed:
+
+#+begin_src rust
+// Before
+let result = some_operation().await?;  // Uses From<anyhow::Error>
+
+// After
+let result = some_operation()
+    .await
+    .map_err(|e| AuthError::Internal(format!("Operation failed: {}", e)))?;
+#+end_src
+
+** tenant.rs:340-356 - Return Result
+
+Change signature and implementation:
+
+#+begin_src rust
+#[cfg(feature = "server")]
+async fn load_tenant_by_domain(
+    pool: &PgPool,
+    domain: &str
+) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(
+        Tenant,
+        "select
+           t.id,
+           t.name
+         from tenants t
+         join tenant_domains td on td.tenant_id = t.id
+         where td.domain = $1
+         and td.valid_to = 'infinity'",
+        domain,
+    )
+    .fetch_optional(pool)
+    .await
+}
+#+end_src
+
+Update callers in resolve_realm():
+
+#+begin_src rust
+// Before
+if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
+    return Realm::Creator(tenant);
+}
+
+// After
+match load_tenant_by_domain(&state.db, &normalized_host).await {
+    Ok(Some(tenant)) => return Realm::Creator(tenant),
+    Ok(None) => {}
+    Err(e) => {
+        tracing::error!(
+            domain = %normalized_host,
+            error = %e,
+            "Failed to load tenant from database"
+        );
+    }
+}
+#+end_src
+
+** app.rs:101-134 - Log WebSys Errors
+
+Add error logging for web_sys failures:
+
+#+begin_src rust
+// Before
+if let Some(window) = web_sys::window() {
+    if let Some(document) = window.document() {
+        // ...
+    }
+}
+
+// After
+let window = match web_sys::window() {
+    Some(w) => w,
+    None => {
+        tracing::warn!("web_sys::window() returned None");
+        dioxus_fullstack::set_request_headers(headers);
+        return;
+    }
+};
+
+let document = match window.document() {
+    Some(d) => d,
+    None => {
+        tracing::warn!("window.document() returned None");
+        dioxus_fullstack::set_request_headers(headers);
+        return;
+    }
+};
+#+end_src
+
+** verification.rs:319 - Handle Timestamp Conversion
+
+#+begin_src rust
+// Before
+Ok(last_sent.and_then(|ts| {
+    let timestamp = Timestamp::from_second(ts.timestamp()).ok()?;
+    timestamp
+        .checked_add(Span::new().seconds(self.config.resend_cooldown_secs))
+        .ok()
+}))
+
+// After
+Ok(last_sent.and_then(|ts| {
+    let timestamp = match Timestamp::from_second(ts.timestamp()) {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                timestamp = ts.timestamp(),
+                "Failed to convert timestamp"
+            );
+            return None;
+        }
+    };
+    match timestamp.checked_add(Span::new().seconds(self.config.resend_cooldown_secs)) {
+        Ok(t) => Some(t),
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                cooldown = self.config.resend_cooldown_secs,
+                "Failed to add cooldown span"
+            );
+            None
+        }
+    }
+}))
+#+end_src
+
+* Error Handling Principles
+
+** Be Explicit
+- Don't use blanket =From<anyhow::Error>= implementations
+- Be explicit about which errors can occur
+- Use specific error types when possible
+
+** Provide Context
+- Add context to database errors with =.context()=
+- Include relevant values in error messages
+- Use structured logging with tracing
+
+** Don't Silently Fail
+- Log errors before discarding them
+- Use =?= propagation when possible
+- Only use =.ok()= when truly optional
+
+** Use the Type System
+- Return =Result= instead of =Option= when operations can fail
+- Use custom error types instead of =String=
+- Leverage =thiserror= for error types
+
+* Tasks
+
+- [ ] Remove =From<anyhow::Error>= for =AuthError=
+- [ ] Fix =load_tenant_by_domain= to return =Result=
+- [ ] Update all callers of =load_tenant_by_domain=
+- [ ] Add error logging to app.rs web_sys calls
+- [ ] Fix verification.rs timestamp handling
+- [ ] Search for other =.ok()= that should be logged
+- [ ] Run =cargo check= and =cargo test=
+
+* Success Criteria
+
+- [ ] No blanket =From<anyhow::Error>= implementations
+- [ ] =load_tenant_by_domain= returns =Result=
+- [ ] All database errors are logged or propagated
+- [ ] No silent =.ok()= without logging
+- [ ] =cargo check= passes
+- [ ] =cargo test= passes
+- [ ] Error messages are actionable
+
+* Notes
+
+- Start with auth.rs and tenant.rs (highest impact)
+- Consider adding custom error types for common failures
+- Use =thiserror= derive for custom errors
+- Search for =.ok()= with =rg '\.ok\(\)' crates/bits-app/src --type rust=

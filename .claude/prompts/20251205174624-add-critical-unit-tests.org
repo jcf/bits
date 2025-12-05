@@ -1,0 +1,332 @@
+#+title:    Add Critical Unit Tests
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Overview
+
+Add unit tests for critical security and validation code that currently has no test coverage. Integration tests alone aren't sufficient - we need fast, focused unit tests for core functionality.
+
+**Dependencies:** None - can start immediately
+
+**Priority:** HIGH - Critical security code lacks unit tests
+
+* Problem
+
+Several critical modules have no or insufficient unit tests:
+
+** password.rs - NO TESTS
+- Hash generation (Argon2id configuration)
+- Hash verification (timing-safe comparison)
+- Error handling for invalid hashes
+
+** csrf.rs - Incomplete Tests
+- Only tests token generation (randomness)
+- Missing: validation logic, format checking
+- No tests for timing-safe comparison
+
+** verification.rs - NO TESTS FOR HMAC
+- HMAC code hashing
+- Code verification with constant-time comparison
+- Key derivation from master secret
+
+** Handle validation - Missing Property Tests
+- Currently only has example-based tests
+- Should use property testing for validation rules
+
+* Required Tests
+
+** password.rs
+
+Create =bits-app/src/password.rs= (add tests module):
+
+#+begin_src rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config() -> crate::Config {
+        crate::Config {
+            version: "test".to_string(),
+            database_url: "postgresql://localhost/test".parse().unwrap(),
+            max_database_connections: 5,
+            argon2_m_cost: 19456, // 19 MiB for fast tests
+            argon2_t_cost: 2,
+            argon2_p_cost: 1,
+            master_key: "test-key-32-bytes-long!!!!!!".to_string(),
+            port: 0,
+            session_name: "test".to_string(),
+            platform_domain: None,
+            dangerously_allow_javascript_evaluation: false,
+            metrics_auth_token: None,
+            global_rate_limit: 50,
+        }
+    }
+
+    #[test]
+    fn hash_password_produces_valid_hash() {
+        let config = test_config();
+        let service = PasswordService::new(&config).unwrap();
+        let password = "test-password-123";
+
+        let hash = service.hash_password(password).unwrap();
+
+        // Verify format: starts with $argon2id$
+        assert!(hash.starts_with("$argon2id$v=19$"));
+    }
+
+    #[test]
+    fn verify_password_succeeds_with_correct_password() {
+        let config = test_config();
+        let service = PasswordService::new(&config).unwrap();
+        let password = "correct-password";
+
+        let hash = service.hash_password(password).unwrap();
+        assert!(service.verify_password(password, &hash).is_ok());
+    }
+
+    #[test]
+    fn verify_password_fails_with_wrong_password() {
+        let config = test_config();
+        let service = PasswordService::new(&config).unwrap();
+        let password = "correct-password";
+
+        let hash = service.hash_password(password).unwrap();
+        assert!(service.verify_password("wrong-password", &hash).is_err());
+    }
+
+    #[test]
+    fn verify_password_fails_with_invalid_hash() {
+        let config = test_config();
+        let service = PasswordService::new(&config).unwrap();
+
+        assert!(service.verify_password("password", "not-a-hash").is_err());
+    }
+
+    #[test]
+    fn hash_password_produces_unique_salts() {
+        let config = test_config();
+        let service = PasswordService::new(&config).unwrap();
+        let password = "same-password";
+
+        let hash1 = service.hash_password(password).unwrap();
+        let hash2 = service.hash_password(password).unwrap();
+
+        // Same password should produce different hashes due to random salt
+        assert_ne!(hash1, hash2);
+
+        // But both should verify
+        assert!(service.verify_password(password, &hash1).is_ok());
+        assert!(service.verify_password(password, &hash2).is_ok());
+    }
+}
+#+end_src
+
+** csrf.rs - Extend Tests
+
+Add to existing test module:
+
+#+begin_src rust
+#[test]
+fn verify_token_rejects_wrong_token() {
+    let token1 = "correct_token";
+    let token2 = "wrong_token";
+
+    assert!(!verify_token(token1, token2));
+}
+
+#[test]
+fn verify_token_rejects_empty() {
+    let token = "valid_token";
+
+    assert!(!verify_token(token, ""));
+    assert!(!verify_token("", token));
+    assert!(verify_token("", "")); // Both empty is equal
+}
+
+#[test]
+fn verify_token_timing_safe() {
+    // This test can't prove timing safety, but ensures it runs
+    let token = "a".repeat(44);
+    let wrong = "b".repeat(44);
+
+    assert!(!verify_token(&token, &wrong));
+}
+
+#[test]
+fn is_valid_format_accepts_valid_tokens() {
+    let token = generate_token();
+    assert!(is_valid_format(&token));
+}
+
+#[test]
+fn is_valid_format_rejects_short_tokens() {
+    assert!(!is_valid_format("too_short"));
+}
+
+#[test]
+fn is_valid_format_rejects_long_tokens() {
+    assert!(!is_valid_format(&"a".repeat(100)));
+}
+
+#[test]
+fn is_valid_format_rejects_invalid_base64() {
+    assert!(!is_valid_format(&"!".repeat(44)));
+}
+#+end_src
+
+** verification.rs - Add HMAC Tests
+
+Create test module:
+
+#+begin_src rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_service() -> EmailVerificationService {
+        let secret = b"test-secret-key-32-bytes-long!!!";
+        EmailVerificationService::new(
+            EmailVerificationConfig::default(),
+            secret.to_vec(),
+        )
+    }
+
+    #[test]
+    fn hash_code_produces_deterministic_output() {
+        let service = test_service();
+        let code = "123456";
+
+        let hash1 = service.hash_code(code);
+        let hash2 = service.hash_code(code);
+
+        assert_eq!(hash1, hash2, "Same code should produce same hash");
+    }
+
+    #[test]
+    fn hash_code_different_for_different_codes() {
+        let service = test_service();
+
+        let hash1 = service.hash_code("123456");
+        let hash2 = service.hash_code("654321");
+
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn verify_code_hash_succeeds_with_correct_code() {
+        let service = test_service();
+        let code = "123456";
+
+        let hash = service.hash_code(code);
+        assert!(service.verify_code_hash(code, &hash));
+    }
+
+    #[test]
+    fn verify_code_hash_fails_with_wrong_code() {
+        let service = test_service();
+        let code = "123456";
+
+        let hash = service.hash_code(code);
+        assert!(!service.verify_code_hash("654321", &hash));
+    }
+
+    #[test]
+    fn verify_code_hash_is_constant_time() {
+        // Can't prove timing safety in tests, but ensures it runs
+        let service = test_service();
+        let code = "123456";
+        let hash = service.hash_code(code);
+
+        // These should take similar time (not detectable in tests)
+        assert!(!service.verify_code_hash("000000", &hash));
+        assert!(!service.verify_code_hash("123450", &hash));
+    }
+
+    #[test]
+    fn different_secrets_produce_different_hashes() {
+        let secret1 = b"secret-one-32-bytes-long!!!!!!!!";
+        let secret2 = b"secret-two-32-bytes-long!!!!!!!!";
+
+        let service1 = EmailVerificationService::new(
+            EmailVerificationConfig::default(),
+            secret1.to_vec(),
+        );
+        let service2 = EmailVerificationService::new(
+            EmailVerificationConfig::default(),
+            secret2.to_vec(),
+        );
+
+        let code = "123456";
+        let hash1 = service1.hash_code(code);
+        let hash2 = service2.hash_code(code);
+
+        assert_ne!(hash1, hash2, "Different secrets should produce different hashes");
+    }
+}
+#+end_src
+
+** tenant.rs - Property Tests for Handle
+
+Add =proptest= to dev dependencies, then add:
+
+#+begin_src rust
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn handle_roundtrips_through_display(s in "[a-z][a-z0-9-]{2,62}") {
+            // Skip cases that would fail validation
+            prop_assume!(!s.ends_with('-'));
+            prop_assume!(!s.contains("--"));
+
+            if let Ok(handle) = Handle::new(&s) {
+                assert_eq!(handle.to_string(), s.to_lowercase());
+            }
+        }
+
+        #[test]
+        fn handle_rejects_invalid_lengths(s in "[a-z][a-z0-9-]{0,1}") {
+            assert!(Handle::new(s).is_err());
+        }
+
+        #[test]
+        fn handle_normalizes_case(s in "[A-Z][a-zA-Z0-9-]{2,30}") {
+            prop_assume!(!s.ends_with('-'));
+            prop_assume!(!s.contains("--"));
+
+            if let Ok(handle) = Handle::new(&s) {
+                assert_eq!(handle.as_str(), s.to_lowercase());
+            }
+        }
+    }
+}
+#+end_src
+
+* Tasks
+
+- [ ] Add comprehensive password.rs tests (hash, verify, errors)
+- [ ] Extend csrf.rs tests (validation, format, timing)
+- [ ] Add verification.rs HMAC tests
+- [ ] Add Handle property tests with proptest
+- [ ] Run =cargo test= to verify all pass
+- [ ] Check coverage with =cargo tarpaulin= or similar
+
+* Success Criteria
+
+- [ ] password.rs has 5+ unit tests
+- [ ] csrf.rs has 8+ unit tests total
+- [ ] verification.rs has 6+ HMAC tests
+- [ ] Handle has property tests
+- [ ] All tests pass with =cargo test=
+- [ ] No test panics or hangs
+- [ ] Tests run in <1 second total
+
+* Notes
+
+- Use lower Argon2 params in tests for speed (19 MiB vs 120 MiB)
+- Property tests may find edge cases we missed
+- Consider adding benchmark tests for password hashing time
+- Add =#[cfg(test)]= modules inline in the source files

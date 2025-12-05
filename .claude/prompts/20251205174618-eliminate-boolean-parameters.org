@@ -1,0 +1,88 @@
+#+title:    Eliminate Boolean Parameters
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Overview
+
+Remove naked boolean function parameters throughout the codebase. Boolean parameters make call sites unreadable (e.g., =foo(true)= - what does =true= mean?). Replace with descriptive enums.
+
+**Dependencies:** None - can start immediately
+
+**Priority:** HIGH - This violates our absolute coding rule documented in CLAUDE.md
+
+* Problem
+
+Per CLAUDE.md:
+
+#+begin_quote
+NEVER use naked booleans as function parameters - Booleans as parameters are completely banned. Call sites like =foo(true)= are unreadable. Use enums instead.
+#+end_quote
+
+* Current Violations
+
+** auth.rs:252 - Missing state parameter in auth() function
+
+The =auth()= server function extracts state from request extensions but doesn't declare it:
+
+#+begin_src rust
+#[post("/api/sessions", auth: AuthSession, state: Extension<crate::AppState>)]
+pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<User, AuthError> {
+    let user = load_login_data(&state.db, &form.0.email).await?;
+    // ... uses state.password_service, state.db
+}
+#+end_src
+
+While not a boolean parameter issue, the function signature is incomplete - =state= is used but not declared in the parameters list properly.
+
+** http.rs:34 - csp_header() correctly uses CspMode enum
+
+This is an example of the CORRECT pattern already implemented:
+
+#+begin_src rust
+pub enum CspMode {
+    Strict,
+    Development,
+}
+
+pub fn csp_header(mode: CspMode) -> String {
+    match mode {
+        CspMode::Strict => CSP_STRICT.join("; "),
+        CspMode::Development => CSP_DEVELOPMENT.join("; "),
+    }
+}
+
+// Call site is readable:
+let csp = csp_header(CspMode::Development);
+#+end_src
+
+* Search for Violations
+
+Search the codebase for boolean parameters:
+
+#+begin_src bash :results verbatim
+rg 'fn \w+\([^)]*: bool' crates/bits-app/src --type rust
+#+end_src
+
+* Tasks
+
+- [ ] Search codebase for =fn.*: bool= patterns
+- [ ] Fix =auth()= function signature in auth.rs:252
+- [ ] Document any additional boolean parameters found
+- [ ] Replace each with descriptive enum
+- [ ] Update all call sites
+- [ ] Run =cargo check= and =cargo test=
+
+* Success Criteria
+
+- [ ] No functions accept boolean parameters
+- [ ] All call sites use descriptive enums
+- [ ] =cargo check= passes
+- [ ] =cargo test= passes (all tests including e2e)
+- [ ] Code follows CLAUDE.md guidelines
+
+* Notes
+
+- Focus on production code first (=bits-app= crate)
+- Test utilities in =bits-e2e= are lower priority
+- When creating enums, use present-tense names (=CspMode::Strict= not =CspMode::IsStrict=)
+- Consider using =#[must_use]= on enum types where appropriate

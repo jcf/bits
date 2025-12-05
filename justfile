@@ -103,6 +103,61 @@ prompt +title:
     EOF
     echo "💭 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
 
+# Execute a prompt in a new Claude Code session
+[group('docs')]
+execute name:
+    #!/usr/bin/env zsh
+    setopt NULL_GLOB
+    set -e
+
+    # Find the prompt file (NULL_GLOB prevents error on no match)
+    matches=(.claude/prompts/*{{ name }}*.org(N))
+
+    if (( ${#matches[@]} == 0 )); then
+        echo >&2 "No prompt found matching '{{ name }}'"
+        echo >&2
+        echo >&2 "Available prompts:"
+        echo >&2
+        ls -1 .claude/prompts/*.org | xargs -n1 basename
+        echo >&2
+        exit 1
+    fi
+
+    # Use the most recent match if multiple
+    prompt_file="${matches[-1]}"
+
+    # Extract title from the org file
+    title=$(grep '^#+title:' "$prompt_file" | sed 's/#+title: *//')
+
+    echo >&2 "{{ BOLD }}Executing {{ YELLOW }}\"${title}\"...{{ NORMAL }}"
+
+    # Build the prompt message
+    message="
+    # $title
+
+    Please read the prompt document at '$prompt_file' and execute the plan
+
+    ## Process
+
+    1. Read the prompt - Understand goals and success criteria
+    2. Consider improvements - Better approaches? Edge cases?
+    3. Derisk assumptions - What could go wrong?
+    4. Formulate a plan - Concrete steps with checkpoints
+    5. Present the plan - Show your approach before executing
+    6. Execute - Implement changes systematically
+    7. Verify - Run tests to confirm success
+
+    ## Important
+
+    - Follow all guidelines in CLAUDE.md
+    - Run tests after changes
+    - Keep commits focused
+
+    Ready to begin?"
+
+    # Start Claude Code with the message
+    exec claude "$message"
+
 # ------------------------------------------------------------------------------
 # Serve
 

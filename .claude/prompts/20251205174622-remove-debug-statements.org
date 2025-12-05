@@ -1,0 +1,174 @@
+#+title:    Remove Debug Statements
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Overview
+
+Remove =eprintln!= debug statements from production code and replace with proper =tracing= instrumentation. Debug prints pollute stderr and don't integrate with our logging infrastructure.
+
+**Dependencies:** None - can start immediately
+
+**Priority:** MEDIUM - Cleanup and observability improvement
+
+* Problem
+
+The codebase contains =eprintln!= statements in production code paths:
+
+** auth.rs:405-442 - invalidate_other_sessions()
+
+#+begin_src rust
+eprintln!(
+    "[invalidate_other_sessions] user_id={} current_session_id={} total_sessions={}",
+    user_id,
+    current_session_id,
+    count_before.unwrap_or(0)
+);
+
+// ... more eprintln! calls
+#+end_src
+
+** auth.rs:556-566 - change_password()
+
+#+begin_src rust
+eprintln!(
+    "[change_password] user_id={} session_id={}",
+    user.id, session_id
+);
+
+// ...
+
+eprintln!("[change_password] Cleared user {} from auth cache", user.id);
+#+end_src
+
+These statements:
+- Don't respect log levels
+- Can't be filtered or aggregated
+- Don't integrate with structured logging
+- Mix with actual errors on stderr
+
+* Solution: Use tracing Macros
+
+Replace =eprintln!= with appropriate =tracing= macros:
+
+** For debugging information:
+#+begin_src rust
+tracing::debug!(
+    user_id = user_id,
+    session_id = %session_id,
+    "Starting password change"
+);
+#+end_src
+
+** For important operational info:
+#+begin_src rust
+tracing::info!(
+    user_id = user_id,
+    sessions_deleted = result.rows_affected(),
+    "Invalidated other sessions"
+);
+#+end_src
+
+** For warnings:
+#+begin_src rust
+tracing::warn!(
+    user_id = user_id,
+    "No other sessions found to invalidate"
+);
+#+end_src
+
+* Specific Fixes
+
+** auth.rs:405-442 (invalidate_other_sessions)
+
+Replace the =eprintln!= statements:
+
+#+begin_src rust
+// BEFORE:
+eprintln!(
+    "[invalidate_other_sessions] user_id={} current_session_id={} total_sessions={}",
+    user_id,
+    current_session_id,
+    count_before.unwrap_or(0)
+);
+
+// AFTER:
+tracing::debug!(
+    user_id = user_id,
+    current_session_id = %current_session_id,
+    total_sessions = count_before,
+    "Invalidating other sessions"
+);
+#+end_src
+
+Note: This already has some =tracing::info!= calls alongside the =eprintln!= - remove the duplicates.
+
+** auth.rs:556-566 (change_password)
+
+#+begin_src rust
+// BEFORE:
+eprintln!(
+    "[change_password] user_id={} session_id={}",
+    user.id, session_id
+);
+
+// AFTER:
+tracing::debug!(
+    user_id = user.id,
+    session_id = %session_id,
+    "Processing password change"
+);
+#+end_src
+
+* Tracing Best Practices
+
+** Structured fields:
+- Use =field = value= syntax for structured logging
+- Use =%field= for Display formatting
+- Use =?field= for Debug formatting
+- Keep field names consistent across log statements
+
+** Appropriate levels:
+- =trace!= - Very detailed, rarely needed
+- =debug!= - Detailed info for debugging (default off in production)
+- =info!= - Normal operational messages
+- =warn!= - Warning conditions that should be reviewed
+- =error!= - Error conditions that require attention
+
+** Message conventions:
+- Use present tense for what's happening
+- Keep messages concise and searchable
+- Put variable data in fields, not message text
+
+* Search for Violations
+
+Find all =eprintln!= in production code:
+
+#+begin_src bash :results verbatim
+rg 'eprintln!' crates/bits-app/src --type rust
+#+end_src
+
+* Tasks
+
+- [ ] Find all =eprintln!= statements in bits-app
+- [ ] Categorize each by appropriate log level
+- [ ] Replace with =tracing= macros
+- [ ] Remove duplicate logging (eprintln + tracing)
+- [ ] Test log output with =RUST_LOG=debug=
+- [ ] Run =cargo check= and =cargo test=
+
+* Success Criteria
+
+- [ ] No =eprintln!= in bits-app/src production code
+- [ ] All logging uses =tracing= macros
+- [ ] Log levels are appropriate
+- [ ] Structured fields are used consistently
+- [ ] =cargo check= passes
+- [ ] =cargo test= passes
+- [ ] Log output is readable with =RUST_LOG=info,bits_app=debug=
+
+* Notes
+
+- It's OK to keep =eprintln!= in test code (bits-e2e)
+- The tracing configuration is in =server.rs:25-46=
+- Current filter defaults to =info= level, with =debug= for bits_* crates
+- Consider adding span instrumentation to key functions for distributed tracing

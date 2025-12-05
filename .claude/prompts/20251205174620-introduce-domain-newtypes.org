@@ -1,0 +1,207 @@
+#+title:    Introduce Domain Newtypes
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Overview
+
+Introduce newtype wrappers for domain concepts to leverage the type system and prevent bugs. Currently, IDs and email addresses are represented as primitive types (=i64=, =String=) which allows mixing them incorrectly.
+
+**Dependencies:** None - can start immediately
+
+**Priority:** MEDIUM - Improves type safety and developer experience
+
+* Problem
+
+The codebase uses primitive types for domain concepts:
+
+- User IDs: =i64=
+- Email address IDs: =i64=
+- Tenant IDs: =i64=
+- Email addresses: =String=
+
+This allows bugs like:
+- Passing a =user_id= where =email_address_id= is expected
+- Passing raw strings that haven't been validated as emails
+- No clear indication of what an =i64= parameter represents
+
+* Proposed Newtypes
+
+** Email Address
+
+Create a validated email newtype in =bits-app/src/email.rs=:
+
+#+begin_src rust
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct Email(String);
+
+#[derive(Debug, thiserror::Error)]
+pub enum EmailError {
+    #[error("Invalid email format")]
+    InvalidFormat,
+    #[error("Email too long (max 254 characters)")]
+    TooLong,
+}
+
+impl Email {
+    /// Create a new validated email address
+    pub fn new(s: impl Into<String>) -> Result<Self, EmailError> {
+        let s = s.into().trim().to_lowercase();
+
+        if s.len() > 254 {
+            return Err(EmailError::TooLong);
+        }
+
+        // Basic validation (consider using email_address crate for production)
+        if !s.contains('@') || !s.contains('.') {
+            return Err(EmailError::InvalidFormat);
+        }
+
+        Ok(Email(s))
+    }
+
+    /// Create from trusted source without validation
+    pub fn from_trusted(s: String) -> Self {
+        Email(s)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for Email {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for Email {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+#+end_src
+
+** ID Newtypes
+
+Create ID types in =bits-app/src/id.rs=:
+
+#+begin_src rust
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+macro_rules! define_id {
+    ($name:ident) => {
+        #[derive(
+            Clone,
+            Copy,
+            Debug,
+            PartialEq,
+            Eq,
+            Hash,
+            PartialOrd,
+            Ord,
+            Serialize,
+            Deserialize,
+        )]
+        pub struct $name(i64);
+
+        impl $name {
+            pub fn new(id: i64) -> Self {
+                Self(id)
+            }
+
+            pub fn get(&self) -> i64 {
+                self.0
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+
+        impl From<i64> for $name {
+            fn from(id: i64) -> Self {
+                Self(id)
+            }
+        }
+
+        impl From<$name> for i64 {
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+    };
+}
+
+define_id!(UserId);
+define_id!(EmailAddressId);
+define_id!(TenantId);
+#+end_src
+
+* Migration Strategy
+
+** Phase 1: Create Types
+- [ ] Create =bits-app/src/email.rs= with =Email= type
+- [ ] Create =bits-app/src/id.rs= with ID types
+- [ ] Add modules to =bits-app/src/lib.rs=
+- [ ] Export types from lib.rs
+
+** Phase 2: Update Core Types
+- [ ] Update =User= struct in auth.rs to use =UserId=
+- [ ] Update function signatures in auth.rs
+- [ ] Update fixtures.rs types
+
+** Phase 3: Update Database Layer
+- [ ] Update sqlx queries to work with newtypes
+- [ ] Consider using sqlx =Type= derive for automatic conversion
+- [ ] Update all =query!= and =query_as!= calls
+
+** Phase 4: Update Forms
+- [ ] Update =AuthForm= and =JoinForm= to validate emails
+- [ ] Update server functions to accept =Email= type
+- [ ] Add validation at form submission boundaries
+
+* Example Conversions
+
+** Before:
+#+begin_src rust
+async fn get_user(db: &PgPool, user_id: i64) -> Result<User> { /* ... */ }
+
+let email = "user@example.com";
+let user = create_user(db, email, &password_hash).await?;
+#+end_src
+
+** After:
+#+begin_src rust
+async fn get_user(db: &PgPool, user_id: UserId) -> Result<User> { /* ... */ }
+
+let email = Email::new("user@example.com")?;
+let user = create_user(db, &email, &password_hash).await?;
+#+end_src
+
+* Success Criteria
+
+- [ ] =Email= type created with validation
+- [ ] =UserId=, =EmailAddressId=, =TenantId= types created
+- [ ] At least 3 functions converted to use newtypes
+- [ ] =cargo check= passes
+- [ ] =cargo test= passes
+- [ ] No mixing of ID types possible
+
+* Notes
+
+- Start with high-value areas (auth.rs, fixtures.rs)
+- Don't try to convert everything at once
+- Consider using =email_address= crate for production-grade validation
+- SQLx supports custom types via =Type= derive
+- Mark newtypes as =#[repr(transparent)]= for zero-cost abstraction
