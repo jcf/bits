@@ -11,13 +11,13 @@ path = "src/bin/seed.rs"
 
 [features]
 default = ["server"]
-server = ["bits-solo/server", "bits-colo/server", "bits-app/colo"]
+server = ["bits-solo/server", "bits-colo/server"]
 
 [dependencies]
 bits-app.workspace = true
 bits-db.workspace = true
-bits-solo.workspace = true
 bits-colo.workspace = true
+bits-solo.workspace = true
 anyhow.workspace = true
 argon2 = "0.5.3"
 axum = "0.8"

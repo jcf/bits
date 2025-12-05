@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use async_trait::async_trait;
 use axum_session::{DatabaseError, DatabasePool, Session, SessionStore};
 use chrono::Utc;

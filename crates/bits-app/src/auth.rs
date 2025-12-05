@@ -380,7 +380,7 @@ async fn invalidate_other_sessions(
     Ok(())
 }
 
-#[post("/api/users", state: Extension<crate::AppState>)]
+#[post("/api/users", auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthError> {
     #[cfg(feature = "server")]
     {
@@ -390,12 +390,16 @@ pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthErr
             Ok(user_id) => {
                 crate::metrics::record_auth_event("register", true);
 
+                // Log user in after successful registration
+                auth.session.renew();
+                auth.login_user(user_id);
+
                 // Generate verification code for new user
                 match get_email_address_id(&state.db, user_id).await {
                     Ok(email_address_id) => {
                         match state
                             .email_verification
-                            .create_code(&state.db, email_address_id)
+                            .create_code(&state.argon2, &state.db, email_address_id)
                             .await
                         {
                             Ok(code) => {
@@ -541,7 +545,7 @@ pub async fn verify_email_code(
         // Verify the code
         state
             .email_verification
-            .verify_code(&state.db, email_address_id, &form.0.code)
+            .verify_code(&state.argon2, &state.db, email_address_id, &form.0.code)
             .await
             .map_err(|e| match e {
                 crate::verification::VerificationError::InvalidCode => {
@@ -609,7 +613,7 @@ pub async fn resend_verification_code(
         // Get or create code (same code if still valid)
         let code = state
             .email_verification
-            .create_code(&state.db, email_address_id)
+            .create_code(&state.argon2, &state.db, email_address_id)
             .await
             .map_err(|e| AuthError::Internal(e.to_string()))?;
 

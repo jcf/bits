@@ -1,7 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/bits-app", "crates/bits-axum-session-sqlx",
+    "crates/bits-app",
+    "crates/bits-axum-session-sqlx",
     "crates/bits-colo",
     "crates/bits-db",
     "crates/bits-domain",
@@ -20,8 +21,8 @@ bits-axum-session-sqlx = { path = "crates/bits-axum-session-sqlx" }
 bits-domain = { path = "crates/bits-domain" }
 bits-db = { path = "crates/bits-db" }
 bits-app = { path = "crates/bits-app" }
-bits-solo = { path = "crates/bits-solo" }
 bits-colo = { path = "crates/bits-colo" }
+bits-solo = { path = "crates/bits-solo" }
 bits-tailwind-merge = { path = "crates/bits-tailwind-merge" }
 
 anyhow = "1"

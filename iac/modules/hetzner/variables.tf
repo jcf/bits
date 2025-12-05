@@ -79,3 +79,8 @@ variable "r2_bucket_prefix" {
   description = "Prefix for R2 bucket names"
   type        = string
 }
+
+variable "nixos_snapshot_name" {
+  description = "NixOS snapshot name to use for server image (e.g., nixos-25.05-b00d3cd)"
+  type        = string
+}

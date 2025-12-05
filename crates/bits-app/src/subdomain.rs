@@ -22,9 +22,13 @@ impl SubdomainStatus {
             Self::Available => "subdomain-available",
             Self::Invalid(HandleError::TooShort { .. }) => "subdomain-invalid-too-short",
             Self::Invalid(HandleError::TooLong { .. }) => "subdomain-invalid-too-long",
-            Self::Invalid(HandleError::MustStartWithLetter) => "subdomain-invalid-must-start-letter",
+            Self::Invalid(HandleError::MustStartWithLetter) => {
+                "subdomain-invalid-must-start-letter"
+            }
             Self::Invalid(HandleError::CannotEndWithHyphen) => "subdomain-invalid-hyphen-end",
-            Self::Invalid(HandleError::ConsecutiveHyphens) => "subdomain-invalid-consecutive-hyphens",
+            Self::Invalid(HandleError::ConsecutiveHyphens) => {
+                "subdomain-invalid-consecutive-hyphens"
+            }
             Self::Invalid(HandleError::InvalidCharacter(..)) => "subdomain-invalid-characters",
             Self::Invalid(HandleError::Reserved(_)) => "subdomain-reserved",
             Self::Reserved => "subdomain-reserved",

@@ -1,10 +1,10 @@
 [application]
-name = "bits-colo"
+name = "bits"
 default_platform = "web"
 
 # Disable Dioxus' built-in Tailwind support
 tailwind_input = "please-do-not-exist.css"
-tailwind_output = "/tmp/bits-colo.css"
+tailwind_output = "/tmp/bits.css"
 
 [web.app]
 title = "Bits"

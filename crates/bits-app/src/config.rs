@@ -79,12 +79,6 @@ pub struct Config {
     #[serde(default = "default_argon2_p_cost")]
     pub argon2_p_cost: u32,
 
-    /// Master key for encryption and HMAC operations (base64-encoded 64-byte key)
-    /// REQUIRED: Must be set via MASTER_KEY environment variable
-    #[cfg(not(target_arch = "wasm32"))]
-    #[arg(long, env = "MASTER_KEY")]
-    pub master_key: String,
-
     #[arg(short, long, env = "PORT", default_value = "3000")]
     #[serde(default = "default_port")]
     pub port: u16,

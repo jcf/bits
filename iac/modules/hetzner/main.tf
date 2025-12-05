@@ -1,15 +1,17 @@
+# Look up the NixOS snapshot by name
+data "hcloud_image" "nixos" {
+  with_selector = "name=${var.nixos_snapshot_name}"
+  most_recent   = true
+}
+
 resource "hcloud_server" "main" {
   name        = var.server_name
   server_type = var.server_type
   location    = var.location
-  image       = "ubuntu-24.04"
+  image       = data.hcloud_image.nixos.id
 
-  user_data = templatefile("${path.module}/cloud-init.yml.tftpl", {
-    tailscale_authkey = var.tailscale_authkey
-    tunnel_token      = var.cloudflare_tunnel_token
-    server_name       = var.server_name
-    ssh_keys          = yamlencode(var.ssh_keys)
-  })
+  # NixOS configuration is baked into the snapshot
+  # No cloud-init needed - systemd services start automatically
 
   public_net {
     ipv4_enabled = true

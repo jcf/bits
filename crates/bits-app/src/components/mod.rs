@@ -1,6 +1,8 @@
+pub mod alert;
 pub mod avatar;
 pub mod button;
 pub mod category_item;
+pub mod feature_card;
 pub mod footer;
 pub mod header;
 pub mod icons;
@@ -9,14 +11,16 @@ pub mod navigation_popover;
 pub mod sign_out_button;
 pub mod sign_out_link;
 
+pub use alert::{Alert, AlertVariant};
 pub use avatar::Avatar;
 pub use button::{Button, ButtonLink, ButtonSize, ButtonVariant, Spinner};
 pub use category_item::{CategoryItem, MobileCategoryItem};
+pub use feature_card::FeatureCard;
 pub use footer::Footer;
 pub use header::Header;
 pub use icons::{
-    ChatBubbleIcon, EmailIcon, ExclamationTriangleIcon, GitHubIcon, InstagramIcon, MastodonIcon,
-    PlayIcon, ShoppingBagIcon,
+    ChatBubbleIcon, CheckCircleIcon, EmailIcon, ExclamationTriangleIcon, GitHubIcon, InstagramIcon,
+    MastodonIcon, PlayIcon, ShoppingBagIcon, XCircleIcon,
 };
 pub use input::Input;
 pub use navigation_popover::NavigationPopover;

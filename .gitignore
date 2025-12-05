@@ -22,9 +22,11 @@
 /certs/
 /creators/data/
 /dist
-/iac/images/hcloud-packer/
+/iac/platform/terraform.auto.tfvars
+/result
 /target
 node_modules/
 override.tf
 override.tf.json
 terraform.rc
+/.cargo/

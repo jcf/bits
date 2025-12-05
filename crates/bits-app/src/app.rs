@@ -12,7 +12,6 @@ pub struct AppState {
     pub config: std::sync::Arc<crate::Config>,
     pub db: sqlx::PgPool,
     pub argon2: argon2::Argon2<'static>,
-    pub crypto: crate::crypto::EncryptionService,
     pub email_verification: crate::verification::EmailVerificationService,
     pub metrics_handle: metrics_exporter_prometheus::PrometheusHandle,
     pub session_store:
@@ -26,7 +25,6 @@ impl std::fmt::Debug for AppState {
             .field("config", &self.config)
             .field("db", &self.db)
             .field("argon2", &self.argon2)
-            .field("crypto", &self.crypto)
             .field("email_verification", &"<EmailVerificationService>")
             .field("metrics_handle", &"<PrometheusHandle>")
             .field("session_store", &"<SessionStore>")
@@ -57,13 +55,8 @@ impl AppState {
             argon2_params,
         );
 
-        // Initialize encryption service from master key
-        let crypto = crate::crypto::EncryptionService::new(&config.master_key)
-            .map_err(|e| anyhow::anyhow!("Failed to initialize encryption service: {}", e))?;
-
         // Initialize email verification service
         let email_verification = crate::verification::EmailVerificationService::new(
-            crypto.clone(),
             crate::verification::EmailVerificationConfig::default(),
         );
 
@@ -88,7 +81,6 @@ impl AppState {
             config: std::sync::Arc::new(config),
             db,
             argon2,
-            crypto,
             email_verification,
             metrics_handle,
             session_store: std::sync::Arc::new(tokio::sync::Mutex::new(session_store)),

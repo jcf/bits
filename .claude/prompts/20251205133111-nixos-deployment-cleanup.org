@@ -1,0 +1,135 @@
+#+title:    NixOS deployment cleanup
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Context
+
+We've migrated from Docker to NixOS-native deployments. The system works but file
+organization is messy:
+
+- Nix files mixed in =iac/= (should be Terraform only)
+- Old Docker files still present
+- Unused Packer template dependencies
+- Root =.dockerignore= (don't need safety net)
+
+* Current State
+
+** What We Built
+
+1. Renamed =bits-colo= → =bits= (package, binary, all references)
+2. Created =flake.nix= - builds Rust, NixOS module, configurations
+3. Created =build-snapshot.nix= - Packer integration (flake-based)
+4. Created =secrets/secrets.nix= - ragenix configuration
+5. Updated Terraform to use NixOS snapshots
+6. Deployment workflow: =just nixos-{build,snapshot,deploy,rollback}=
+7. Documentation: =docs/deployment.org=
+
+** Known Issues
+
+*** macOS Build Failing
+
+Build fails with =darwin.apple_sdk_11_0= error despite correct API usage.
+
+Workaround (not blocking):
+
+#+begin_src sh
+nix build .#packages.x86_64-linux.bits
+#+end_src
+
+* Cleanup Tasks
+
+** 1. Move Nix Files to =nix/=
+
+Move from =iac/images/= to proper =nix/= directory:
+
+#+begin_src sh
+mkdir -p nix/nixos nix/images
+
+git mv iac/images/nixos-config/configuration.nix nix/nixos/
+git mv iac/images/nixos-config/hcloud.nix nix/nixos/
+git mv iac/images/build-snapshot.nix nix/images/
+
+rmdir iac/images/nixos-config
+rmdir iac/images
+#+end_src
+
+** 2. Remove Docker Artifacts
+
+#+begin_src sh
+git rm deploy/Dockerfile
+git rm deploy/.dockerignore
+[[ -f deploy/README.org ]] && git rm deploy/README.org
+rmdir deploy
+
+rm .dockerignore
+#+end_src
+
+** 3. Remove Unused Packer Dependency
+
+Delete =just _clone-packer= task from justfile (we generate our own Packer HCL).
+
+Remove from =.gitignore=:
+- =/iac/images/hcloud-packer/=
+
+** 4. Update File References
+
+*** flake.nix
+
+#+begin_src diff
+- ./iac/images/nixos-config/configuration.nix
++ ./nix/nixos/configuration.nix
+#+end_src
+
+*** justfile
+
+#+begin_src diff
+- nix-build iac/images/build-snapshot.nix
++ nix-build nix/images/build-snapshot.nix
+#+end_src
+
+*** docs/deployment.org
+
+Update any path references.
+
+* Final Structure
+
+#+begin_example
+bits/
+├── flake.nix
+├── secrets/secrets.nix
+├── nix/                    # All Nix files
+│   ├── nixos/
+│   │   ├── configuration.nix
+│   │   └── hcloud.nix
+│   └── images/
+│       └── build-snapshot.nix
+├── iac/                    # Pure Terraform
+│   ├── dns/
+│   ├── modules/
+│   ├── platform/
+│   └── postmark/
+└── crates/bits/
+#+end_example
+
+* Testing After Cleanup
+
+#+begin_src sh
+# Verify flake
+nix flake show
+nix build .#bits
+
+# Verify snapshot
+export HCLOUD_TOKEN="token"
+just snapshot-build "nixos-25.05-test"
+
+# Verify deployment
+just nixos-deploy
+#+end_src
+
+* Next Steps
+
+1. Test Packer snapshot on Hetzner
+2. Create secrets with ragenix
+3. First deployment
+4. Health monitoring
+5. Snapshot cleanup automation

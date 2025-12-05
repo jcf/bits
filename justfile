@@ -286,41 +286,35 @@ import dir *args:
 output dir *args:
     @just _terraform {{ dir }} output {{ args }}
 
-# Clone hcloud-packer-templates
+# Build NixOS image snapshot from flake
 [group('infra')]
-_clone-packer:
+snapshot-build snapshot_name="":
     #!/usr/bin/env bash
     set -e
-    packer_dir="{{ justfile_directory() }}/iac/images/hcloud-packer"
-    if [[ ! -d "$packer_dir" ]]; then
-        git clone https://github.com/jktr/hcloud-packer-templates "$packer_dir"
-        echo "✅ Cloned hcloud-packer-templates"
+
+    # Generate snapshot name if not provided
+    if [[ -z "{{ snapshot_name }}" ]]; then
+        snapshot_name="test-$(date +%Y%m%d-%H%M%S)"
     else
-        echo "ℹ️  hcloud-packer-templates already exists"
+        snapshot_name="{{ snapshot_name }}"
     fi
 
-# Build NixOS image snapshot
-[group('infra')]
-snapshot-build:
-    #!/usr/bin/env bash
-    set -e
+    echo "Building NixOS snapshot: ${snapshot_name}"
+    echo "This will use the flake-based NixOS configuration from .#nixosConfigurations.bits-prod"
 
-    # Ensure packer templates exist
-    just _clone-packer
+    # Build the Packer script from our Nix expression
+    op run -- nix-build nix/images/build-snapshot.nix \
+      --arg hcloud-token "\"$HCLOUD_TOKEN\"" \
+      --arg snapshot-name "\"${snapshot_name}\"" \
+      --arg snapshot-description "\"NixOS 25.05 snapshot for Bits platform\"" \
+      --arg server-type "\"cx23\"" \
+      --arg server-location "\"nbg1\""
 
-    cd iac/images/hcloud-packer/nixos
+    # Execute the Packer build
+    op run -- ./result/bin/build-snapshot
 
-    # Build the Packer configuration with nix-build
-    nix-build \
-      --arg hcloud-token "$HCLOUD_TOKEN" \
-      --arg snapshot-name "nixos-25.05-$(date +%Y%m%d)" \
-      --arg snapshot-description "NixOS 25.05 base image for Bits" \
-      --arg nix-config-path "$(realpath ../../nixos-config)" \
-      --arg server-type "cax31" \
-      --arg server-location "nbg1"
-
-    # Execute the generated build script
-    ./result/bin/build-snapshot
+    # Print snapshot name for scripting
+    echo "${snapshot_name}"
 
 # List NixOS image snapshots
 [group('infra')]
@@ -335,80 +329,84 @@ snapshot-delete name:
 # ------------------------------------------------------------------------------
 # Deploy
 
-# Build container image
+# Build Rust binary with Nix
 [group('deploy')]
-image-build:
-    docker build -t bits-platform:latest -f deploy/Dockerfile .
+nixos-build:
+    nix build .#bits --print-build-logs
 
-# Push container to GitHub Container Registry
+# Build NixOS snapshot with baked-in application
 [group('deploy')]
-image-push:
+nixos-snapshot:
     #!/usr/bin/env zsh
     set -e
-    gh auth token | docker login ghcr.io -u jcf --password-stdin
-    docker tag bits-platform:latest ghcr.io/jcf/bits-platform:latest
-    docker push ghcr.io/jcf/bits-platform:latest
-    echo "✅ Pushed ghcr.io/jcf/bits-platform:latest"
+    sha=$(git rev-parse --short HEAD)
+    snapshot_name="nixos-25.05-${sha}"
 
-# Deploy to production
+    echo "📦 Building NixOS snapshot with Bits application..."
+    echo "Git SHA: ${sha}"
+    echo "Snapshot: ${snapshot_name}"
+    echo ""
+
+    # Build and create snapshot via Packer
+    just snapshot-build "${snapshot_name}"
+
+    # Update Terraform variable
+    echo "nixos_snapshot_name = \"${snapshot_name}\"" > iac/platform/terraform.auto.tfvars
+    echo ""
+    echo "✅ Built snapshot: ${snapshot_name}"
+    echo "ℹ️  Next: Review with 'just plan platform', then deploy with 'just apply platform'"
+
+# Deploy NixOS snapshot to production (blue/green deployment)
 [group('deploy')]
-deploy-prod:
-    #!/usr/bin/env zsh
-    set -e
-
-    echo "🚀 Deploying to bits-prod..."
-
-    # Get database URLs from Terraform
-    db_url=$(just output platform -raw neon_connection_url)
-    direct_db_url=$(just output platform -raw neon_direct_url)
-
-    # Run migrations
-    echo "📊 Running migrations..."
-    tailscale ssh bits@bits-prod "DATABASE_URL=$direct_db_url sqlx migrate run"
-
-    # Pull latest image
-    echo "📦 Pulling latest image..."
-    tailscale ssh bits@bits-prod "docker pull ghcr.io/jcf/bits-platform:latest"
-
-    # Stop old container
-    echo "🛑 Stopping old container..."
-    tailscale ssh bits@bits-prod "docker stop bits-app || true"
-    tailscale ssh bits@bits-prod "docker rm bits-app || true"
-
-    # Start new container
-    echo "▶️  Starting new container..."
-    tailscale ssh bits@bits-prod "docker run -d \
-      --name bits-app \
-      --restart unless-stopped \
-      -p 8080:8080 \
-      -e DATABASE_URL=$db_url \
-      -e PLATFORM_DOMAIN=bits.page \
-      ghcr.io/jcf/bits-platform:latest"
-
-    # Health check
-    echo "🏥 Checking health..."
-    sleep 3
-    tailscale ssh bits@bits-prod "curl -f http://localhost:8080/metrics" && \
-      echo "✅ Deployment successful!" || \
-      echo "❌ Health check failed!"
-
-# Rollback to previous deployment
-[group('deploy')]
-rollback-prod:
+nixos-deploy:
     #!/usr/bin/env zsh
     set -e
 
-    echo "⏪ Rolling back bits-prod..."
+    echo "🚀 Starting NixOS deployment..."
 
-    # Stop current container
-    tailscale ssh bits@bits-prod "docker stop bits-app"
-    tailscale ssh bits@bits-prod "docker rm bits-app"
+    # Build snapshot (updates terraform.auto.tfvars)
+    just nixos-snapshot
 
-    # Start previous image (assuming tagged with previous)
-    tailscale ssh bits@bits-prod "docker run -d \
-      --name bits-app \
-      --restart unless-stopped \
-      -p 8080:8080 \
-      ghcr.io/jcf/bits-platform:previous"
+    # Plan changes
+    echo ""
+    echo "📋 Planning Terraform changes..."
+    just plan platform
 
-    echo "✅ Rollback complete"
+    # Confirm deployment
+    echo ""
+    echo -n "{{ BOLD }}Deploy to production? This will create a new server from the snapshot. (y/N): {{ NORMAL }}"
+    read confirm
+
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        just apply platform
+        echo "✅ Deployment complete!"
+        echo "ℹ️  New server is running. Old server will be automatically destroyed."
+    else
+        echo "❌ Deployment cancelled"
+        exit 1
+    fi
+
+# Rollback to previous NixOS snapshot
+[group('deploy')]
+nixos-rollback snapshot_name:
+    #!/usr/bin/env zsh
+    set -e
+
+    echo "⏪ Rolling back to snapshot: {{ snapshot_name }}"
+
+    # Update Terraform variable
+    echo "nixos_snapshot_name = \"{{ snapshot_name }}\"" > iac/platform/terraform.auto.tfvars
+
+    # Plan and apply
+    just plan platform
+    echo ""
+    echo -n "{{ BOLD }}Confirm rollback? (y/N): {{ NORMAL }}"
+    read confirm
+
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        just apply platform
+        echo "✅ Rollback complete!"
+    else
+        echo "❌ Rollback cancelled"
+        exit 1
+    fi

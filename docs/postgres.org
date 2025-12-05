@@ -1,0 +1,35 @@
+:properties:
+:header-args:sql:  :engine     postgresql
+:header-args:sql+: :dbhost     "localhost"
+:header-args:sql+: :database   "bits_dev"
+:header-args:sql+: :dbuser     "bits"
+:header-args:sql+: :dbpassword "please"
+:end:
+#+title:    PostgreSQL
+#+startup:  content
+#+property: header-args :dir ..
+
+* Users
+#+begin_src sql
+select
+  u.id as user_id,
+  e.address,
+  e.valid_from,
+  e.valid_to,
+  u.created_at
+from users u
+join email_addresses e on e.user_id = u.id;
+#+end_src
+
+#+results:
+| user_id | address              | valid_from                    | valid_to | created_at                    |
+|---------+----------------------+-------------------------------+----------+-------------------------------|
+|       1 | james@invetica.co.uk | 2025-11-30 18:18:14.293059+00 | infinity | 2025-11-30 18:18:14.293059+00 |
+
+#+begin_src sql :eval query
+delete from users where id > 1;
+#+end_src
+
+#+results:
+| DELETE 0 |
+|----------|

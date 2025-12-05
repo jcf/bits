@@ -178,7 +178,6 @@ pub fn config() -> Result<bits_app::config::Config> {
             argon2_m_cost: 19456, // Use lower memory cost for faster tests (19 MiB)
             argon2_t_cost: 2,     // Use lower time cost for faster tests
             argon2_p_cost: 1,     // Single thread for simpler test environment
-            master_key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string(), // Test key (64 bytes)
             port: 0,
             session_name: "b".to_string(),
             platform_domain: None,

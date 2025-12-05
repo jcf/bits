@@ -11,3 +11,8 @@ variable "tailscale_authkey" {
   type        = string
   sensitive   = true
 }
+
+variable "nixos_snapshot_name" {
+  description = "NixOS snapshot name to deploy (e.g., nixos-25.05-b00d3cd)"
+  type        = string
+}

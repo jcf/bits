@@ -39,4 +39,5 @@ module "hetzner" {
   cloudflare_tunnel_token  = module.tunnel.tunnel_token
   cloudflare_account_id    = local.cloudflare_account_id
   r2_bucket_prefix         = "bits-${terraform.workspace}"
+  nixos_snapshot_name      = var.nixos_snapshot_name
 }

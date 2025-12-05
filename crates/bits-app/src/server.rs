@@ -32,6 +32,7 @@ pub fn init_tracing() {
                 "bits_app=debug",
                 "bits_colo=debug",
                 "bits_solo=debug",
+                "dioxus_server::server=warn",
                 "sqlx=warn",
             ];
             EnvFilter::new(filters.join(","))
@@ -67,6 +68,22 @@ pub async fn setup_session_store(
     let session_store =
         SessionStore::<SessionPgPool>::new(Some(state.db.clone().into()), session_config).await?;
     Ok(session_store)
+}
+
+/// Health check endpoint for monitoring and systemd checks
+/// Verifies database connectivity without authentication
+async fn healthz_handler(Extension(state): Extension<AppState>) -> Response {
+    match sqlx::query("select 1").fetch_one(&state.db).await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => {
+            tracing::error!("Health check failed: {}", e);
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Database connection failed",
+            )
+                .into_response()
+        }
+    }
 }
 
 /// Metrics endpoint handler with optional bearer token authentication
@@ -124,7 +141,8 @@ pub async fn build_router(
     #[allow(unused_mut)]
     let mut router = dioxus::server::router(app);
 
-    // Add metrics endpoint
+    // Add health check and metrics endpoints
+    router = router.route("/healthz", axum::routing::get(healthz_handler));
     router = router.route("/metrics", axum::routing::get(metrics_handler));
 
     #[cfg(feature = "colo")]

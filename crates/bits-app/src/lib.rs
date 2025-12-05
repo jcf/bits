@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 // Module declarations
 pub mod app;
 pub mod auth;
@@ -9,8 +11,6 @@ pub mod pages;
 pub mod subdomain;
 pub mod tenant;
 
-#[cfg(feature = "server")]
-pub mod crypto;
 #[cfg(feature = "server")]
 pub mod csrf;
 pub mod demos;

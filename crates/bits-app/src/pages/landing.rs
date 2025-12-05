@@ -1,3 +1,4 @@
+use crate::components::{Alert, AlertVariant, FeatureCard};
 use crate::i18n::use_translation;
 use crate::subdomain::{check_subdomain, SubdomainStatus};
 use dioxus::prelude::*;
@@ -67,17 +68,21 @@ pub fn Landing() -> Element {
                                 }
                                 if checking() {
                                     svg {
-                                        view_box: "0 0 20 20",
+                                        view_box: "0 0 24 24",
                                         fill: "none",
                                         class: "pointer-events-none col-start-1 row-start-1 mr-3 size-5 self-center justify-self-end text-gray-400 animate-spin",
                                         circle {
-                                            cx: "10",
-                                            cy: "10",
-                                            r: "8",
+                                            class: "opacity-25",
+                                            cx: "12",
+                                            cy: "12",
+                                            r: "10",
                                             stroke: "currentColor",
-                                            "stroke-width": "2",
-                                            "stroke-dasharray": "50",
-                                            "stroke-dashoffset": "25",
+                                            "stroke-width": "4",
+                                        }
+                                        path {
+                                            class: "opacity-75",
+                                            fill: "currentColor",
+                                            d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z",
                                         }
                                     }
                                 }
@@ -91,52 +96,13 @@ pub fn Landing() -> Element {
                         if let Some(ref s) = status() {
                             {
                                 let msg = t.t(s.translation_key());
-                                if s.is_available() {
-                                    rsx! {
-                                        div { class: "alert-animate rounded-md bg-green-50 p-4",
-                                            div { class: "flex",
-                                                div { class: "shrink-0",
-                                                    svg {
-                                                        view_box: "0 0 20 20",
-                                                        fill: "currentColor",
-                                                        "aria-hidden": "true",
-                                                        class: "size-5 text-green-400",
-                                                        path {
-                                                            d: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z",
-                                                            "clip-rule": "evenodd",
-                                                            "fill-rule": "evenodd",
-                                                        }
-                                                    }
-                                                }
-                                                div { class: "ml-3",
-                                                    p { class: "text-sm font-medium text-green-800", "{msg}" }
-                                                }
-                                            }
-                                        }
-                                    }
+                                let variant = if s.is_available() {
+                                    AlertVariant::Success
                                 } else {
-                                    rsx! {
-                                        div { class: "alert-animate border-l-4 border-yellow-400 bg-yellow-50 p-4",
-                                            div { class: "flex",
-                                                div { class: "shrink-0",
-                                                    svg {
-                                                        view_box: "0 0 20 20",
-                                                        fill: "currentColor",
-                                                        "aria-hidden": "true",
-                                                        class: "size-5 text-yellow-400",
-                                                        path {
-                                                            d: "M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
-                                                            "clip-rule": "evenodd",
-                                                            "fill-rule": "evenodd",
-                                                        }
-                                                    }
-                                                }
-                                                div { class: "ml-3",
-                                                    p { class: "text-sm text-yellow-700", "{msg}" }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    AlertVariant::Notice
+                                };
+                                rsx! {
+                                    Alert { variant, message: msg }
                                 }
                             }
                         }
@@ -145,7 +111,7 @@ pub fn Landing() -> Element {
                     // Reserve button
                     button {
                         class: "w-full mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed",
-                        disabled: !status().as_ref().map_or(false, |s| s.is_available()),
+                        disabled: !status().as_ref().is_some_and(|s| s.is_available()),
                         onclick: move |_| show_modal.set(true),
                         "Reserve"
                     }
@@ -153,17 +119,17 @@ pub fn Landing() -> Element {
 
                 // Features
                 div { class: "mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-left",
-                    div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
-                        h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Data" }
-                        p { class: "text-gray-600 dark:text-gray-400", { t.t("landing-feature-self-host") } }
+                    FeatureCard {
+                        title: "Your Data".to_string(),
+                        description: t.t("landing-feature-self-host")
                     }
-                    div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
-                        h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Revenue" }
-                        p { class: "text-gray-600 dark:text-gray-400", { t.t("landing-feature-direct-payments") } }
+                    FeatureCard {
+                        title: "Your Revenue".to_string(),
+                        description: t.t("landing-feature-direct-payments")
                     }
-                    div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
-                        h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Rules" }
-                        p { class: "text-gray-600 dark:text-gray-400", { t.t("landing-feature-permissive") } }
+                    FeatureCard {
+                        title: "Your Rules".to_string(),
+                        description: t.t("landing-feature-permissive")
                     }
                 }
 
