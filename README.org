@@ -123,62 +123,62 @@ just --list
 #+begin_example
 Available recipes:
     [build]
-    build                # Build fullstack web packages
-    clean                # Clear build caches
-    release              # Bundle a release build via dioxus-cli
+    build                           # Build fullstack web packages
+    clean                           # Clear build caches
+    release                         # Bundle a release build via dioxus-cli
 
     [db]
-    db-migrate           # Run database migrations
-    db-migration name    # Create a new migration
-    db-reset             # Reset all development PostgreSQL state
-    db-seed              # Seed the database with test data
-    psql *args           # Start an interactive psql session connected to the local development database
+    db-migrate                      # Run database migrations
+    db-migration name               # Create a new migration
+    db-reset                        # Reset all development PostgreSQL state
+    db-seed                         # Seed the database with test data
+    psql *args                      # Start an interactive psql session connected to the local development database
 
     [deploy]
-    deploy-prod          # Deploy to production
-    image-build          # Build container image
-    image-push           # Push container to GitHub Container Registry
-    rollback-prod        # Rollback to previous deployment
+    nixos-build                     # Build Rust binary with Nix
+    nixos-deploy                    # Deploy NixOS snapshot to production (blue/green deployment)
+    nixos-rollback snapshot_name    # Rollback to previous NixOS snapshot
+    nixos-snapshot                  # Build NixOS snapshot with baked-in application
 
     [docs]
-    decide +title        # Create a new decision record
-    prompt +title        # Create a new prompt
+    decide +title                   # Create a new decision record
+    prompt +title                   # Create a new prompt
 
     [infra]
-    apply dir            # Apply one or all Terraform projects
-    import dir *args     # Import into a Terraform project
-    init dir *args       # Initialize one or all Terraform projects
-    output dir *args     # Interact with outputs one or all Terraform projects
-    plan dir             # Plan one or all Terraform projects
-    snapshot-build       # Build NixOS image snapshot
-    snapshot-delete name # Delete NixOS image snapshot
-    snapshot-list        # List NixOS image snapshots
+    apply dir                       # Apply one or all Terraform projects
+    import dir *args                # Import into a Terraform project
+    init dir *args                  # Initialize one or all Terraform projects
+    output dir *args                # Interact with outputs one or all Terraform projects
+    plan dir                        # Plan one or all Terraform projects
+    snapshot-build snapshot_name="" # Build NixOS image snapshot from flake
+    snapshot-delete name            # Delete NixOS image snapshot
+    snapshot-list                   # List NixOS image snapshots
 
     [quality]
-    check                # Run checks
-    fix                  # Fix errors within Bits
-    fmt                  # Format project files
-    lint                 # Run lints
+    check                           # Run checks
+    fix                             # Fix errors within Bits
+    fmt                             # Format project files
+    lint                            # Run lints
 
     [serve]
-    colo                 # Run Dioxus in co-located mode
-    dev                  # Run Dioxus in co-located mode
-    solo                 # Run Dioxus in solo mode
-    tailwind dir         # Watch source code for Tailwind classes
-    www                  # Run the marketing site
+    colo                            # Run Dioxus in co-located mode
+    dev                             # Run Dioxus in co-located mode
+    solo                            # Run Dioxus in solo mode
+    tailwind dir                    # Watch source code for Tailwind classes
+    www                             # Run the marketing site
 
     [setup]
-    hetzner-contexts     # Upsert Bits contexts
-    mkcert               # Create self-signed SSL certificates via mkcert
-    setup                # Setup a local development environment
+    hetzner-contexts                # Upsert Bits contexts
+    mkcert                          # Create self-signed SSL certificates via mkcert
+    setup                           # Setup a local development environment
 
     [test]
-    integrate            # Run integration tests
-    test                 # Run unit and integration tests
-    unit                 # Run units tests
+    integrate                       # Run integration tests
+    test                            # Run unit and integration tests
+    unit                            # Run units tests
 
     [workflows]
-    push                 # Verify and push changes
+    push                            # Verify and push changes
 #+end_example
 
 ** SLOC
@@ -195,34 +195,34 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
  Clojure                   2          559          456           32           71
- CSS                       3           12           12            0            0
+ CSS                       3           42           38            0            4
  Edn                       4           47           47            0            0
- FreeMarker                1           74           63            0           11
- HCL                      23          746          570           67          109
- HTML                      3           33           33            0            0
+ FreeMarker                1          107           92            0           15
+ HCL                      40         1193          912          116          165
+ HTML                      2           22           22            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      2          263          154           59           50
+ Just                      2          429          246          101           82
  MDX                       1           56            0           39           17
- Nix                       3          312          252           11           49
- Org                      10         1952         1742            4          206
- SQL                       5          258          210           21           27
- TOML                     14          345          295            2           48
+ Nix                       8          779          463          222           94
+ Org                      14         2507         2203            6          298
+ SQL                       9          313          258           23           32
+ TOML                     15          383          330            2           51
  TypeScript                3           36           30            1            5
  YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  2          150            0          109           41
- |- Rust                   1          126           88           22           16
- (Total)                              276           88          131           57
+ Markdown                  1          144            0           97           47
+ |- Rust                   1          173          124           27           22
+ (Total)                              317          124          124           69
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     33         3765         3239           39          487
- |- Markdown               7           36            0           35            1
- (Total)                             3801         3239           74          488
+ Rust                     78        13370        11140          773         1457
+ |- Markdown              23          217            0          202           15
+ (Total)                            13587        11140          975         1472
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   128        14090        11394          442         2254
+ Total                   202        25697        20564         1642         3491
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-d94a1db-dirty @ 2025/12/03 13:24
+50e01c1-dirty @ 2025/12/05 15:36
 #+end_example
 
 * Tasks
