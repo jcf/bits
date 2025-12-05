@@ -29,7 +29,7 @@ pub struct ParsedClassName<'a> {
 ///
 /// Inspired by `splitAtTopLevelOnly` used in Tailwind CSS
 /// https://github.com/tailwindlabs/tailwindcss/blob/v3.2.2/src/util/splitAtTopLevelOnly.js
-pub fn parse_class_name(class_name: &str) -> ParsedClassName {
+pub fn parse_class_name(class_name: &str) -> ParsedClassName<'_> {
     let mut modifiers = Vec::new();
     let mut bracket_depth = 0;
     let mut paren_depth = 0;
@@ -73,7 +73,7 @@ pub fn parse_class_name(class_name: &str) -> ParsedClassName {
     // Check for important modifier
     // In Tailwind v4, the important modifier is at the END of the base class name
     // In Tailwind v3 (legacy), it was at the START - we support both
-    let (base_class_name, has_important_modifier, important_shift) =
+    let (base_class_name, has_important_modifier, _important_shift) =
         if base_class_name_with_important.ends_with(IMPORTANT_MODIFIER) {
             (
                 &base_class_name_with_important[..base_class_name_with_important.len() - 1],
@@ -90,18 +90,7 @@ pub fn parse_class_name(class_name: &str) -> ParsedClassName {
     // Adjust postfix modifier position if we found one
     let maybe_postfix_modifier_position = postfix_modifier_position
         .filter(|&pos| pos > modifier_start)
-        .map(|pos| {
-            let relative_pos = pos - modifier_start;
-            // If important was at the end and postfix is before it, adjust
-            if has_important_modifier
-                && important_shift > 0
-                && relative_pos <= base_class_name.len()
-            {
-                relative_pos
-            } else {
-                relative_pos
-            }
-        });
+        .map(|pos| pos - modifier_start);
 
     ParsedClassName {
         is_external: false,

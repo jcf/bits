@@ -121,7 +121,12 @@ impl Config {
             "break-inside",
             vec![obj(
                 "break-inside",
-                vec![lit("auto"), lit("avoid"), lit("avoid-page"), lit("avoid-column")],
+                vec![
+                    lit("auto"),
+                    lit("avoid"),
+                    lit("avoid-page"),
+                    lit("avoid-column"),
+                ],
             )],
         );
 
@@ -173,7 +178,11 @@ impl Config {
 
         // Screen Reader Only
         // @see https://tailwindcss.com/docs/display#screen-reader-only
-        add_class_group(&mut class_groups, "sr", vec![lit("sr-only"), lit("not-sr-only")]);
+        add_class_group(
+            &mut class_groups,
+            "sr",
+            vec![lit("sr-only"), lit("not-sr-only")],
+        );
 
         // Floats
         // @see https://tailwindcss.com/docs/float
@@ -182,7 +191,13 @@ impl Config {
             "float",
             vec![obj(
                 "float",
-                vec![lit("right"), lit("left"), lit("none"), lit("start"), lit("end")],
+                vec![
+                    lit("right"),
+                    lit("left"),
+                    lit("none"),
+                    lit("start"),
+                    lit("end"),
+                ],
             )],
         );
 
@@ -193,7 +208,14 @@ impl Config {
             "clear",
             vec![obj(
                 "clear",
-                vec![lit("left"), lit("right"), lit("both"), lit("none"), lit("start"), lit("end")],
+                vec![
+                    lit("left"),
+                    lit("right"),
+                    lit("both"),
+                    lit("none"),
+                    lit("start"),
+                    lit("end"),
+                ],
             )],
         );
 
@@ -212,7 +234,13 @@ impl Config {
             "object-fit",
             vec![obj(
                 "object",
-                vec![lit("contain"), lit("cover"), lit("fill"), lit("none"), lit("scale-down")],
+                vec![
+                    lit("contain"),
+                    lit("cover"),
+                    lit("fill"),
+                    lit("none"),
+                    lit("scale-down"),
+                ],
             )],
         );
 
@@ -288,14 +316,38 @@ impl Config {
 
         // Top / Right / Bottom / Left
         // @see https://tailwindcss.com/docs/top-right-bottom-left
-        add_class_group(&mut class_groups, "inset", vec![obj("inset", scale_inset())]);
-        add_class_group(&mut class_groups, "inset-x", vec![obj("inset-x", scale_inset())]);
-        add_class_group(&mut class_groups, "inset-y", vec![obj("inset-y", scale_inset())]);
-        add_class_group(&mut class_groups, "start", vec![obj("start", scale_inset())]);
+        add_class_group(
+            &mut class_groups,
+            "inset",
+            vec![obj("inset", scale_inset())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "inset-x",
+            vec![obj("inset-x", scale_inset())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "inset-y",
+            vec![obj("inset-y", scale_inset())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "start",
+            vec![obj("start", scale_inset())],
+        );
         add_class_group(&mut class_groups, "end", vec![obj("end", scale_inset())]);
         add_class_group(&mut class_groups, "top", vec![obj("top", scale_inset())]);
-        add_class_group(&mut class_groups, "right", vec![obj("right", scale_inset())]);
-        add_class_group(&mut class_groups, "bottom", vec![obj("bottom", scale_inset())]);
+        add_class_group(
+            &mut class_groups,
+            "right",
+            vec![obj("right", scale_inset())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "bottom",
+            vec![obj("bottom", scale_inset())],
+        );
         add_class_group(&mut class_groups, "left", vec![obj("left", scale_inset())]);
 
         // Visibility
@@ -331,19 +383,16 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "basis",
-            vec![obj(
-                "basis",
-                {
-                    let mut v = vec![
-                        validator(is_fraction),
-                        lit("full"),
-                        lit("auto"),
-                        validator(is_tshirt_size),
-                    ];
-                    v.extend(scale_unambiguous_spacing());
-                    v
-                },
-            )],
+            vec![obj("basis", {
+                let mut v = vec![
+                    validator(is_fraction),
+                    lit("full"),
+                    lit("auto"),
+                    validator(is_tshirt_size),
+                ];
+                v.extend(scale_unambiguous_spacing());
+                v
+            })],
         );
 
         // Flex Direction
@@ -540,23 +589,32 @@ impl Config {
 
         // Gap
         // @see https://tailwindcss.com/docs/gap
-        add_class_group(&mut class_groups, "gap", vec![obj("gap", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "gap-x", vec![obj("gap-x", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "gap-y", vec![obj("gap-y", scale_unambiguous_spacing())]);
+        add_class_group(
+            &mut class_groups,
+            "gap",
+            vec![obj("gap", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "gap-x",
+            vec![obj("gap-x", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "gap-y",
+            vec![obj("gap-y", scale_unambiguous_spacing())],
+        );
 
         // Justify Content
         // @see https://tailwindcss.com/docs/justify-content
         add_class_group(
             &mut class_groups,
             "justify-content",
-            vec![obj(
-                "justify",
-                {
-                    let mut v = scale_align_primary_axis();
-                    v.push(lit("normal"));
-                    v
-                },
-            )],
+            vec![obj("justify", {
+                let mut v = scale_align_primary_axis();
+                v.push(lit("normal"));
+                v
+            })],
         );
 
         // Justify Items
@@ -564,14 +622,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "justify-items",
-            vec![obj(
-                "justify-items",
-                {
-                    let mut v = scale_align_secondary_axis();
-                    v.push(lit("normal"));
-                    v
-                },
-            )],
+            vec![obj("justify-items", {
+                let mut v = scale_align_secondary_axis();
+                v.push(lit("normal"));
+                v
+            })],
         );
 
         // Justify Self
@@ -579,14 +634,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "justify-self",
-            vec![obj(
-                "justify-self",
-                {
-                    let mut v = vec![lit("auto")];
-                    v.extend(scale_align_secondary_axis());
-                    v
-                },
-            )],
+            vec![obj("justify-self", {
+                let mut v = vec![lit("auto")];
+                v.extend(scale_align_secondary_axis());
+                v
+            })],
         );
 
         // Align Content
@@ -594,14 +646,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "align-content",
-            vec![obj(
-                "content",
-                {
-                    let mut v = vec![lit("normal")];
-                    v.extend(scale_align_primary_axis());
-                    v
-                },
-            )],
+            vec![obj("content", {
+                let mut v = vec![lit("normal")];
+                v.extend(scale_align_primary_axis());
+                v
+            })],
         );
 
         // Align Items
@@ -609,14 +658,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "align-items",
-            vec![obj(
-                "items",
-                {
-                    let mut v = scale_align_secondary_axis();
-                    v.push(obj("baseline", vec![lit(""), lit("last")]));
-                    v
-                },
-            )],
+            vec![obj("items", {
+                let mut v = scale_align_secondary_axis();
+                v.push(obj("baseline", vec![lit(""), lit("last")]));
+                v
+            })],
         );
 
         // Align Self
@@ -624,15 +670,12 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "align-self",
-            vec![obj(
-                "self",
-                {
-                    let mut v = vec![lit("auto")];
-                    v.extend(scale_align_secondary_axis());
-                    v.push(obj("baseline", vec![lit(""), lit("last")]));
-                    v
-                },
-            )],
+            vec![obj("self", {
+                let mut v = vec![lit("auto")];
+                v.extend(scale_align_secondary_axis());
+                v.push(obj("baseline", vec![lit(""), lit("last")]));
+                v
+            })],
         );
 
         // Place Content
@@ -648,14 +691,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "place-items",
-            vec![obj(
-                "place-items",
-                {
-                    let mut v = scale_align_secondary_axis();
-                    v.push(lit("baseline"));
-                    v
-                },
-            )],
+            vec![obj("place-items", {
+                let mut v = scale_align_secondary_axis();
+                v.push(lit("baseline"));
+                v
+            })],
         );
 
         // Place Self
@@ -663,27 +703,60 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "place-self",
-            vec![obj(
-                "place-self",
-                {
-                    let mut v = vec![lit("auto")];
-                    v.extend(scale_align_secondary_axis());
-                    v
-                },
-            )],
+            vec![obj("place-self", {
+                let mut v = vec![lit("auto")];
+                v.extend(scale_align_secondary_axis());
+                v
+            })],
         );
 
         // Spacing - Padding
         // @see https://tailwindcss.com/docs/padding
-        add_class_group(&mut class_groups, "p", vec![obj("p", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "px", vec![obj("px", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "py", vec![obj("py", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "ps", vec![obj("ps", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "pe", vec![obj("pe", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "pt", vec![obj("pt", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "pr", vec![obj("pr", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "pb", vec![obj("pb", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "pl", vec![obj("pl", scale_unambiguous_spacing())]);
+        add_class_group(
+            &mut class_groups,
+            "p",
+            vec![obj("p", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "px",
+            vec![obj("px", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "py",
+            vec![obj("py", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "ps",
+            vec![obj("ps", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "pe",
+            vec![obj("pe", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "pt",
+            vec![obj("pt", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "pr",
+            vec![obj("pr", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "pb",
+            vec![obj("pb", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "pl",
+            vec![obj("pl", scale_unambiguous_spacing())],
+        );
 
         // Spacing - Margin
         // @see https://tailwindcss.com/docs/margin
@@ -699,13 +772,29 @@ impl Config {
 
         // Space Between X
         // @see https://tailwindcss.com/docs/margin#adding-space-between-children
-        add_class_group(&mut class_groups, "space-x", vec![obj("space-x", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "space-x-reverse", vec![lit("space-x-reverse")]);
+        add_class_group(
+            &mut class_groups,
+            "space-x",
+            vec![obj("space-x", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "space-x-reverse",
+            vec![lit("space-x-reverse")],
+        );
 
         // Space Between Y
         // @see https://tailwindcss.com/docs/margin#adding-space-between-children
-        add_class_group(&mut class_groups, "space-y", vec![obj("space-y", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "space-y-reverse", vec![lit("space-y-reverse")]);
+        add_class_group(
+            &mut class_groups,
+            "space-y",
+            vec![obj("space-y", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "space-y-reverse",
+            vec![lit("space-y-reverse")],
+        );
 
         // --------------
         // --- Sizing ---
@@ -720,14 +809,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "w",
-            vec![obj(
-                "w",
-                {
-                    let mut v = vec![validator(is_tshirt_size), lit("screen")];
-                    v.extend(scale_sizing());
-                    v
-                },
-            )],
+            vec![obj("w", {
+                let mut v = vec![validator(is_tshirt_size), lit("screen")];
+                v.extend(scale_sizing());
+                v
+            })],
         );
 
         // Min-Width
@@ -735,18 +821,15 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "min-w",
-            vec![obj(
-                "min-w",
-                {
-                    let mut v = vec![
-                        validator(is_tshirt_size),
-                        lit("screen"),
-                        lit("none"), // Deprecated
-                    ];
-                    v.extend(scale_sizing());
-                    v
-                },
-            )],
+            vec![obj("min-w", {
+                let mut v = vec![
+                    validator(is_tshirt_size),
+                    lit("screen"),
+                    lit("none"), // Deprecated
+                ];
+                v.extend(scale_sizing());
+                v
+            })],
         );
 
         // Max-Width
@@ -754,20 +837,17 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "max-w",
-            vec![obj(
-                "max-w",
-                {
-                    let mut v = vec![
-                        validator(is_tshirt_size),
-                        lit("screen"),
-                        lit("none"),
-                        lit("prose"), // Deprecated
-                        obj("screen", vec![validator(is_tshirt_size)]), // Deprecated
-                    ];
-                    v.extend(scale_sizing());
-                    v
-                },
-            )],
+            vec![obj("max-w", {
+                let mut v = vec![
+                    validator(is_tshirt_size),
+                    lit("screen"),
+                    lit("none"),
+                    lit("prose"),                                   // Deprecated
+                    obj("screen", vec![validator(is_tshirt_size)]), // Deprecated
+                ];
+                v.extend(scale_sizing());
+                v
+            })],
         );
 
         // Height
@@ -775,14 +855,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "h",
-            vec![obj(
-                "h",
-                {
-                    let mut v = vec![lit("screen"), lit("lh")];
-                    v.extend(scale_sizing());
-                    v
-                },
-            )],
+            vec![obj("h", {
+                let mut v = vec![lit("screen"), lit("lh")];
+                v.extend(scale_sizing());
+                v
+            })],
         );
 
         // Min-Height
@@ -790,14 +867,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "min-h",
-            vec![obj(
-                "min-h",
-                {
-                    let mut v = vec![lit("screen"), lit("lh"), lit("none")];
-                    v.extend(scale_sizing());
-                    v
-                },
-            )],
+            vec![obj("min-h", {
+                let mut v = vec![lit("screen"), lit("lh"), lit("none")];
+                v.extend(scale_sizing());
+                v
+            })],
         );
 
         // Max-Height
@@ -805,14 +879,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "max-h",
-            vec![obj(
-                "max-h",
-                {
-                    let mut v = vec![lit("screen"), lit("lh")];
-                    v.extend(scale_sizing());
-                    v
-                },
-            )],
+            vec![obj("max-h", {
+                let mut v = vec![lit("screen"), lit("lh")];
+                v.extend(scale_sizing());
+                v
+            })],
         );
 
         // ------------------
@@ -916,7 +987,11 @@ impl Config {
         // @see https://tailwindcss.com/docs/font-variant-numeric
         add_class_group(&mut class_groups, "fvn-normal", vec![lit("normal-nums")]);
         add_class_group(&mut class_groups, "fvn-ordinal", vec![lit("ordinal")]);
-        add_class_group(&mut class_groups, "fvn-slashed-zero", vec![lit("slashed-zero")]);
+        add_class_group(
+            &mut class_groups,
+            "fvn-slashed-zero",
+            vec![lit("slashed-zero")],
+        );
         add_class_group(
             &mut class_groups,
             "fvn-figure",
@@ -974,21 +1049,18 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "leading",
-            vec![obj(
-                "leading",
-                {
-                    let mut v = vec![
-                        lit("none"),
-                        lit("tight"),
-                        lit("snug"),
-                        lit("normal"),
-                        lit("relaxed"),
-                        lit("loose"),
-                    ];
-                    v.extend(scale_unambiguous_spacing());
-                    v
-                },
-            )],
+            vec![obj("leading", {
+                let mut v = vec![
+                    lit("none"),
+                    lit("tight"),
+                    lit("snug"),
+                    lit("normal"),
+                    lit("relaxed"),
+                    lit("loose"),
+                ];
+                v.extend(scale_unambiguous_spacing());
+                v
+            })],
         );
 
         // List Style Image
@@ -1060,7 +1132,11 @@ impl Config {
 
         // Text Color
         // @see https://tailwindcss.com/docs/text-color
-        add_class_group(&mut class_groups, "text-color", vec![obj("text", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "text-color",
+            vec![obj("text", scale_color())],
+        );
 
         // Text Decoration
         // @see https://tailwindcss.com/docs/text-decoration
@@ -1080,14 +1156,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "text-decoration-style",
-            vec![obj(
-                "decoration",
-                {
-                    let mut v = scale_line_style();
-                    v.push(lit("wavy"));
-                    v
-                },
-            )],
+            vec![obj("decoration", {
+                let mut v = scale_line_style();
+                v.push(lit("wavy"));
+                v
+            })],
         );
 
         // Text Decoration Thickness
@@ -1371,7 +1444,11 @@ impl Config {
 
         // Background Color
         // @see https://tailwindcss.com/docs/background-color
-        add_class_group(&mut class_groups, "bg-color", vec![obj("bg", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "bg-color",
+            vec![obj("bg", scale_color())],
+        );
 
         // Gradient Color Stops From Position
         // @see https://tailwindcss.com/docs/gradient-color-stops
@@ -1399,15 +1476,27 @@ impl Config {
 
         // Gradient Color Stops From
         // @see https://tailwindcss.com/docs/gradient-color-stops
-        add_class_group(&mut class_groups, "gradient-from", vec![obj("from", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "gradient-from",
+            vec![obj("from", scale_color())],
+        );
 
         // Gradient Color Stops Via
         // @see https://tailwindcss.com/docs/gradient-color-stops
-        add_class_group(&mut class_groups, "gradient-via", vec![obj("via", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "gradient-via",
+            vec![obj("via", scale_color())],
+        );
 
         // Gradient Color Stops To
         // @see https://tailwindcss.com/docs/gradient-color-stops
-        add_class_group(&mut class_groups, "gradient-to", vec![obj("to", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "gradient-to",
+            vec![obj("to", scale_color())],
+        );
 
         // ---------------
         // --- Borders ---
@@ -1415,58 +1504,167 @@ impl Config {
 
         // Border Radius
         // @see https://tailwindcss.com/docs/border-radius
-        add_class_group(&mut class_groups, "rounded", vec![obj("rounded", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-s", vec![obj("rounded-s", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-e", vec![obj("rounded-e", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-t", vec![obj("rounded-t", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-r", vec![obj("rounded-r", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-b", vec![obj("rounded-b", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-l", vec![obj("rounded-l", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-ss", vec![obj("rounded-ss", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-se", vec![obj("rounded-se", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-ee", vec![obj("rounded-ee", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-es", vec![obj("rounded-es", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-tl", vec![obj("rounded-tl", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-tr", vec![obj("rounded-tr", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-br", vec![obj("rounded-br", scale_radius())]);
-        add_class_group(&mut class_groups, "rounded-bl", vec![obj("rounded-bl", scale_radius())]);
+        add_class_group(
+            &mut class_groups,
+            "rounded",
+            vec![obj("rounded", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-s",
+            vec![obj("rounded-s", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-e",
+            vec![obj("rounded-e", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-t",
+            vec![obj("rounded-t", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-r",
+            vec![obj("rounded-r", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-b",
+            vec![obj("rounded-b", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-l",
+            vec![obj("rounded-l", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-ss",
+            vec![obj("rounded-ss", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-se",
+            vec![obj("rounded-se", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-ee",
+            vec![obj("rounded-ee", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-es",
+            vec![obj("rounded-es", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-tl",
+            vec![obj("rounded-tl", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-tr",
+            vec![obj("rounded-tr", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-br",
+            vec![obj("rounded-br", scale_radius())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rounded-bl",
+            vec![obj("rounded-bl", scale_radius())],
+        );
 
         // Border Width
         // @see https://tailwindcss.com/docs/border-width
-        add_class_group(&mut class_groups, "border-w", vec![obj("border", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-x", vec![obj("border-x", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-y", vec![obj("border-y", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-s", vec![obj("border-s", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-e", vec![obj("border-e", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-t", vec![obj("border-t", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-r", vec![obj("border-r", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-b", vec![obj("border-b", scale_border_width())]);
-        add_class_group(&mut class_groups, "border-w-l", vec![obj("border-l", scale_border_width())]);
+        add_class_group(
+            &mut class_groups,
+            "border-w",
+            vec![obj("border", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-x",
+            vec![obj("border-x", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-y",
+            vec![obj("border-y", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-s",
+            vec![obj("border-s", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-e",
+            vec![obj("border-e", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-t",
+            vec![obj("border-t", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-r",
+            vec![obj("border-r", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-b",
+            vec![obj("border-b", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-w-l",
+            vec![obj("border-l", scale_border_width())],
+        );
 
         // Divide Width X
         // @see https://tailwindcss.com/docs/border-width#between-children
-        add_class_group(&mut class_groups, "divide-x", vec![obj("divide-x", scale_border_width())]);
-        add_class_group(&mut class_groups, "divide-x-reverse", vec![lit("divide-x-reverse")]);
+        add_class_group(
+            &mut class_groups,
+            "divide-x",
+            vec![obj("divide-x", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "divide-x-reverse",
+            vec![lit("divide-x-reverse")],
+        );
 
         // Divide Width Y
         // @see https://tailwindcss.com/docs/border-width#between-children
-        add_class_group(&mut class_groups, "divide-y", vec![obj("divide-y", scale_border_width())]);
-        add_class_group(&mut class_groups, "divide-y-reverse", vec![lit("divide-y-reverse")]);
+        add_class_group(
+            &mut class_groups,
+            "divide-y",
+            vec![obj("divide-y", scale_border_width())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "divide-y-reverse",
+            vec![lit("divide-y-reverse")],
+        );
 
         // Border Style
         // @see https://tailwindcss.com/docs/border-style
         add_class_group(
             &mut class_groups,
             "border-style",
-            vec![obj(
-                "border",
-                {
-                    let mut v = scale_line_style();
-                    v.push(lit("hidden"));
-                    v.push(lit("none"));
-                    v
-                },
-            )],
+            vec![obj("border", {
+                let mut v = scale_line_style();
+                v.push(lit("hidden"));
+                v.push(lit("none"));
+                v
+            })],
         );
 
         // Divide Style
@@ -1474,47 +1672,81 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "divide-style",
-            vec![obj(
-                "divide",
-                {
-                    let mut v = scale_line_style();
-                    v.push(lit("hidden"));
-                    v.push(lit("none"));
-                    v
-                },
-            )],
+            vec![obj("divide", {
+                let mut v = scale_line_style();
+                v.push(lit("hidden"));
+                v.push(lit("none"));
+                v
+            })],
         );
 
         // Border Color
         // @see https://tailwindcss.com/docs/border-color
-        add_class_group(&mut class_groups, "border-color", vec![obj("border", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-x", vec![obj("border-x", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-y", vec![obj("border-y", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-s", vec![obj("border-s", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-e", vec![obj("border-e", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-t", vec![obj("border-t", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-r", vec![obj("border-r", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-b", vec![obj("border-b", scale_color())]);
-        add_class_group(&mut class_groups, "border-color-l", vec![obj("border-l", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "border-color",
+            vec![obj("border", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-x",
+            vec![obj("border-x", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-y",
+            vec![obj("border-y", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-s",
+            vec![obj("border-s", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-e",
+            vec![obj("border-e", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-t",
+            vec![obj("border-t", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-r",
+            vec![obj("border-r", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-b",
+            vec![obj("border-b", scale_color())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "border-color-l",
+            vec![obj("border-l", scale_color())],
+        );
 
         // Divide Color
         // @see https://tailwindcss.com/docs/divide-color
-        add_class_group(&mut class_groups, "divide-color", vec![obj("divide", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "divide-color",
+            vec![obj("divide", scale_color())],
+        );
 
         // Outline Style
         // @see https://tailwindcss.com/docs/outline-style
         add_class_group(
             &mut class_groups,
             "outline-style",
-            vec![obj(
-                "outline",
-                {
-                    let mut v = scale_line_style();
-                    v.push(lit("none"));
-                    v.push(lit("hidden"));
-                    v
-                },
-            )],
+            vec![obj("outline", {
+                let mut v = scale_line_style();
+                v.push(lit("none"));
+                v.push(lit("hidden"));
+                v
+            })],
         );
 
         // Outline Offset
@@ -1550,7 +1782,11 @@ impl Config {
 
         // Outline Color
         // @see https://tailwindcss.com/docs/outline-color
-        add_class_group(&mut class_groups, "outline-color", vec![obj("outline", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "outline-color",
+            vec![obj("outline", scale_color())],
+        );
 
         // ---------------
         // --- Effects ---
@@ -1575,7 +1811,11 @@ impl Config {
 
         // Box Shadow Color
         // @see https://tailwindcss.com/docs/box-shadow#setting-the-shadow-color
-        add_class_group(&mut class_groups, "shadow-color", vec![obj("shadow", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "shadow-color",
+            vec![obj("shadow", scale_color())],
+        );
 
         // Inset Box Shadow
         // @see https://tailwindcss.com/docs/box-shadow#adding-an-inset-shadow
@@ -1595,11 +1835,19 @@ impl Config {
 
         // Inset Box Shadow Color
         // @see https://tailwindcss.com/docs/box-shadow#setting-the-inset-shadow-color
-        add_class_group(&mut class_groups, "inset-shadow-color", vec![obj("inset-shadow", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "inset-shadow-color",
+            vec![obj("inset-shadow", scale_color())],
+        );
 
         // Ring Width
         // @see https://tailwindcss.com/docs/box-shadow#adding-a-ring
-        add_class_group(&mut class_groups, "ring-w", vec![obj("ring", scale_border_width())]);
+        add_class_group(
+            &mut class_groups,
+            "ring-w",
+            vec![obj("ring", scale_border_width())],
+        );
 
         // Ring Width Inset
         // @see https://v3.tailwindcss.com/docs/ring-width#inset-rings
@@ -1608,7 +1856,11 @@ impl Config {
 
         // Ring Color
         // @see https://tailwindcss.com/docs/box-shadow#setting-the-ring-color
-        add_class_group(&mut class_groups, "ring-color", vec![obj("ring", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "ring-color",
+            vec![obj("ring", scale_color())],
+        );
 
         // Ring Offset Width
         // @see https://v3.tailwindcss.com/docs/ring-offset-width
@@ -1625,15 +1877,27 @@ impl Config {
         // Ring Offset Color
         // @see https://v3.tailwindcss.com/docs/ring-offset-color
         // @deprecated since Tailwind CSS v4.0.0
-        add_class_group(&mut class_groups, "ring-offset-color", vec![obj("ring-offset", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "ring-offset-color",
+            vec![obj("ring-offset", scale_color())],
+        );
 
         // Inset Ring Width
         // @see https://tailwindcss.com/docs/box-shadow#adding-an-inset-ring
-        add_class_group(&mut class_groups, "inset-ring-w", vec![obj("inset-ring", scale_border_width())]);
+        add_class_group(
+            &mut class_groups,
+            "inset-ring-w",
+            vec![obj("inset-ring", scale_border_width())],
+        );
 
         // Inset Ring Color
         // @see https://tailwindcss.com/docs/box-shadow#setting-the-inset-ring-color
-        add_class_group(&mut class_groups, "inset-ring-color", vec![obj("inset-ring", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "inset-ring-color",
+            vec![obj("inset-ring", scale_color())],
+        );
 
         // Text Shadow
         // @see https://tailwindcss.com/docs/text-shadow
@@ -1653,7 +1917,11 @@ impl Config {
 
         // Text Shadow Color
         // @see https://tailwindcss.com/docs/text-shadow#setting-the-shadow-color
-        add_class_group(&mut class_groups, "text-shadow-color", vec![obj("text-shadow", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "text-shadow-color",
+            vec![obj("text-shadow", scale_color())],
+        );
 
         // Opacity
         // @see https://tailwindcss.com/docs/opacity
@@ -1675,20 +1943,21 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "mix-blend",
-            vec![obj(
-                "mix-blend",
-                {
-                    let mut v = scale_blend_mode();
-                    v.push(lit("plus-darker"));
-                    v.push(lit("plus-lighter"));
-                    v
-                },
-            )],
+            vec![obj("mix-blend", {
+                let mut v = scale_blend_mode();
+                v.push(lit("plus-darker"));
+                v.push(lit("plus-lighter"));
+                v
+            })],
         );
 
         // Background Blend Mode
         // @see https://tailwindcss.com/docs/background-blend-mode
-        add_class_group(&mut class_groups, "bg-blend", vec![obj("bg-blend", scale_blend_mode())]);
+        add_class_group(
+            &mut class_groups,
+            "bg-blend",
+            vec![obj("bg-blend", scale_blend_mode())],
+        );
 
         // Mask Clip
         // @see https://tailwindcss.com/docs/mask-clip
@@ -1718,7 +1987,12 @@ impl Config {
             "mask-composite",
             vec![obj(
                 "mask",
-                vec![lit("add"), lit("subtract"), lit("intersect"), lit("exclude")],
+                vec![
+                    lit("add"),
+                    lit("subtract"),
+                    lit("intersect"),
+                    lit("exclude"),
+                ],
             )],
         );
 
@@ -1876,7 +2150,10 @@ impl Config {
             "mask-image-radial",
             vec![obj(
                 "mask-radial",
-                vec![validator(is_arbitrary_variable), validator(is_arbitrary_value)],
+                vec![
+                    validator(is_arbitrary_variable),
+                    validator(is_arbitrary_value),
+                ],
             )],
         );
         add_class_group(
@@ -1909,13 +2186,10 @@ impl Config {
             "mask-image-radial-size",
             vec![obj(
                 "mask-radial",
-                vec![obj(
-                    "closest",
-                    vec![lit("side"), lit("corner")],
-                ), obj(
-                    "farthest",
-                    vec![lit("side"), lit("corner")],
-                )],
+                vec![
+                    obj("closest", vec![lit("side"), lit("corner")]),
+                    obj("farthest", vec![lit("side"), lit("corner")]),
+                ],
             )],
         );
         add_class_group(
@@ -1956,7 +2230,10 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "mask-mode",
-            vec![obj("mask", vec![lit("alpha"), lit("luminance"), lit("match")])],
+            vec![obj(
+                "mask",
+                vec![lit("alpha"), lit("luminance"), lit("match")],
+            )],
         );
 
         // Mask Origin
@@ -1979,15 +2256,27 @@ impl Config {
 
         // Mask Position
         // @see https://tailwindcss.com/docs/mask-position
-        add_class_group(&mut class_groups, "mask-position", vec![obj("mask", scale_bg_position())]);
+        add_class_group(
+            &mut class_groups,
+            "mask-position",
+            vec![obj("mask", scale_bg_position())],
+        );
 
         // Mask Repeat
         // @see https://tailwindcss.com/docs/mask-repeat
-        add_class_group(&mut class_groups, "mask-repeat", vec![obj("mask", scale_bg_repeat())]);
+        add_class_group(
+            &mut class_groups,
+            "mask-repeat",
+            vec![obj("mask", scale_bg_repeat())],
+        );
 
         // Mask Size
         // @see https://tailwindcss.com/docs/mask-size
-        add_class_group(&mut class_groups, "mask-size", vec![obj("mask", scale_bg_size())]);
+        add_class_group(
+            &mut class_groups,
+            "mask-size",
+            vec![obj("mask", scale_bg_size())],
+        );
 
         // Mask Type
         // @see https://tailwindcss.com/docs/mask-type
@@ -2085,7 +2374,11 @@ impl Config {
 
         // Drop Shadow Color
         // @see https://tailwindcss.com/docs/filter-drop-shadow#setting-the-shadow-color
-        add_class_group(&mut class_groups, "drop-shadow-color", vec![obj("drop-shadow", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "drop-shadow-color",
+            vec![obj("drop-shadow", scale_color())],
+        );
 
         // Grayscale
         // @see https://tailwindcss.com/docs/grayscale
@@ -2183,7 +2476,11 @@ impl Config {
 
         // Backdrop Blur
         // @see https://tailwindcss.com/docs/backdrop-blur
-        add_class_group(&mut class_groups, "backdrop-blur", vec![obj("backdrop-blur", scale_blur())]);
+        add_class_group(
+            &mut class_groups,
+            "backdrop-blur",
+            vec![obj("backdrop-blur", scale_blur())],
+        );
 
         // Backdrop Brightness
         // @see https://tailwindcss.com/docs/backdrop-brightness
@@ -2498,17 +2795,49 @@ impl Config {
 
         // Rotate
         // @see https://tailwindcss.com/docs/rotate
-        add_class_group(&mut class_groups, "rotate", vec![obj("rotate", scale_rotate())]);
-        add_class_group(&mut class_groups, "rotate-x", vec![obj("rotate-x", scale_rotate())]);
-        add_class_group(&mut class_groups, "rotate-y", vec![obj("rotate-y", scale_rotate())]);
-        add_class_group(&mut class_groups, "rotate-z", vec![obj("rotate-z", scale_rotate())]);
+        add_class_group(
+            &mut class_groups,
+            "rotate",
+            vec![obj("rotate", scale_rotate())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rotate-x",
+            vec![obj("rotate-x", scale_rotate())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rotate-y",
+            vec![obj("rotate-y", scale_rotate())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "rotate-z",
+            vec![obj("rotate-z", scale_rotate())],
+        );
 
         // Scale
         // @see https://tailwindcss.com/docs/scale
-        add_class_group(&mut class_groups, "scale", vec![obj("scale", scale_scale())]);
-        add_class_group(&mut class_groups, "scale-x", vec![obj("scale-x", scale_scale())]);
-        add_class_group(&mut class_groups, "scale-y", vec![obj("scale-y", scale_scale())]);
-        add_class_group(&mut class_groups, "scale-z", vec![obj("scale-z", scale_scale())]);
+        add_class_group(
+            &mut class_groups,
+            "scale",
+            vec![obj("scale", scale_scale())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scale-x",
+            vec![obj("scale-x", scale_scale())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scale-y",
+            vec![obj("scale-y", scale_scale())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scale-z",
+            vec![obj("scale-z", scale_scale())],
+        );
 
         // Scale 3D
         // @see https://tailwindcss.com/docs/scale
@@ -2517,8 +2846,16 @@ impl Config {
         // Skew
         // @see https://tailwindcss.com/docs/skew
         add_class_group(&mut class_groups, "skew", vec![obj("skew", scale_skew())]);
-        add_class_group(&mut class_groups, "skew-x", vec![obj("skew-x", scale_skew())]);
-        add_class_group(&mut class_groups, "skew-y", vec![obj("skew-y", scale_skew())]);
+        add_class_group(
+            &mut class_groups,
+            "skew-x",
+            vec![obj("skew-x", scale_skew())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "skew-y",
+            vec![obj("skew-y", scale_skew())],
+        );
 
         // Transform
         // @see https://tailwindcss.com/docs/transform
@@ -2556,14 +2893,34 @@ impl Config {
 
         // Translate
         // @see https://tailwindcss.com/docs/translate
-        add_class_group(&mut class_groups, "translate", vec![obj("translate", scale_translate())]);
-        add_class_group(&mut class_groups, "translate-x", vec![obj("translate-x", scale_translate())]);
-        add_class_group(&mut class_groups, "translate-y", vec![obj("translate-y", scale_translate())]);
-        add_class_group(&mut class_groups, "translate-z", vec![obj("translate-z", scale_translate())]);
+        add_class_group(
+            &mut class_groups,
+            "translate",
+            vec![obj("translate", scale_translate())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "translate-x",
+            vec![obj("translate-x", scale_translate())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "translate-y",
+            vec![obj("translate-y", scale_translate())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "translate-z",
+            vec![obj("translate-z", scale_translate())],
+        );
 
         // Translate None
         // @see https://tailwindcss.com/docs/translate
-        add_class_group(&mut class_groups, "translate-none", vec![lit("translate-none")]);
+        add_class_group(
+            &mut class_groups,
+            "translate-none",
+            vec![lit("translate-none")],
+        );
 
         // ---------------------
         // --- Interactivity ---
@@ -2571,7 +2928,11 @@ impl Config {
 
         // Accent Color
         // @see https://tailwindcss.com/docs/accent-color
-        add_class_group(&mut class_groups, "accent", vec![obj("accent", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "accent",
+            vec![obj("accent", scale_color())],
+        );
 
         // Appearance
         // @see https://tailwindcss.com/docs/appearance
@@ -2583,7 +2944,11 @@ impl Config {
 
         // Caret Color
         // @see https://tailwindcss.com/docs/just-in-time-mode#caret-color-utilities
-        add_class_group(&mut class_groups, "caret-color", vec![obj("caret", scale_color())]);
+        add_class_group(
+            &mut class_groups,
+            "caret-color",
+            vec![obj("caret", scale_color())],
+        );
 
         // Color Scheme
         // @see https://tailwindcss.com/docs/color-scheme
@@ -2674,7 +3039,10 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "resize",
-            vec![obj("resize", vec![lit("none"), lit(""), lit("y"), lit("x")])],
+            vec![obj(
+                "resize",
+                vec![lit("none"), lit(""), lit("y"), lit("x")],
+            )],
         );
 
         // Scroll Behavior
@@ -2687,27 +3055,99 @@ impl Config {
 
         // Scroll Margin
         // @see https://tailwindcss.com/docs/scroll-margin
-        add_class_group(&mut class_groups, "scroll-m", vec![obj("scroll-m", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-mx", vec![obj("scroll-mx", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-my", vec![obj("scroll-my", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-ms", vec![obj("scroll-ms", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-me", vec![obj("scroll-me", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-mt", vec![obj("scroll-mt", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-mr", vec![obj("scroll-mr", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-mb", vec![obj("scroll-mb", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-ml", vec![obj("scroll-ml", scale_unambiguous_spacing())]);
+        add_class_group(
+            &mut class_groups,
+            "scroll-m",
+            vec![obj("scroll-m", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-mx",
+            vec![obj("scroll-mx", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-my",
+            vec![obj("scroll-my", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-ms",
+            vec![obj("scroll-ms", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-me",
+            vec![obj("scroll-me", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-mt",
+            vec![obj("scroll-mt", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-mr",
+            vec![obj("scroll-mr", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-mb",
+            vec![obj("scroll-mb", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-ml",
+            vec![obj("scroll-ml", scale_unambiguous_spacing())],
+        );
 
         // Scroll Padding
         // @see https://tailwindcss.com/docs/scroll-padding
-        add_class_group(&mut class_groups, "scroll-p", vec![obj("scroll-p", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-px", vec![obj("scroll-px", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-py", vec![obj("scroll-py", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-ps", vec![obj("scroll-ps", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-pe", vec![obj("scroll-pe", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-pt", vec![obj("scroll-pt", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-pr", vec![obj("scroll-pr", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-pb", vec![obj("scroll-pb", scale_unambiguous_spacing())]);
-        add_class_group(&mut class_groups, "scroll-pl", vec![obj("scroll-pl", scale_unambiguous_spacing())]);
+        add_class_group(
+            &mut class_groups,
+            "scroll-p",
+            vec![obj("scroll-p", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-px",
+            vec![obj("scroll-px", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-py",
+            vec![obj("scroll-py", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-ps",
+            vec![obj("scroll-ps", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-pe",
+            vec![obj("scroll-pe", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-pt",
+            vec![obj("scroll-pt", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-pr",
+            vec![obj("scroll-pr", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-pb",
+            vec![obj("scroll-pb", scale_unambiguous_spacing())],
+        );
+        add_class_group(
+            &mut class_groups,
+            "scroll-pl",
+            vec![obj("scroll-pl", scale_unambiguous_spacing())],
+        );
 
         // Scroll Snap Align
         // @see https://tailwindcss.com/docs/scroll-snap-align
@@ -2733,7 +3173,10 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "snap-type",
-            vec![obj("snap", vec![lit("none"), lit("x"), lit("y"), lit("both")])],
+            vec![obj(
+                "snap",
+                vec![lit("none"), lit("x"), lit("y"), lit("both")],
+            )],
         );
 
         // Scroll Snap Type Strictness
@@ -2749,7 +3192,10 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "touch",
-            vec![obj("touch", vec![lit("auto"), lit("none"), lit("manipulation")])],
+            vec![obj(
+                "touch",
+                vec![lit("auto"), lit("none"), lit("manipulation")],
+            )],
         );
         add_class_group(
             &mut class_groups,
@@ -2768,7 +3214,10 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "select",
-            vec![obj("select", vec![lit("none"), lit("text"), lit("all"), lit("auto")])],
+            vec![obj(
+                "select",
+                vec![lit("none"), lit("text"), lit("all"), lit("auto")],
+            )],
         );
 
         // Will Change
@@ -2798,14 +3247,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "fill",
-            vec![obj(
-                "fill",
-                {
-                    let mut v = vec![lit("none")];
-                    v.extend(scale_color());
-                    v
-                },
-            )],
+            vec![obj("fill", {
+                let mut v = vec![lit("none")];
+                v.extend(scale_color());
+                v
+            })],
         );
 
         // Stroke Width
@@ -2829,14 +3275,11 @@ impl Config {
         add_class_group(
             &mut class_groups,
             "stroke",
-            vec![obj(
-                "stroke",
-                {
-                    let mut v = vec![lit("none")];
-                    v.extend(scale_color());
-                    v
-                },
-            )],
+            vec![obj("stroke", {
+                let mut v = vec![lit("none")];
+                v.extend(scale_color());
+                v
+            })],
         );
 
         // ---------------------
@@ -2855,67 +3298,262 @@ impl Config {
         // --- Conflicting Groups ---
         // -------------------------
 
-        add_conflict(&mut conflicting_class_groups, "overflow", vec!["overflow-x", "overflow-y"]);
-        add_conflict(&mut conflicting_class_groups, "overscroll", vec!["overscroll-x", "overscroll-y"]);
-        add_conflict(&mut conflicting_class_groups, "inset", vec!["inset-x", "inset-y", "start", "end", "top", "right", "bottom", "left"]);
-        add_conflict(&mut conflicting_class_groups, "inset-x", vec!["right", "left"]);
-        add_conflict(&mut conflicting_class_groups, "inset-y", vec!["top", "bottom"]);
-        add_conflict(&mut conflicting_class_groups, "flex", vec!["basis", "grow", "shrink"]);
+        add_conflict(
+            &mut conflicting_class_groups,
+            "overflow",
+            vec!["overflow-x", "overflow-y"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "overscroll",
+            vec!["overscroll-x", "overscroll-y"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "inset",
+            vec![
+                "inset-x", "inset-y", "start", "end", "top", "right", "bottom", "left",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "inset-x",
+            vec!["right", "left"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "inset-y",
+            vec!["top", "bottom"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "flex",
+            vec!["basis", "grow", "shrink"],
+        );
         add_conflict(&mut conflicting_class_groups, "gap", vec!["gap-x", "gap-y"]);
-        add_conflict(&mut conflicting_class_groups, "p", vec!["px", "py", "ps", "pe", "pt", "pr", "pb", "pl"]);
+        add_conflict(
+            &mut conflicting_class_groups,
+            "p",
+            vec!["px", "py", "ps", "pe", "pt", "pr", "pb", "pl"],
+        );
         add_conflict(&mut conflicting_class_groups, "px", vec!["pr", "pl"]);
         add_conflict(&mut conflicting_class_groups, "py", vec!["pt", "pb"]);
-        add_conflict(&mut conflicting_class_groups, "m", vec!["mx", "my", "ms", "me", "mt", "mr", "mb", "ml"]);
+        add_conflict(
+            &mut conflicting_class_groups,
+            "m",
+            vec!["mx", "my", "ms", "me", "mt", "mr", "mb", "ml"],
+        );
         add_conflict(&mut conflicting_class_groups, "mx", vec!["mr", "ml"]);
         add_conflict(&mut conflicting_class_groups, "my", vec!["mt", "mb"]);
         add_conflict(&mut conflicting_class_groups, "size", vec!["w", "h"]);
         add_conflict(&mut conflicting_class_groups, "font-size", vec!["leading"]);
-        add_conflict(&mut conflicting_class_groups, "fvn-normal", vec!["fvn-ordinal", "fvn-slashed-zero", "fvn-figure", "fvn-spacing", "fvn-fraction"]);
-        add_conflict(&mut conflicting_class_groups, "fvn-ordinal", vec!["fvn-normal"]);
-        add_conflict(&mut conflicting_class_groups, "fvn-slashed-zero", vec!["fvn-normal"]);
-        add_conflict(&mut conflicting_class_groups, "fvn-figure", vec!["fvn-normal"]);
-        add_conflict(&mut conflicting_class_groups, "fvn-spacing", vec!["fvn-normal"]);
-        add_conflict(&mut conflicting_class_groups, "fvn-fraction", vec!["fvn-normal"]);
-        add_conflict(&mut conflicting_class_groups, "line-clamp", vec!["display", "overflow"]);
-        add_conflict(&mut conflicting_class_groups, "rounded", vec![
-            "rounded-s", "rounded-e", "rounded-t", "rounded-r", "rounded-b", "rounded-l",
-            "rounded-ss", "rounded-se", "rounded-ee", "rounded-es",
-            "rounded-tl", "rounded-tr", "rounded-br", "rounded-bl"
-        ]);
-        add_conflict(&mut conflicting_class_groups, "rounded-s", vec!["rounded-ss", "rounded-es"]);
-        add_conflict(&mut conflicting_class_groups, "rounded-e", vec!["rounded-se", "rounded-ee"]);
-        add_conflict(&mut conflicting_class_groups, "rounded-t", vec!["rounded-tl", "rounded-tr"]);
-        add_conflict(&mut conflicting_class_groups, "rounded-r", vec!["rounded-tr", "rounded-br"]);
-        add_conflict(&mut conflicting_class_groups, "rounded-b", vec!["rounded-br", "rounded-bl"]);
-        add_conflict(&mut conflicting_class_groups, "rounded-l", vec!["rounded-tl", "rounded-bl"]);
-        add_conflict(&mut conflicting_class_groups, "border-spacing", vec!["border-spacing-x", "border-spacing-y"]);
-        add_conflict(&mut conflicting_class_groups, "border-w", vec![
-            "border-w-x", "border-w-y", "border-w-s", "border-w-e",
-            "border-w-t", "border-w-r", "border-w-b", "border-w-l"
-        ]);
-        add_conflict(&mut conflicting_class_groups, "border-w-x", vec!["border-w-r", "border-w-l"]);
-        add_conflict(&mut conflicting_class_groups, "border-w-y", vec!["border-w-t", "border-w-b"]);
-        add_conflict(&mut conflicting_class_groups, "border-color", vec![
-            "border-color-x", "border-color-y", "border-color-s", "border-color-e",
-            "border-color-t", "border-color-r", "border-color-b", "border-color-l"
-        ]);
-        add_conflict(&mut conflicting_class_groups, "border-color-x", vec!["border-color-r", "border-color-l"]);
-        add_conflict(&mut conflicting_class_groups, "border-color-y", vec!["border-color-t", "border-color-b"]);
-        add_conflict(&mut conflicting_class_groups, "translate", vec!["translate-x", "translate-y", "translate-none"]);
-        add_conflict(&mut conflicting_class_groups, "translate-none", vec!["translate", "translate-x", "translate-y", "translate-z"]);
-        add_conflict(&mut conflicting_class_groups, "scroll-m", vec![
-            "scroll-mx", "scroll-my", "scroll-ms", "scroll-me",
-            "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml"
-        ]);
-        add_conflict(&mut conflicting_class_groups, "scroll-mx", vec!["scroll-mr", "scroll-ml"]);
-        add_conflict(&mut conflicting_class_groups, "scroll-my", vec!["scroll-mt", "scroll-mb"]);
-        add_conflict(&mut conflicting_class_groups, "scroll-p", vec![
-            "scroll-px", "scroll-py", "scroll-ps", "scroll-pe",
-            "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl"
-        ]);
-        add_conflict(&mut conflicting_class_groups, "scroll-px", vec!["scroll-pr", "scroll-pl"]);
-        add_conflict(&mut conflicting_class_groups, "scroll-py", vec!["scroll-pt", "scroll-pb"]);
-        add_conflict(&mut conflicting_class_groups, "touch", vec!["touch-x", "touch-y", "touch-pz"]);
+        add_conflict(
+            &mut conflicting_class_groups,
+            "fvn-normal",
+            vec![
+                "fvn-ordinal",
+                "fvn-slashed-zero",
+                "fvn-figure",
+                "fvn-spacing",
+                "fvn-fraction",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "fvn-ordinal",
+            vec!["fvn-normal"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "fvn-slashed-zero",
+            vec!["fvn-normal"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "fvn-figure",
+            vec!["fvn-normal"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "fvn-spacing",
+            vec!["fvn-normal"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "fvn-fraction",
+            vec!["fvn-normal"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "line-clamp",
+            vec!["display", "overflow"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded",
+            vec![
+                "rounded-s",
+                "rounded-e",
+                "rounded-t",
+                "rounded-r",
+                "rounded-b",
+                "rounded-l",
+                "rounded-ss",
+                "rounded-se",
+                "rounded-ee",
+                "rounded-es",
+                "rounded-tl",
+                "rounded-tr",
+                "rounded-br",
+                "rounded-bl",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded-s",
+            vec!["rounded-ss", "rounded-es"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded-e",
+            vec!["rounded-se", "rounded-ee"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded-t",
+            vec!["rounded-tl", "rounded-tr"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded-r",
+            vec!["rounded-tr", "rounded-br"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded-b",
+            vec!["rounded-br", "rounded-bl"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "rounded-l",
+            vec!["rounded-tl", "rounded-bl"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-spacing",
+            vec!["border-spacing-x", "border-spacing-y"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-w",
+            vec![
+                "border-w-x",
+                "border-w-y",
+                "border-w-s",
+                "border-w-e",
+                "border-w-t",
+                "border-w-r",
+                "border-w-b",
+                "border-w-l",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-w-x",
+            vec!["border-w-r", "border-w-l"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-w-y",
+            vec!["border-w-t", "border-w-b"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-color",
+            vec![
+                "border-color-x",
+                "border-color-y",
+                "border-color-s",
+                "border-color-e",
+                "border-color-t",
+                "border-color-r",
+                "border-color-b",
+                "border-color-l",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-color-x",
+            vec!["border-color-r", "border-color-l"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "border-color-y",
+            vec!["border-color-t", "border-color-b"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "translate",
+            vec!["translate-x", "translate-y", "translate-none"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "translate-none",
+            vec!["translate", "translate-x", "translate-y", "translate-z"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "scroll-m",
+            vec![
+                "scroll-mx",
+                "scroll-my",
+                "scroll-ms",
+                "scroll-me",
+                "scroll-mt",
+                "scroll-mr",
+                "scroll-mb",
+                "scroll-ml",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "scroll-mx",
+            vec!["scroll-mr", "scroll-ml"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "scroll-my",
+            vec!["scroll-mt", "scroll-mb"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "scroll-p",
+            vec![
+                "scroll-px",
+                "scroll-py",
+                "scroll-ps",
+                "scroll-pe",
+                "scroll-pt",
+                "scroll-pr",
+                "scroll-pb",
+                "scroll-pl",
+            ],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "scroll-px",
+            vec!["scroll-pr", "scroll-pl"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "scroll-py",
+            vec!["scroll-pt", "scroll-pb"],
+        );
+        add_conflict(
+            &mut conflicting_class_groups,
+            "touch",
+            vec!["touch-x", "touch-y", "touch-pz"],
+        );
         add_conflict(&mut conflicting_class_groups, "touch-x", vec!["touch"]);
         add_conflict(&mut conflicting_class_groups, "touch-y", vec!["touch"]);
         add_conflict(&mut conflicting_class_groups, "touch-pz", vec!["touch"]);
@@ -3123,7 +3761,10 @@ fn scale_bg_position() -> Vec<ClassDef> {
     v.push(validator(is_arbitrary_position));
     v.push(obj(
         "position",
-        vec![validator(is_arbitrary_variable), validator(is_arbitrary_value)],
+        vec![
+            validator(is_arbitrary_variable),
+            validator(is_arbitrary_value),
+        ],
     ));
     v
 }
@@ -3131,7 +3772,10 @@ fn scale_bg_position() -> Vec<ClassDef> {
 fn scale_bg_repeat() -> Vec<ClassDef> {
     vec![
         lit("no-repeat"),
-        obj("repeat", vec![lit(""), lit("x"), lit("y"), lit("space"), lit("round")]),
+        obj(
+            "repeat",
+            vec![lit(""), lit("x"), lit("y"), lit("space"), lit("round")],
+        ),
     ]
 }
 
@@ -3142,7 +3786,13 @@ fn scale_bg_size() -> Vec<ClassDef> {
         lit("contain"),
         validator(is_arbitrary_variable_size),
         validator(is_arbitrary_size),
-        obj("size", vec![validator(is_arbitrary_variable), validator(is_arbitrary_value)]),
+        obj(
+            "size",
+            vec![
+                validator(is_arbitrary_variable),
+                validator(is_arbitrary_value),
+            ],
+        ),
     ]
 }
 

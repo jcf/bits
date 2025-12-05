@@ -83,13 +83,29 @@ fn simple_tailwind_class() -> impl Strategy<Value = String> {
     prop_oneof![
         // Padding classes (no auto)
         (
-            prop_oneof![Just("p"), Just("px"), Just("py"), Just("pt"), Just("pr"), Just("pb"), Just("pl")],
+            prop_oneof![
+                Just("p"),
+                Just("px"),
+                Just("py"),
+                Just("pt"),
+                Just("pr"),
+                Just("pb"),
+                Just("pl")
+            ],
             spacing_value()
         )
             .prop_map(|(p, v)| format!("{}-{}", p, v)),
         // Margin classes (includes auto)
         (
-            prop_oneof![Just("m"), Just("mx"), Just("my"), Just("mt"), Just("mr"), Just("mb"), Just("ml")],
+            prop_oneof![
+                Just("m"),
+                Just("mx"),
+                Just("my"),
+                Just("mt"),
+                Just("mr"),
+                Just("mb"),
+                Just("ml")
+            ],
             margin_value()
         )
             .prop_map(|(p, v)| format!("{}-{}", p, v)),
@@ -101,7 +117,13 @@ fn simple_tailwind_class() -> impl Strategy<Value = String> {
             .prop_map(|(p, v)| format!("{}-{}", p, v)),
         // Position classes (includes auto, full)
         (
-            prop_oneof![Just("top"), Just("left"), Just("right"), Just("bottom"), Just("inset")],
+            prop_oneof![
+                Just("top"),
+                Just("left"),
+                Just("right"),
+                Just("bottom"),
+                Just("inset")
+            ],
             sizing_value()
         )
             .prop_map(|(p, v)| format!("{}-{}", p, v)),

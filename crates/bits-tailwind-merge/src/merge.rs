@@ -34,7 +34,7 @@ fn merge_class_list(class_list: &str, config: &Config) -> String {
         }
 
         // Try to get class group ID
-        let mut has_postfix_modifier = parsed.maybe_postfix_modifier_position.is_some();
+        let has_postfix_modifier = parsed.maybe_postfix_modifier_position.is_some();
         let base_for_lookup = if has_postfix_modifier {
             if let Some(pos) = parsed.maybe_postfix_modifier_position {
                 &parsed.base_class_name[..pos]
@@ -50,9 +50,6 @@ fn merge_class_list(class_list: &str, config: &Config) -> String {
         // If not found and we had a postfix modifier, try without it
         if class_group_id.is_none() && has_postfix_modifier {
             class_group_id = get_class_group_id(parsed.base_class_name, config);
-            if class_group_id.is_some() {
-                has_postfix_modifier = false;
-            }
         }
 
         // If still not found, it's not a Tailwind class - pass through
