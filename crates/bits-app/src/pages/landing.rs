@@ -53,35 +53,90 @@ pub fn Landing() -> Element {
                         { t.t("landing-reserve-username") }
                     }
 
-                    div { class: "flex items-center gap-2 mb-4",
-                        input {
-                            r#type: "text",
-                            placeholder: "yourname",
-                            autocomplete: "off",
-                            "data-1p-ignore": "true",
-                            class: "flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white",
-                            value: "{subdomain_input()}",
-                            oninput: move |evt| subdomain_input.set(evt.value()),
+                    div { class: "mb-4",
+                        div { class: "flex items-center gap-2",
+                            div { class: "flex-1 grid grid-cols-1",
+                                input {
+                                    r#type: "text",
+                                    placeholder: t.t("subdomain-input-placeholder"),
+                                    autocomplete: "off",
+                                    "data-1p-ignore": "true",
+                                    class: "col-start-1 row-start-1 w-full px-4 py-3 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white",
+                                    value: "{subdomain_input()}",
+                                    oninput: move |evt| subdomain_input.set(evt.value()),
+                                }
+                                if checking() {
+                                    svg {
+                                        view_box: "0 0 20 20",
+                                        fill: "none",
+                                        class: "pointer-events-none col-start-1 row-start-1 mr-3 size-5 self-center justify-self-end text-gray-400 animate-spin",
+                                        circle {
+                                            cx: "10",
+                                            cy: "10",
+                                            r: "8",
+                                            stroke: "currentColor",
+                                            "stroke-width": "2",
+                                            "stroke-dasharray": "50",
+                                            "stroke-dashoffset": "25",
+                                        }
+                                    }
+                                }
+                            }
+                            span { class: "text-gray-600 dark:text-gray-400 text-lg", ".bits.page" }
                         }
-                        span { class: "text-gray-600 dark:text-gray-400 text-lg", ".bits.page" }
                     }
 
                     // Status indicator
-                    div { class: "min-h-[2rem] flex items-center justify-center",
-                        if checking() {
-                            span { class: "text-gray-500 text-sm", "Checking..." }
-                        } else if let Some(ref s) = status() {
+                    div { class: "mt-4",
+                        if let Some(ref s) = status() {
                             {
                                 let msg = t.t(s.translation_key());
-                                let (icon, class) = match s {
-                                    SubdomainStatus::Available => ("✓", "text-green-600 font-medium"),
-                                    SubdomainStatus::InvalidLength |
-                                    SubdomainStatus::InvalidCharacters |
-                                    SubdomainStatus::InvalidFormat => ("✗", "text-red-600 font-medium"),
-                                    _ => ("🎭", "text-yellow-600 font-medium"),
-                                };
-                                rsx! {
-                                    span { class: "{class}", "{icon} {msg}" }
+                                if s.is_available() {
+                                    rsx! {
+                                        div { class: "alert-animate rounded-md bg-green-50 p-4",
+                                            div { class: "flex",
+                                                div { class: "shrink-0",
+                                                    svg {
+                                                        view_box: "0 0 20 20",
+                                                        fill: "currentColor",
+                                                        "aria-hidden": "true",
+                                                        class: "size-5 text-green-400",
+                                                        path {
+                                                            d: "M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z",
+                                                            "clip-rule": "evenodd",
+                                                            "fill-rule": "evenodd",
+                                                        }
+                                                    }
+                                                }
+                                                div { class: "ml-3",
+                                                    p { class: "text-sm font-medium text-green-800", "{msg}" }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    rsx! {
+                                        div { class: "alert-animate border-l-4 border-yellow-400 bg-yellow-50 p-4",
+                                            div { class: "flex",
+                                                div { class: "shrink-0",
+                                                    svg {
+                                                        view_box: "0 0 20 20",
+                                                        fill: "currentColor",
+                                                        "aria-hidden": "true",
+                                                        class: "size-5 text-yellow-400",
+                                                        path {
+                                                            d: "M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
+                                                            "clip-rule": "evenodd",
+                                                            "fill-rule": "evenodd",
+                                                        }
+                                                    }
+                                                }
+                                                div { class: "ml-3",
+                                                    p { class: "text-sm text-yellow-700", "{msg}" }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -90,7 +145,7 @@ pub fn Landing() -> Element {
                     // Reserve button
                     button {
                         class: "w-full mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed",
-                        disabled: status().is_none() || !matches!(status(), Some(SubdomainStatus::Available)),
+                        disabled: !status().as_ref().map_or(false, |s| s.is_available()),
                         onclick: move |_| show_modal.set(true),
                         "Reserve"
                     }

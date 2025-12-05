@@ -1,0 +1,1025 @@
+#+title:    Handle Validation Improvements
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Overview
+
+Improve handle validation to be more robust, performant, and maintainable. This
+addresses several bugs in the current implementation and consolidates validation
+logic into a single, well-tested module.
+
+**Current Issues:**
+- Allows handles starting with digits (e.g., "123abc")
+- Allows consecutive hyphens (e.g., "a--b")
+- No whitespace trimming
+- Reserved words scattered across codebase
+- Manual string matching for reserved names (O(n))
+- Easter egg logic mixed with validation
+
+**Dependencies:** None - can start immediately
+
+* Bug Fixes
+
+** Must Start With Letter
+
+Current code allows numeric-only handles like "123abc". This can cause confusion
+with IDs and breaks subdomain conventions.
+
+#+begin_src rust
+// Currently VALID but should be INVALID:
+Handle::new("123abc").unwrap()
+Handle::new("42-foo").unwrap()
+#+end_src
+
+Fix: Add check that first character is `a-z`.
+
+** Consecutive Hyphens
+
+Current code allows consecutive hyphens which look bad and can cause parsing issues.
+
+#+begin_src rust
+// Currently VALID but should be INVALID:
+Handle::new("a--b").unwrap()
+Handle::new("test---handle").unwrap()
+#+end_src
+
+Fix: Track previous character during validation and reject consecutive hyphens.
+
+** Whitespace Trimming
+
+Current code converts to lowercase but doesn't trim whitespace.
+
+#+begin_src rust
+// Currently FAILS but should SUCCEED:
+Handle::new("  alice  ") // Should trim to "alice"
+#+end_src
+
+Fix: Call `.trim()` before `.to_ascii_lowercase()`.
+
+* Performance Improvements
+
+** Use phf for Reserved Names
+
+Replace runtime match statements with compile-time perfect hash.
+
+Add to =Cargo.toml=:
+
+#+begin_src toml
+[dependencies]
+phf = { version = "0.11", features = ["macros"] }
+#+end_src
+
+Create reserved names module in =crates/bits-app/src/tenant.rs=:
+
+#+begin_src rust
+mod reserved {
+    use phf::phf_set;
+
+    pub static NAMES: phf::Set<&'static str> = phf_set! {
+        // Infrastructure
+        "www", "www1", "www2", "api", "app", "cdn", "static", "assets",
+        "media", "img", "images", "files", "uploads", "download", "downloads",
+
+        // Auth & accounts
+        "auth", "oauth", "login", "logout", "signin", "signout", "signup",
+        "register", "account", "accounts", "profile", "settings", "preferences",
+
+        // Admin & support
+        "admin", "administrator", "root", "superuser", "mod", "moderator",
+        "help", "support", "contact", "feedback", "abuse", "legal", "dmca",
+        "tos", "terms", "privacy", "security", "trust", "safety",
+
+        // Billing & business
+        "billing", "invoice", "pay", "payment", "payments", "checkout",
+        "subscribe", "subscription", "pricing", "plans", "enterprise",
+
+        // Technical
+        "mail", "email", "smtp", "imap", "pop", "ftp", "sftp", "ssh", "git",
+        "status", "health", "ping", "metrics", "stats", "analytics",
+        "test", "testing", "dev", "development", "staging", "prod", "production",
+        "demo", "sandbox", "preview", "beta", "alpha", "canary",
+
+        // Services
+        "blog", "news", "docs", "documentation", "wiki", "forum", "community",
+        "shop", "store", "marketplace", "explore", "discover", "search",
+        "dashboard", "console", "portal",
+
+        // Brand protection
+        "bits", "usebits", "getbits", "mybits", "bitshq", "bitsapp",
+        "invetica", "official", "verified", "team", "staff", "employee",
+
+        // Protocol prefixes
+        "http", "https", "ftp", "ssh", "git", "svn", "localhost",
+
+        // Misc reserved
+        "null", "undefined", "nil", "none", "void", "anonymous", "guest",
+        "user", "users", "member", "members", "creator", "creators",
+        "me", "my", "self", "this", "new", "create", "edit", "delete",
+    };
+}
+
+pub fn is_reserved(name: &str) -> bool {
+    reserved::NAMES.contains(&name.to_ascii_lowercase())
+}
+#+end_src
+
+Benefits:
+- O(1) lookup vs O(n) match
+- Compile-time construction (zero runtime cost)
+- Single source of truth for reserved names
+- Easy to add/remove names
+
+* New Features
+
+** Configurable Validation
+
+Add =HandleConfig= for flexible validation rules:
+
+#+begin_src rust
+#[derive(Debug, Clone)]
+pub struct HandleConfig {
+    pub min_length: usize,
+    pub max_length: usize,
+    pub check_reserved: bool,
+}
+
+impl Default for HandleConfig {
+    fn default() -> Self {
+        Self {
+            min_length: 3,
+            max_length: 32,  // Changed from 63 (DNS max) to 32 (more reasonable for usernames)
+            check_reserved: true,
+        }
+    }
+}
+
+impl Handle {
+    pub fn new(input: &str) -> Result<Self, HandleError> {
+        Self::with_config(input, &HandleConfig::default())
+    }
+
+    pub fn with_config(input: &str, config: &HandleConfig) -> Result<Self, HandleError> {
+        // Validation logic here
+    }
+}
+#+end_src
+
+Use cases:
+- Tests can use longer handles if needed
+- Special imports can bypass reserved check
+- Different contexts can have different length limits
+
+** Better Error Messages
+
+Add position info for invalid characters:
+
+#+begin_src rust
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum HandleError {
+    #[error("handle must be at least {min} characters (got {actual})")]
+    TooShort { min: usize, actual: usize },
+
+    #[error("handle must be at most {max} characters (got {actual})")]
+    TooLong { max: usize, actual: usize },
+
+    #[error("handle must start with a letter")]
+    MustStartWithLetter,
+
+    #[error("handle cannot end with a hyphen")]
+    CannotEndWithHyphen,
+
+    #[error("handle cannot contain consecutive hyphens")]
+    ConsecutiveHyphens,
+
+    #[error("handle contains invalid character '{0}' at position {1}")]
+    InvalidCharacter(char, usize),
+
+    #[error("'{0}' is a reserved name")]
+    Reserved(String),
+}
+#+end_src
+
+Benefits:
+- Users know exactly what's wrong
+- Position info helps fix invalid characters
+- Specific errors for each validation rule
+
+** Add into_inner() Method
+
+Allow consuming the Handle:
+
+#+begin_src rust
+impl Handle {
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+#+end_src
+
+* Refactoring
+
+** Move Reserved Check to Handle::new()
+
+Currently reserved names are checked in =subdomain.rs= after Handle construction.
+Move this check into =Handle::new()= for better encapsulation.
+
+Before (in =subdomain.rs=):
+
+#+begin_src rust
+let handle = Handle::new(input)?;
+
+// Separate reserved check
+match handle.as_str() {
+    "www" | "api" | "app" | "admin" => {
+        return Ok(SubdomainStatus::ReservedPlatform);
+    }
+    _ => {}
+}
+#+end_src
+
+After (in =tenant.rs=):
+
+#+begin_src rust
+impl Handle {
+    pub fn with_config(input: &str, config: &HandleConfig) -> Result<Self, HandleError> {
+        let normalized = input.trim().to_ascii_lowercase();
+
+        // ... other validation ...
+
+        if config.check_reserved && is_reserved(&normalized) {
+            return Err(HandleError::Reserved(normalized));
+        }
+
+        Ok(Handle(normalized))
+    }
+}
+#+end_src
+
+** Simplify SubdomainStatus Enum
+
+Remove easter egg categories and collapse to essential states:
+
+Before:
+
+#+begin_src rust
+pub enum SubdomainStatus {
+    Available,
+    InvalidLength,
+    InvalidCharacters,
+    InvalidFormat,
+    ReservedPlatform,
+    ReservedGod,         // Remove
+    ReservedJesus,       // Remove
+    ReservedSatan,       // Remove
+    ReservedNsfw,        // Remove
+    ReservedProfanitySoft,    // Remove
+    ReservedTesting,     // Remove
+    ReservedProfanityCreative, // Remove
+    ReservedDemo,
+    AlreadyTaken,
+}
+#+end_src
+
+After:
+
+#+begin_src rust
+pub enum SubdomainStatus {
+    Available,
+    Invalid(HandleError),  // Wraps all validation errors
+    Reserved,              // Generic reserved (includes demos)
+    AlreadyTaken,
+}
+#+end_src
+
+Benefits:
+- Simpler enum with fewer variants
+- Validation errors propagate naturally
+- Easter eggs can be handled at application layer
+
+** Update check_subdomain() Function
+
+Simplify =subdomain.rs= by using Handle validation:
+
+#+begin_src rust
+#[get("/api/handles/:handle", state: Extension<crate::AppState>)]
+pub async fn check_subdomain(handle: String) -> Result<SubdomainStatus, SubdomainError> {
+    // Validate handle
+    let handle = match Handle::new(handle) {
+        Ok(h) => h,
+        Err(e) => return Ok(SubdomainStatus::Invalid(e)),
+    };
+
+    // Check if demo (reserved)
+    if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+        return Ok(SubdomainStatus::Reserved);
+    }
+
+    // Check database for existing tenant
+    if let Some(platform_domain) = &state.config.platform_domain {
+        let domain = format!("{}.{}", handle, platform_domain);
+
+        let exists = sqlx::query_scalar!(
+            "select exists(
+                select 1
+                from tenant_domains
+                where domain = $1
+                and valid_to = 'infinity'
+            )",
+            domain
+        )
+        .fetch_one(&state.db)
+        .await?
+        .unwrap_or(false);
+
+        if exists {
+            return Ok(SubdomainStatus::AlreadyTaken);
+        }
+    }
+
+    Ok(SubdomainStatus::Available)
+}
+#+end_src
+
+** Keep Easter Eggs Separate
+
+Move easter egg logic to application layer (e.g., special UI messages) rather
+than mixing with validation. Reserved names prevent registration, but easter
+eggs can show fun messages after validation succeeds.
+
+Example in UI layer:
+
+#+begin_src rust
+fn get_easter_egg_message(handle: &str) -> Option<&'static str> {
+    match handle {
+        "god" => Some("Sorry, this handle is reserved for a higher power ✨"),
+        "jesus" | "christ" => Some("This name is already taken by someone who walked on water 🌊"),
+        "satan" | "devil" | "lucifer" => Some("Nice try, but we're keeping this one locked down 😈"),
+        _ => None,
+    }
+}
+#+end_src
+
+This keeps validation logic pure and testable.
+
+* Complete Updated Implementation
+
+Updated =crates/bits-app/src/tenant.rs=:
+
+#+begin_src rust
+#[cfg(feature = "server")]
+use sqlx::PgPool;
+use std::fmt;
+
+/// Reserved system names (compile-time perfect hash)
+mod reserved {
+    use phf::phf_set;
+
+    pub static NAMES: phf::Set<&'static str> = phf_set! {
+        // Infrastructure
+        "www", "www1", "www2", "api", "app", "cdn", "static", "assets",
+        "media", "img", "images", "files", "uploads", "download", "downloads",
+
+        // Auth & accounts
+        "auth", "oauth", "login", "logout", "signin", "signout", "signup",
+        "register", "account", "accounts", "profile", "settings", "preferences",
+
+        // Admin & support
+        "admin", "administrator", "root", "superuser", "mod", "moderator",
+        "help", "support", "contact", "feedback", "abuse", "legal", "dmca",
+        "tos", "terms", "privacy", "security", "trust", "safety",
+
+        // Billing & business
+        "billing", "invoice", "pay", "payment", "payments", "checkout",
+        "subscribe", "subscription", "pricing", "plans", "enterprise",
+
+        // Technical
+        "mail", "email", "smtp", "imap", "pop", "ftp", "sftp", "ssh", "git",
+        "status", "health", "ping", "metrics", "stats", "analytics",
+        "test", "testing", "dev", "development", "staging", "prod", "production",
+        "demo", "sandbox", "preview", "beta", "alpha", "canary",
+
+        // Services
+        "blog", "news", "docs", "documentation", "wiki", "forum", "community",
+        "shop", "store", "marketplace", "explore", "discover", "search",
+        "dashboard", "console", "portal",
+
+        // Brand protection
+        "bits", "usebits", "getbits", "mybits", "bitshq", "bitsapp",
+        "invetica", "official", "verified", "team", "staff", "employee",
+
+        // Easter eggs (reserved but can show special messages)
+        "god", "jesus", "christ", "satan", "devil", "lucifer",
+        "nsfw", "porn", "xxx", "sex", "fuck", "shit", "damn",
+
+        // Protocol prefixes
+        "http", "https", "ftp", "ssh", "git", "svn", "localhost",
+
+        // Misc reserved
+        "null", "undefined", "nil", "none", "void", "anonymous", "guest",
+        "user", "users", "member", "members", "creator", "creators",
+        "me", "my", "self", "this", "new", "create", "edit", "delete",
+    };
+}
+
+/// Configuration for handle validation
+#[derive(Debug, Clone)]
+pub struct HandleConfig {
+    pub min_length: usize,
+    pub max_length: usize,
+    pub check_reserved: bool,
+}
+
+impl Default for HandleConfig {
+    fn default() -> Self {
+        Self {
+            min_length: 3,
+            max_length: 32,
+            check_reserved: true,
+        }
+    }
+}
+
+/// A validated subdomain handle (e.g., "jcf" in "jcf.bits.page")
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct Handle(String);
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum HandleError {
+    #[error("handle must be at least {min} characters (got {actual})")]
+    TooShort { min: usize, actual: usize },
+
+    #[error("handle must be at most {max} characters (got {actual})")]
+    TooLong { max: usize, actual: usize },
+
+    #[error("handle must start with a letter")]
+    MustStartWithLetter,
+
+    #[error("handle cannot end with a hyphen")]
+    CannotEndWithHyphen,
+
+    #[error("handle cannot contain consecutive hyphens")]
+    ConsecutiveHyphens,
+
+    #[error("handle contains invalid character '{0}' at position {1}")]
+    InvalidCharacter(char, usize),
+
+    #[error("'{0}' is a reserved name")]
+    Reserved(String),
+}
+
+impl Handle {
+    /// Create a new handle with validation
+    pub fn new(input: impl Into<String>) -> Result<Self, HandleError> {
+        Self::with_config(input, &HandleConfig::default())
+    }
+
+    /// Create a new handle with custom configuration
+    pub fn with_config(input: impl Into<String>, config: &HandleConfig) -> Result<Self, HandleError> {
+        let normalized = input.into().trim().to_ascii_lowercase();
+
+        // Length checks
+        if normalized.len() < config.min_length {
+            return Err(HandleError::TooShort {
+                min: config.min_length,
+                actual: normalized.len(),
+            });
+        }
+        if normalized.len() > config.max_length {
+            return Err(HandleError::TooLong {
+                max: config.max_length,
+                actual: normalized.len(),
+            });
+        }
+
+        // Must start with letter
+        let first = normalized.chars().next().unwrap(); // safe: len >= min_length
+        if !first.is_ascii_lowercase() {
+            return Err(HandleError::MustStartWithLetter);
+        }
+
+        // Cannot end with hyphen
+        if normalized.ends_with('-') {
+            return Err(HandleError::CannotEndWithHyphen);
+        }
+
+        // Character validation + consecutive hyphen check
+        let mut prev_hyphen = false;
+        for (i, c) in normalized.chars().enumerate() {
+            match c {
+                'a'..='z' | '0'..='9' => {
+                    prev_hyphen = false;
+                }
+                '-' => {
+                    if prev_hyphen {
+                        return Err(HandleError::ConsecutiveHyphens);
+                    }
+                    prev_hyphen = true;
+                }
+                _ => {
+                    return Err(HandleError::InvalidCharacter(c, i));
+                }
+            }
+        }
+
+        // Reserved names
+        if config.check_reserved && reserved::NAMES.contains(&normalized) {
+            return Err(HandleError::Reserved(normalized));
+        }
+
+        Ok(Handle(normalized))
+    }
+
+    /// Create from trusted source (e.g., database) without validation
+    pub fn from_trusted(s: String) -> Self {
+        Handle(s)
+    }
+
+    /// Get the validated handle as a string slice
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consume and return the inner String
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for Handle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for Handle {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Check if a name is reserved (system use)
+pub fn is_reserved(name: &str) -> bool {
+    reserved::NAMES.contains(&name.to_ascii_lowercase())
+}
+
+// ... rest of tenant.rs (Tenant, Realm, etc.) stays the same ...
+
+#[cfg(feature = "server")]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "server", derive(sqlx::FromRow))]
+pub struct Tenant {
+    pub id: i64,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Realm {
+    Platform { domain: String },
+    Creator(Tenant),
+    Demo(Handle),
+    NotFound,
+}
+
+#[cfg(feature = "server")]
+async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Option<Tenant> {
+    sqlx::query_as!(
+        Tenant,
+        "select
+           t.id,
+           t.name
+         from tenants t
+         join tenant_domains td on td.tenant_id = t.id
+         where td.domain = $1
+         and td.valid_to = 'infinity'",
+        domain,
+    )
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+}
+
+#[cfg(feature = "server")]
+pub async fn resolve_realm(
+    state: &crate::AppState,
+    scheme: crate::http::Scheme,
+    host: &str,
+) -> Realm {
+    let normalized_host = crate::http::normalize_host(scheme, host);
+
+    #[cfg(feature = "colo")]
+    {
+        if let Some(ref platform_domain) = state.config.platform_domain {
+            if normalized_host == *platform_domain {
+                return Realm::Platform {
+                    domain: platform_domain.clone(),
+                };
+            }
+
+            if normalized_host.ends_with(&format!(".{}", platform_domain)) {
+                let subdomain = normalized_host
+                    .strip_suffix(&format!(".{}", platform_domain))
+                    .unwrap();
+
+                let handle = Handle::from_trusted(subdomain.to_string());
+
+                if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+                    return Realm::Demo(handle);
+                }
+
+                if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
+                    return Realm::Creator(tenant);
+                }
+                return Realm::NotFound;
+            }
+        }
+    }
+
+    if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
+        return Realm::Creator(tenant);
+    }
+
+    Realm::NotFound
+}
+
+#[cfg(feature = "server")]
+impl<S> axum_core::extract::FromRequestParts<S> for Realm
+where
+    S: Send + Sync,
+{
+    type Rejection = (dioxus::server::axum::http::StatusCode, &'static str);
+
+    async fn from_request_parts(
+        parts: &mut dioxus::server::axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        parts.extensions.get::<Realm>().cloned().ok_or((
+            dioxus::server::axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "Realm not set",
+        ))
+    }
+}
+#+end_src
+
+Updated =crates/bits-app/src/subdomain.rs=:
+
+#+begin_src rust
+use dioxus::prelude::*;
+
+#[cfg(feature = "server")]
+use dioxus::server::axum::extract::Extension;
+
+#[cfg(feature = "server")]
+use crate::tenant::{Handle, HandleError};
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum SubdomainStatus {
+    Available,
+    Invalid(HandleError),
+    Reserved,
+    AlreadyTaken,
+}
+
+impl SubdomainStatus {
+    pub fn translation_key(&self) -> &'static str {
+        match self {
+            Self::Available => "subdomain-available",
+            Self::Invalid(HandleError::TooShort { .. }) => "subdomain-invalid-too-short",
+            Self::Invalid(HandleError::TooLong { .. }) => "subdomain-invalid-too-long",
+            Self::Invalid(HandleError::MustStartWithLetter) => "subdomain-invalid-must-start-letter",
+            Self::Invalid(HandleError::CannotEndWithHyphen) => "subdomain-invalid-hyphen-end",
+            Self::Invalid(HandleError::ConsecutiveHyphens) => "subdomain-invalid-consecutive-hyphens",
+            Self::Invalid(HandleError::InvalidCharacter(..)) => "subdomain-invalid-characters",
+            Self::Invalid(HandleError::Reserved(_)) => "subdomain-reserved",
+            Self::Reserved => "subdomain-reserved",
+            Self::AlreadyTaken => "subdomain-already-taken",
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug, serde::Serialize, serde::Deserialize)]
+pub enum SubdomainError {
+    #[error("Internal error")]
+    Internal(String),
+}
+
+impl From<ServerFnError> for SubdomainError {
+    fn from(err: ServerFnError) -> Self {
+        SubdomainError::Internal(err.to_string())
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<sqlx::Error> for SubdomainError {
+    fn from(err: sqlx::Error) -> Self {
+        SubdomainError::Internal(err.to_string())
+    }
+}
+
+impl dioxus::fullstack::AsStatusCode for SubdomainError {
+    fn as_status_code(&self) -> dioxus::fullstack::StatusCode {
+        dioxus::fullstack::StatusCode::INTERNAL_SERVER_ERROR
+    }
+}
+
+#[get("/api/handles/:handle", state: Extension<crate::AppState>)]
+pub async fn check_subdomain(handle: String) -> Result<SubdomainStatus, SubdomainError> {
+    // Validate handle
+    let handle = match Handle::new(handle) {
+        Ok(h) => h,
+        Err(e) => return Ok(SubdomainStatus::Invalid(e)),
+    };
+
+    // Check if demo (reserved)
+    if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+        return Ok(SubdomainStatus::Reserved);
+    }
+
+    // Check database for existing tenant
+    if let Some(platform_domain) = &state.config.platform_domain {
+        let domain = format!("{}.{}", handle, platform_domain);
+
+        let exists = sqlx::query_scalar!(
+            "select exists(
+                select 1
+                from tenant_domains
+                where domain = $1
+                and valid_to = 'infinity'
+            )",
+            domain
+        )
+        .fetch_one(&state.db)
+        .await?
+        .unwrap_or(false);
+
+        if exists {
+            return Ok(SubdomainStatus::AlreadyTaken);
+        }
+    }
+
+    Ok(SubdomainStatus::Available)
+}
+#+end_src
+
+* Testing
+
+Add comprehensive tests to =crates/bits-app/src/tenant.rs=:
+
+#+begin_src rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn valid_handles() {
+        let valid = ["alice", "bob123", "my-cool-handle", "a1b2c3", "creator-name"];
+        for h in valid {
+            assert!(Handle::new(h).is_ok(), "expected '{}' to be valid", h);
+        }
+    }
+
+    #[test]
+    fn rejects_too_short() {
+        assert!(matches!(
+            Handle::new("ab"),
+            Err(HandleError::TooShort { .. })
+        ));
+        assert!(matches!(
+            Handle::new("a"),
+            Err(HandleError::TooShort { .. })
+        ));
+        assert!(matches!(
+            Handle::new(""),
+            Err(HandleError::TooShort { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_too_long() {
+        let long = "a".repeat(33);
+        assert!(matches!(
+            Handle::new(&long),
+            Err(HandleError::TooLong { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_start() {
+        assert!(matches!(
+            Handle::new("123abc"),
+            Err(HandleError::MustStartWithLetter)
+        ));
+        assert!(matches!(
+            Handle::new("-abc"),
+            Err(HandleError::MustStartWithLetter)
+        ));
+        assert!(matches!(
+            Handle::new("_abc"),
+            Err(HandleError::InvalidCharacter(_, _))
+        ));
+    }
+
+    #[test]
+    fn rejects_hyphen_end() {
+        assert!(matches!(
+            Handle::new("abc-"),
+            Err(HandleError::CannotEndWithHyphen)
+        ));
+    }
+
+    #[test]
+    fn rejects_consecutive_hyphens() {
+        assert!(matches!(
+            Handle::new("a--b"),
+            Err(HandleError::ConsecutiveHyphens)
+        ));
+        assert!(matches!(
+            Handle::new("test---handle"),
+            Err(HandleError::ConsecutiveHyphens)
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_characters() {
+        let invalid = [
+            "hello_world",
+            "hello.world",
+            "hello@world",
+            "café",
+            "über",
+        ];
+        for h in invalid {
+            assert!(
+                matches!(Handle::new(h), Err(HandleError::InvalidCharacter(_, _))),
+                "expected '{}' to be rejected for invalid chars",
+                h
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_reserved() {
+        let reserved = ["admin", "api", "www", "login", "bits", "ADMIN", "Api"];
+        for h in reserved {
+            assert!(
+                matches!(Handle::new(h), Err(HandleError::Reserved(_))),
+                "expected '{}' to be rejected as reserved",
+                h
+            );
+        }
+    }
+
+    #[test]
+    fn normalizes_to_lowercase() {
+        let handle = Handle::new("AlIcE").unwrap();
+        assert_eq!(handle.as_str(), "alice");
+    }
+
+    #[test]
+    fn trims_whitespace() {
+        let handle = Handle::new("  alice  ").unwrap();
+        assert_eq!(handle.as_str(), "alice");
+    }
+
+    #[test]
+    fn custom_config() {
+        let config = HandleConfig {
+            min_length: 5,
+            max_length: 10,
+            check_reserved: false,
+        };
+        assert!(Handle::with_config("abc", &config).is_err());
+        assert!(Handle::with_config("abcde", &config).is_ok());
+        assert!(Handle::with_config("abcdefghijk", &config).is_err()); // 11 chars
+    }
+
+    #[test]
+    fn into_inner() {
+        let handle = Handle::new("alice").unwrap();
+        assert_eq!(handle.into_inner(), "alice");
+    }
+
+    #[test]
+    fn is_reserved_function() {
+        assert!(is_reserved("admin"));
+        assert!(is_reserved("ADMIN"));
+        assert!(is_reserved("Admin"));
+        assert!(!is_reserved("alice"));
+    }
+}
+#+end_src
+
+* Success Criteria
+
+- [ ] Add =phf= dependency to =Cargo.toml=
+- [ ] All tests pass: =just test=
+- [ ] =cargo check= passes
+- [ ] =Handle::new("123abc")= fails with =MustStartWithLetter=
+- [ ] =Handle::new("a--b")= fails with =ConsecutiveHyphens=
+- [ ] =Handle::new("  alice  ")= succeeds and trims to ="alice"=
+- [ ] =Handle::new("admin")= fails with =Reserved=
+- [ ] =is_reserved("api")= returns =true=
+- [ ] All reserved words moved from =subdomain.rs= match statements
+- [ ] =SubdomainStatus= enum simplified to 4 variants
+- [ ] Translation keys updated for new =SubdomainStatus= variants
+
+* Migration Notes
+
+** Breaking Changes
+
+1. =SubdomainStatus= enum variants changed - update frontend code that matches on these
+2. =HandleError= variants changed - update error handling code
+3. Max length changed from 63 to 32 - existing handles longer than 32 will still work (=from_trusted=) but new ones cannot be created
+
+** Non-Breaking Changes
+
+1. Reserved name checking moved into =Handle::new()= - transparent to callers
+2. Easter egg messages can be added to UI layer without changing validation
+3. Tests added - no behavior changes, just better coverage
+
+** Translation Updates Needed
+
+Update translation files for new error keys:
+- =subdomain-invalid-too-short=
+- =subdomain-invalid-too-long=
+- =subdomain-invalid-must-start-letter=
+- =subdomain-invalid-hyphen-end=
+- =subdomain-invalid-consecutive-hyphens=
+- =subdomain-reserved= (generic, replaces all specific reserved variants)
+
+Remove old translation keys:
+- =subdomain-reserved-platform=
+- =subdomain-reserved-god=
+- =subdomain-reserved-jesus=
+- =subdomain-reserved-satan=
+- =subdomain-reserved-nsfw=
+- =subdomain-reserved-profanity-soft=
+- =subdomain-reserved-profanity-creative=
+- =subdomain-reserved-testing=
+- =subdomain-reserved-demo=
+
+* Future Enhancements (Not in This PR)
+
+These can be added later if needed:
+
+** Blocklist Support
+
+Add optional blocklist loading for profanity/slurs:
+
+#+begin_src rust
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
+static BLOCKLIST: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    const BLOCKLIST_TXT: &str = include_str!("blocklist.txt");
+    BLOCKLIST_TXT
+        .lines()
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && !s.starts_with('#'))
+        .collect()
+});
+
+fn is_blocked(handle: &str) -> bool {
+    // Exact match
+    if BLOCKLIST.contains(handle) {
+        return true;
+    }
+
+    // Substring match for longer blocked terms
+    BLOCKLIST.iter().any(|blocked| {
+        blocked.len() >= 4 && handle.contains(*blocked)
+    })
+}
+#+end_src
+
+Add =HandleConfig= field:
+
+#+begin_src rust
+pub struct HandleConfig {
+    pub min_length: usize,
+    pub max_length: usize,
+    pub check_reserved: bool,
+    pub check_blocklist: bool,  // NEW
+}
+#+end_src
+
+** Similarity Detection
+
+Detect handles that are too similar to reserved names using Levenshtein distance:
+
+#+begin_src rust
+fn too_similar_to_reserved(handle: &str) -> bool {
+    reserved::NAMES.iter().any(|reserved| {
+        levenshtein(handle, reserved) <= 2
+    })
+}
+#+end_src
+
+This would catch typo-squatting like "adrnin" for "admin".
+
+* Notes
+
+- This is a significant refactoring but maintains backward compatibility where possible
+- Focus on getting the core validation right - blocklist/similarity can come later
+- Easter eggs are fun but shouldn't pollute validation logic
+- Better to reject a few valid handles than allow invalid ones

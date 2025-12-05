@@ -4,23 +4,14 @@ use dioxus::prelude::*;
 use dioxus::server::axum::extract::Extension;
 
 #[cfg(feature = "server")]
-use crate::tenant::{Handle, HandleError};
+use crate::tenant::Handle;
+use crate::tenant::HandleError;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum SubdomainStatus {
     Available,
-    InvalidLength,
-    InvalidCharacters,
-    InvalidFormat,
-    ReservedPlatform,
-    ReservedGod,
-    ReservedJesus,
-    ReservedSatan,
-    ReservedNsfw,
-    ReservedProfanitySoft,
-    ReservedTesting,
-    ReservedProfanityCreative,
-    ReservedDemo,
+    Invalid(HandleError),
+    Reserved,
     AlreadyTaken,
 }
 
@@ -29,20 +20,31 @@ impl SubdomainStatus {
     pub fn translation_key(&self) -> &'static str {
         match self {
             Self::Available => "subdomain-available",
-            Self::InvalidLength => "subdomain-invalid-length",
-            Self::InvalidCharacters => "subdomain-invalid-characters",
-            Self::InvalidFormat => "subdomain-invalid-format",
-            Self::ReservedPlatform => "subdomain-reserved-platform",
-            Self::ReservedGod => "subdomain-reserved-god",
-            Self::ReservedJesus => "subdomain-reserved-jesus",
-            Self::ReservedSatan => "subdomain-reserved-satan",
-            Self::ReservedNsfw => "subdomain-reserved-nsfw",
-            Self::ReservedProfanitySoft => "subdomain-reserved-profanity-soft",
-            Self::ReservedTesting => "subdomain-reserved-testing",
-            Self::ReservedProfanityCreative => "subdomain-reserved-profanity-creative",
-            Self::ReservedDemo => "subdomain-reserved-demo",
+            Self::Invalid(HandleError::TooShort { .. }) => "subdomain-invalid-too-short",
+            Self::Invalid(HandleError::TooLong { .. }) => "subdomain-invalid-too-long",
+            Self::Invalid(HandleError::MustStartWithLetter) => "subdomain-invalid-must-start-letter",
+            Self::Invalid(HandleError::CannotEndWithHyphen) => "subdomain-invalid-hyphen-end",
+            Self::Invalid(HandleError::ConsecutiveHyphens) => "subdomain-invalid-consecutive-hyphens",
+            Self::Invalid(HandleError::InvalidCharacter(..)) => "subdomain-invalid-characters",
+            Self::Invalid(HandleError::Reserved(_)) => "subdomain-reserved",
+            Self::Reserved => "subdomain-reserved",
             Self::AlreadyTaken => "subdomain-already-taken",
         }
+    }
+
+    /// Check if this is an available status
+    pub fn is_available(&self) -> bool {
+        matches!(self, Self::Available)
+    }
+
+    /// Check if this is an error (invalid input)
+    pub fn is_error(&self) -> bool {
+        matches!(self, Self::Invalid(_))
+    }
+
+    /// Check if this is a notice (reserved or taken)
+    pub fn is_notice(&self) -> bool {
+        matches!(self, Self::Reserved | Self::AlreadyTaken)
     }
 }
 
@@ -73,57 +75,15 @@ impl dioxus::fullstack::AsStatusCode for SubdomainError {
 
 #[get("/api/handles/:handle", state: Extension<crate::AppState>)]
 pub async fn check_subdomain(handle: String) -> Result<SubdomainStatus, SubdomainError> {
-    // Try to create validated Handle
+    // Validate handle
     let handle = match Handle::new(handle) {
         Ok(h) => h,
-        Err(HandleError::InvalidLength) => {
-            return Ok(SubdomainStatus::InvalidLength);
-        }
-        Err(HandleError::InvalidCharacters) => {
-            return Ok(SubdomainStatus::InvalidCharacters);
-        }
-        Err(HandleError::InvalidFormat) => {
-            return Ok(SubdomainStatus::InvalidFormat);
-        }
+        Err(e) => return Ok(SubdomainStatus::Invalid(e)),
     };
 
-    // Check reserved system words
-    match handle.as_str() {
-        "www" | "api" | "app" | "admin" | "dashboard" | "cdn" | "assets" => {
-            return Ok(SubdomainStatus::ReservedPlatform);
-        }
-        _ => {}
-    }
-
-    // Easter eggs!
-    match handle.as_str() {
-        "god" => {
-            return Ok(SubdomainStatus::ReservedGod);
-        }
-        "jesus" | "christ" => {
-            return Ok(SubdomainStatus::ReservedJesus);
-        }
-        "satan" | "devil" | "lucifer" => {
-            return Ok(SubdomainStatus::ReservedSatan);
-        }
-        "nsfw" => {
-            return Ok(SubdomainStatus::ReservedNsfw);
-        }
-        "porn" | "xxx" | "sex" => {
-            return Ok(SubdomainStatus::ReservedProfanitySoft);
-        }
-        "test" | "demo" | "example" | "sample" => {
-            return Ok(SubdomainStatus::ReservedTesting);
-        }
-        "fuck" | "shit" | "damn" => {
-            return Ok(SubdomainStatus::ReservedProfanityCreative);
-        }
-        _ => {}
-    }
-
-    // Check if demo
+    // Check if demo (reserved)
     if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
-        return Ok(SubdomainStatus::ReservedDemo);
+        return Ok(SubdomainStatus::Reserved);
     }
 
     // Check database for existing tenant

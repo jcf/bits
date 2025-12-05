@@ -2,3 +2,18 @@
 @source "./index.html";
 @source "../bits-app/src/**/*.{rs,html,css}";
 @source "./src/**/*.{rs,html,css}";
+
+@keyframes slideInFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert-animate {
+  animation: slideInFade 0.2s ease-out;
+}

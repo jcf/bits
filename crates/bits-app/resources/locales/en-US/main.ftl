@@ -74,20 +74,17 @@ error-404-message = The requested tenant does not exist.
 mobile-menu-open = Open menu
 
 # Subdomain validation
-subdomain-available = Available
-subdomain-invalid-length = Must be 3-63 characters
-subdomain-invalid-characters = Only lowercase letters, numbers, and hyphens
-subdomain-invalid-format = Cannot start or end with hyphen
-subdomain-reserved-platform = Reserved for internal use
-subdomain-reserved-god = Sorry, this one's taken by a higher power
-subdomain-reserved-jesus = He'll be back in three days to claim it
-subdomain-reserved-satan = Sorry, this one's taken by a lower power
-subdomain-reserved-nsfw = That's up to you
-subdomain-reserved-profanity-soft = You might want to be more creative
-subdomain-reserved-testing = Reserved for internal use
-subdomain-reserved-profanity-creative = Creative
-subdomain-reserved-demo = Already taken
-subdomain-already-taken = Already taken
+subdomain-input-placeholder = Begin typing (three characters minimum).
+subdomain-checking = Checking availability…
+subdomain-already-taken = This handle is already taken.
+subdomain-available = Your handle is available!
+subdomain-invalid-characters = Only lowercase letters, numbers, and hyphens are allowed.
+subdomain-invalid-consecutive-hyphens = Cannot contain consecutive hyphens.
+subdomain-invalid-hyphen-end = Cannot end with a hyphen.
+subdomain-invalid-must-start-letter = Must start with a letter.
+subdomain-invalid-too-long = Must be at most 32 characters.
+subdomain-invalid-too-short = Must be at least 3 characters.
+subdomain-reserved = This username is reserved.
 
 # Landing page
 landing-tagline = Your audience. Your revenue. Your rules.
