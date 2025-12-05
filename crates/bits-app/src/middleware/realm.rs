@@ -47,11 +47,18 @@ where
                     let scheme = crate::http::extract_scheme(&req);
                     resolve_realm(app_state, scheme, &host).await
                 } else {
-                    Realm::Platform
+                    let domain = app_state
+                        .config
+                        .platform_domain
+                        .clone()
+                        .unwrap_or_else(|| "bits.page".to_string());
+                    Realm::Platform { domain }
                 }
             } else {
                 tracing::warn!("AppState not found in request extensions");
-                Realm::Platform
+                Realm::Platform {
+                    domain: "bits.page".to_string(),
+                }
             };
 
             req.extensions_mut().insert(realm);

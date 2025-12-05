@@ -73,7 +73,7 @@ pub struct Tenant {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Realm {
     /// Platform realm - the apex domain
-    Platform,
+    Platform { domain: String },
     /// Creator realm - a creator's site
     Creator(Tenant),
     /// Demo realm - a demo profile
@@ -113,7 +113,9 @@ pub async fn resolve_realm(
     {
         if let Some(ref platform_domain) = state.config.platform_domain {
             if normalized_host == *platform_domain {
-                return Realm::Platform;
+                return Realm::Platform {
+                    domain: platform_domain.clone(),
+                };
             }
 
             if normalized_host.ends_with(&format!(".{}", platform_domain)) {

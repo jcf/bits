@@ -19,15 +19,6 @@ pub struct Link {
 #[component]
 pub fn Layout(profile: Profile) -> Element {
     rsx! {
-        // Demo banner
-        div {
-            class: "bg-yellow-50 border-b border-yellow-200 p-3 text-center",
-            p {
-                class: "text-sm text-yellow-800",
-                "🎭 Demo Profile - Showcasing platform features"
-            }
-        }
-
         div { class: "max-w-2xl mx-auto",
             // Banner
             img {

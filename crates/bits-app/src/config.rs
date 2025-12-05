@@ -101,8 +101,8 @@ pub struct Config {
     pub metrics_auth_token: Option<String>,
 
     /// Platform domain (e.g., "bits.page") used for tenant routing
-    #[cfg(feature = "colo")]
     #[arg(long, env = "PLATFORM_DOMAIN")]
+    #[serde(default)]
     pub platform_domain: Option<String>,
 }
 

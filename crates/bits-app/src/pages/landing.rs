@@ -3,10 +3,16 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn Landing() -> Element {
-    let mut subdomain_input = use_signal(|| String::new());
+    let realm = use_context::<Resource<Result<crate::Realm>>>();
+    let mut subdomain_input = use_signal(String::new);
     let mut status = use_signal(|| Option::<SubdomainStatus>::None);
     let mut show_modal = use_signal(|| false);
     let mut checking = use_signal(|| false);
+
+    let platform_domain = match realm() {
+        Some(Ok(crate::Realm::Platform { domain })) => domain,
+        _ => "bits.page".to_string(),
+    };
 
     // Debounced check
     use_effect(move || {
@@ -26,15 +32,6 @@ pub fn Landing() -> Element {
     });
 
     rsx! {
-        // Prototype banner
-        div {
-            class: "bg-blue-50 border-b border-blue-200 p-3 text-center",
-            p {
-                class: "text-sm text-blue-800",
-                "🎨 Early Preview - Limited availability"
-            }
-        }
-
         div { class: "flex mt-20 flex-col items-center justify-center p-8",
             div { class: "max-w-2xl w-full space-y-8 text-center",
                 // Hero
@@ -108,6 +105,20 @@ pub fn Landing() -> Element {
                     div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
                         h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Rules" }
                         p { class: "text-gray-600 dark:text-gray-400", "Permissive content policies for adult creators." }
+                    }
+                }
+
+                // Demo examples
+                div { class: "mt-12 text-center",
+                    h2 { class: "text-2xl font-semibold text-gray-900 dark:text-white mb-6", "Examples" }
+                    div { class: "flex flex-wrap justify-center gap-4",
+                        for handle in crate::demos::SUBDOMAINS {
+                            a {
+                                href: "https://{handle}.{platform_domain}/",
+                                class: "px-6 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-indigo-500 dark:hover:border-indigo-400 transition font-medium text-gray-900 dark:text-white",
+                                "{handle}.bits.page"
+                            }
+                        }
                     }
                 }
             }

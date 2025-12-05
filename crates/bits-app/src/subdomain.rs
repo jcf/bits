@@ -44,9 +44,7 @@ pub async fn check_subdomain(handle: String) -> Result<SubdomainStatus, Subdomai
     let handle = match Handle::new(handle) {
         Ok(h) => h,
         Err(HandleError::InvalidLength) => {
-            return Ok(SubdomainStatus::Invalid(
-                "Must be 3-63 characters".into(),
-            ));
+            return Ok(SubdomainStatus::Invalid("Must be 3-63 characters".into()));
         }
         Err(HandleError::InvalidCharacters) => {
             return Ok(SubdomainStatus::Invalid(
@@ -116,27 +114,25 @@ pub async fn check_subdomain(handle: String) -> Result<SubdomainStatus, Subdomai
     }
 
     // Check database for existing tenant
-    let domain = format!(
-        "{}.{}",
-        handle,
-        state.config.platform_domain.as_ref().unwrap()
-    );
+    if let Some(platform_domain) = &state.config.platform_domain {
+        let domain = format!("{}.{}", handle, platform_domain);
 
-    let exists = sqlx::query_scalar!(
-        "select exists(
-            select 1
-            from tenant_domains
-            where domain = $1
-            and valid_to = 'infinity'
-        )",
-        domain
-    )
-    .fetch_one(&state.db)
-    .await?
-    .unwrap_or(false);
+        let exists = sqlx::query_scalar!(
+            "select exists(
+                select 1
+                from tenant_domains
+                where domain = $1
+                and valid_to = 'infinity'
+            )",
+            domain
+        )
+        .fetch_one(&state.db)
+        .await?
+        .unwrap_or(false);
 
-    if exists {
-        return Ok(SubdomainStatus::Reserved("Already taken".into()));
+        if exists {
+            return Ok(SubdomainStatus::Reserved("Already taken".into()));
+        }
     }
 
     Ok(SubdomainStatus::Available)

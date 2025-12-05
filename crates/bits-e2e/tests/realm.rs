@@ -12,7 +12,7 @@ async fn resolve_realm_returns_platform_for_apex_domain() {
 
     let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "example.com").await;
 
-    assert!(matches!(realm, Realm::Platform));
+    assert!(matches!(realm, Realm::Platform { .. }));
 }
 
 #[tokio::test]

@@ -13,7 +13,6 @@ pub mod tenant;
 pub mod crypto;
 #[cfg(feature = "server")]
 pub mod csrf;
-#[cfg(feature = "server")]
 pub mod demos;
 #[cfg(feature = "server")]
 pub mod metrics;

@@ -37,7 +37,7 @@ pub fn Home() -> Element {
                 }
             }
         }
-        Some(Ok(crate::Realm::Platform)) => {
+        Some(Ok(crate::Realm::Platform { .. })) => {
             rsx! { Landing {} }
         }
         Some(Ok(crate::Realm::NotFound)) => rsx! { NotFound {} },
