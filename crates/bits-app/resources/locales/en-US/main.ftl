@@ -78,15 +78,15 @@ subdomain-available = Available
 subdomain-invalid-length = Must be 3-63 characters
 subdomain-invalid-characters = Only lowercase letters, numbers, and hyphens
 subdomain-invalid-format = Cannot start or end with hyphen
-subdomain-reserved-platform = Reserved for platform use
+subdomain-reserved-platform = Reserved for internal use
 subdomain-reserved-god = Sorry, this one's taken by a higher power
 subdomain-reserved-jesus = He'll be back in three days to claim it
-subdomain-reserved-satan = Already reserved in hell.bits.page
-subdomain-reserved-nsfw = Too on the nose, try something creative!
-subdomain-reserved-profanity-soft = We get it, but be more subtle
-subdomain-reserved-testing = Reserved for testing and demos
-subdomain-reserved-profanity-creative = Creative profanity is an art. This isn't it.
-subdomain-reserved-demo = This is a demo profile
+subdomain-reserved-satan = Sorry, this one's taken by a lower power
+subdomain-reserved-nsfw = That's up to you
+subdomain-reserved-profanity-soft = You might want to be more creative
+subdomain-reserved-testing = Reserved for internal use
+subdomain-reserved-profanity-creative = Creative
+subdomain-reserved-demo = Already taken
 subdomain-already-taken = Already taken
 
 # Landing page

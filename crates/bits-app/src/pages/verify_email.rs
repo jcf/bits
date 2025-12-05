@@ -1,4 +1,6 @@
+use crate::i18n::use_translation;
 use dioxus::prelude::*;
+use fluent_bundle::FluentArgs;
 
 #[component]
 pub fn VerifyEmail() -> Element {
@@ -6,6 +8,7 @@ pub fn VerifyEmail() -> Element {
         resend_verification_code, verify_email_code, ResendForm, SessionState, VerifyEmailForm,
     };
 
+    let t = use_translation();
     let session = use_context::<Resource<Result<SessionState>>>();
     let mut code = use_signal(String::new);
     let mut verify_action = use_action(verify_email_code);
@@ -76,10 +79,11 @@ pub fn VerifyEmail() -> Element {
         div { class: "flex min-h-full items-center justify-center px-4 py-12",
             div { class: "w-full max-w-md space-y-6 text-center",
                 h2 { class: "text-2xl font-bold text-gray-900 dark:text-white",
-                    "Verify your email"
+                    { t.t("verify-email-title") }
                 }
                 p { class: "text-sm text-gray-600 dark:text-gray-400",
-                    "We sent a 6-digit code to "
+                    { t.t("verify-email-description") }
+                    " "
                     span { class: "font-medium", "{email()}" }
                 }
 
@@ -92,7 +96,7 @@ pub fn VerifyEmail() -> Element {
                 if let Some(Ok(_)) = verify_action.value() {
                     div { class: "rounded-md bg-green-50 dark:bg-green-900/20 p-4",
                         p { class: "text-sm text-green-800 dark:text-green-200",
-                            "Email verified successfully! Redirecting..."
+                            { t.t("verify-email-success") }
                         }
                     }
                 }
@@ -134,8 +138,13 @@ pub fn VerifyEmail() -> Element {
 
                 div { class: "space-y-2",
                     if cooldown_secs() > 0 {
-                        p { class: "text-sm text-gray-500",
-                            "Resend available in {cooldown_secs()} seconds"
+                        {
+                            let mut args = FluentArgs::new();
+                            args.set("seconds", cooldown_secs());
+                            let msg = t.t_with_args("verify-email-resend-cooldown", args);
+                            rsx! {
+                                p { class: "text-sm text-gray-500", "{msg}" }
+                            }
                         }
                     } else {
                         crate::components::Button {

@@ -139,18 +139,19 @@ pub fn Landing() -> Element {
 
                     h3 {
                         class: "text-2xl font-bold text-gray-900 dark:text-white mb-4",
-                        "Thanks for your interest!"
+                        { t.t("landing-modal-thanks") }
                     }
                     p {
                         class: "text-gray-600 dark:text-gray-400 mb-6",
-                        "We'd love to hear from you. To reserve "
+                        { t.t("landing-modal-description") }
+                        " "
                         strong { "{subdomain_input()}.bits.page" }
                         ", please get in touch:"
                     }
                     a {
                         href: "mailto:hello@bits.page?subject=Reserve%20{subdomain_input()}&body=I'd%20like%20to%20reserve%20{subdomain_input()}.bits.page",
                         class: "block w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-center transition",
-                        "Email hello@bits.page"
+                        { t.t("landing-modal-email") }
                     }
                     button {
                         class: "mt-4 w-full px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition",
