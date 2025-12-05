@@ -1,6 +1,7 @@
 mod config;
 mod merge;
 mod parser;
+mod trie;
 mod validator;
 
 pub use merge::{tw_merge, tw_merge_slice};

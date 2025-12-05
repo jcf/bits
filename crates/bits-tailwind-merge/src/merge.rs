@@ -1,17 +1,22 @@
-use crate::config::{ClassDef, Config};
+use crate::config::Config;
 use crate::parser::{parse_class_name, IMPORTANT_MODIFIER};
 use std::collections::HashSet;
+use std::sync::OnceLock;
+
+static CONFIG: OnceLock<Config> = OnceLock::new();
+
+fn get_config() -> &'static Config {
+    CONFIG.get_or_init(Config::default_v4)
+}
 
 /// Merge multiple class strings with conflict resolution
 pub fn tw_merge_slice(class_list: &[&str]) -> String {
-    let config = Config::default_v4();
-    merge_class_list(&class_list.join(" "), &config)
+    merge_class_list(&class_list.join(" "), get_config())
 }
 
 /// Merge a single class list string with conflict resolution
 pub fn tw_merge(classes: &str) -> String {
-    let config = Config::default_v4();
-    merge_class_list(classes, &config)
+    merge_class_list(classes, get_config())
 }
 
 /// Core merge algorithm - processes classes right-to-left
@@ -61,10 +66,16 @@ fn merge_class_list(class_list: &str, config: &Config) -> String {
         let class_group_id = class_group_id.unwrap();
 
         // Build the class ID: modifiers + important + classGroupId
+        // Sort modifiers to ensure consistent conflict detection regardless of order
         let variant_modifier = if parsed.modifiers.is_empty() {
             String::new()
+        } else if parsed.modifiers.len() == 1 {
+            parsed.modifiers[0].to_string()
         } else {
-            parsed.modifiers.join(":")
+            // Sort modifiers alphabetically (preserving arbitrary variants)
+            let mut sorted_mods = parsed.modifiers.clone();
+            sorted_mods.sort_unstable();
+            sorted_mods.join(":")
         };
 
         let modifier_id = if parsed.has_important_modifier {
@@ -120,61 +131,13 @@ fn merge_class_list(class_list: &str, config: &Config) -> String {
     result.join(" ")
 }
 
-/// Get the class group ID for a given class name
+/// Get the class group ID for a given class name using the trie
+/// Finds the most specific match (longest matching prefix) in O(m) time
 fn get_class_group_id(class_name: &str, config: &Config) -> Option<String> {
-    for (group_id, class_defs) in &config.class_groups {
-        if matches_class_def(class_name, class_defs) {
-            return Some(group_id.clone());
-        }
-    }
-    None
-}
-
-/// Check if a class name matches any of the class definitions
-fn matches_class_def(class_name: &str, defs: &[ClassDef]) -> bool {
-    for def in defs {
-        if matches_single_def(class_name, def) {
-            return true;
-        }
-    }
-    false
-}
-
-/// Check if a class name matches a single class definition
-fn matches_single_def(class_name: &str, def: &ClassDef) -> bool {
-    match def {
-        ClassDef::Literal(lit) => class_name == lit,
-        ClassDef::Validator(validator) => validator(class_name),
-        ClassDef::Object(obj) => {
-            // For objects, we need to check if the class starts with any key
-            for (prefix, values) in obj {
-                // Handle empty prefix (matches everything)
-                if prefix.is_empty() {
-                    return matches_class_def(class_name, values);
-                }
-
-                // Check if class starts with "prefix-"
-                let full_prefix = format!("{}-", prefix);
-                if let Some(suffix) = class_name.strip_prefix(&full_prefix) {
-                    if matches_class_def(suffix, values) {
-                        return true;
-                    }
-                }
-
-                // Also check exact match with prefix
-                if class_name == prefix {
-                    // For exact match, check if any value is empty string
-                    if values
-                        .iter()
-                        .any(|v| matches!(v, ClassDef::Literal(s) if s.is_empty()))
-                    {
-                        return true;
-                    }
-                }
-            }
-            false
-        }
-    }
+    config
+        .class_group_trie
+        .find_match(class_name)
+        .map(|(group_id, _)| group_id)
 }
 
 /// Get conflicting class groups for a given class group ID

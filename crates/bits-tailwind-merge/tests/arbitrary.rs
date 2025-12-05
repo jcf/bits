@@ -1,0 +1,140 @@
+use bits_tailwind_merge::tw_merge;
+
+/// Tests for arbitrary values
+/// Ported from tailwind-merge/tests/arbitrary-values.test.ts
+#[cfg(test)]
+mod arbitrary_values {
+    use super::*;
+
+    #[test]
+    fn test_simple_arbitrary_conflicts() {
+        assert_eq!(tw_merge!("m-[2px] m-[10px]"), "m-[10px]");
+        assert_eq!(
+            tw_merge!("m-[2px] m-[11svmin] m-[12in] m-[13lvi] m-[14vb] m-[15vmax] m-[16mm] m-[17%] m-[18em] m-[19px] m-[10dvh]"),
+            "m-[10dvh]"
+        );
+        assert_eq!(
+            tw_merge!("h-[10px] h-[11cqw] h-[12cqh] h-[13cqi] h-[14cqb] h-[15cqmin] h-[16cqmax]"),
+            "h-[16cqmax]"
+        );
+        assert_eq!(tw_merge!("z-20 z-[99]"), "z-[99]");
+        assert_eq!(tw_merge!("my-[2px] m-[10rem]"), "m-[10rem]");
+        assert_eq!(tw_merge!("cursor-pointer cursor-[grab]"), "cursor-[grab]");
+        assert_eq!(
+            tw_merge!("m-[2px] m-[calc(100%-var(--arbitrary))]"),
+            "m-[calc(100%-var(--arbitrary))]"
+        );
+        assert_eq!(
+            tw_merge!("m-[2px] m-[length:var(--mystery-var)]"),
+            "m-[length:var(--mystery-var)]"
+        );
+        assert_eq!(tw_merge!("opacity-10 opacity-[0.025]"), "opacity-[0.025]");
+        assert_eq!(tw_merge!("scale-75 scale-[1.7]"), "scale-[1.7]");
+        assert_eq!(
+            tw_merge!("brightness-90 brightness-[1.75]"),
+            "brightness-[1.75]"
+        );
+    }
+
+    #[test]
+    fn test_arbitrary_value_zero() {
+        assert_eq!(tw_merge!("min-h-[0.5px] min-h-[0]"), "min-h-[0]");
+        assert_eq!(
+            tw_merge!("text-[0.5px] text-[color:0]"),
+            "text-[0.5px] text-[color:0]"
+        );
+        assert_eq!(
+            tw_merge!("text-[0.5px] text-(--my-0)"),
+            "text-[0.5px] text-(--my-0)"
+        );
+    }
+
+    #[test]
+    fn test_arbitrary_with_labels_and_modifiers() {
+        assert_eq!(
+            tw_merge!("hover:m-[2px] hover:m-[length:var(--c)]"),
+            "hover:m-[length:var(--c)]"
+        );
+        assert_eq!(
+            tw_merge!("hover:focus:m-[2px] focus:hover:m-[length:var(--c)]"),
+            "focus:hover:m-[length:var(--c)]"
+        );
+        assert_eq!(
+            tw_merge!("border-b border-[color:rgb(var(--color-gray-500-rgb)/50%))]"),
+            "border-b border-[color:rgb(var(--color-gray-500-rgb)/50%))]"
+        );
+        assert_eq!(
+            tw_merge!("border-[color:rgb(var(--color-gray-500-rgb)/50%))] border-b"),
+            "border-[color:rgb(var(--color-gray-500-rgb)/50%))] border-b"
+        );
+        assert_eq!(
+            tw_merge!(
+                "border-b border-[color:rgb(var(--color-gray-500-rgb)/50%))] border-some-coloooor"
+            ),
+            "border-b border-some-coloooor"
+        );
+    }
+
+    #[test]
+    fn test_complex_arbitrary_conflicts() {
+        assert_eq!(tw_merge!("grid-rows-[1fr,auto] grid-rows-2"), "grid-rows-2");
+        assert_eq!(
+            tw_merge!("grid-rows-[repeat(20,minmax(0,1fr))] grid-rows-3"),
+            "grid-rows-3"
+        );
+    }
+
+    #[test]
+    fn test_ambiguous_arbitrary_values() {
+        assert_eq!(
+            tw_merge!("mt-2 mt-[calc(theme(fontSize.4xl)/1.125)]"),
+            "mt-[calc(theme(fontSize.4xl)/1.125)]"
+        );
+        assert_eq!(
+            tw_merge!("p-2 p-[calc(theme(fontSize.4xl)/1.125)_10px]"),
+            "p-[calc(theme(fontSize.4xl)/1.125)_10px]"
+        );
+        assert_eq!(
+            tw_merge!("mt-2 mt-[length:theme(someScale.someValue)]"),
+            "mt-[length:theme(someScale.someValue)]"
+        );
+        assert_eq!(
+            tw_merge!("mt-2 mt-[theme(someScale.someValue)]"),
+            "mt-[theme(someScale.someValue)]"
+        );
+        assert_eq!(
+            tw_merge!("text-2xl text-[length:theme(someScale.someValue)]"),
+            "text-[length:theme(someScale.someValue)]"
+        );
+        assert_eq!(
+            tw_merge!("text-2xl text-[calc(theme(fontSize.4xl)/1.125)]"),
+            "text-[calc(theme(fontSize.4xl)/1.125)]"
+        );
+        assert_eq!(
+            tw_merge!("bg-cover bg-[percentage:30%] bg-[size:200px_100px] bg-[length:200px_100px]"),
+            "bg-[percentage:30%] bg-[length:200px_100px]"
+        );
+        assert_eq!(
+            tw_merge!("bg-none bg-[url(.)] bg-[image:.] bg-[url:.] bg-[linear-gradient(.)] bg-linear-to-r"),
+            "bg-linear-to-r"
+        );
+        assert_eq!(
+            tw_merge!(
+                "border-[color-mix(in_oklab,var(--background),var(--calendar-color)_30%)] border"
+            ),
+            "border-[color-mix(in_oklab,var(--background),var(--calendar-color)_30%)] border"
+        );
+    }
+
+    #[test]
+    fn test_arbitrary_custom_properties() {
+        assert_eq!(
+            tw_merge!("bg-red bg-(--other-red) bg-bottom bg-(position:-my-pos)"),
+            "bg-(--other-red) bg-(position:-my-pos)"
+        );
+        assert_eq!(
+            tw_merge!("shadow-xs shadow-(shadow:--something) shadow-red shadow-(--some-other-shadow) shadow-(color:--some-color)"),
+            "shadow-(--some-other-shadow) shadow-(color:--some-color)"
+        );
+    }
+}

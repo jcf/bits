@@ -1,3 +1,4 @@
+use crate::trie::{build_class_group_trie, TrieNode};
 use crate::validator::{
     is_any, is_any_non_arbitrary, is_arbitrary_image, is_arbitrary_length, is_arbitrary_number,
     is_arbitrary_position, is_arbitrary_shadow, is_arbitrary_size, is_arbitrary_value,
@@ -23,6 +24,7 @@ pub enum ClassDef {
 pub struct Config {
     pub class_groups: IndexMap<String, Vec<ClassDef>>,
     pub conflicting_class_groups: HashMap<String, Vec<String>>,
+    pub class_group_trie: TrieNode,
 }
 
 impl Config {
@@ -3558,9 +3560,19 @@ impl Config {
         add_conflict(&mut conflicting_class_groups, "touch-y", vec!["touch"]);
         add_conflict(&mut conflicting_class_groups, "touch-pz", vec!["touch"]);
 
-        Config {
+        let config = Config {
             class_groups,
             conflicting_class_groups,
+            class_group_trie: TrieNode::default(),
+        };
+
+        // Build the trie for fast lookups
+        let class_group_trie = build_class_group_trie(&config);
+
+        Config {
+            class_groups: config.class_groups,
+            conflicting_class_groups: config.conflicting_class_groups,
+            class_group_trie,
         }
     }
 }
