@@ -1,8 +1,10 @@
+use crate::i18n::use_translation;
 use crate::subdomain::{check_subdomain, SubdomainStatus};
 use dioxus::prelude::*;
 
 #[component]
 pub fn Landing() -> Element {
+    let t = use_translation();
     let realm = use_context::<Resource<Result<crate::Realm>>>();
     let mut subdomain_input = use_signal(String::new);
     let mut status = use_signal(|| Option::<SubdomainStatus>::None);
@@ -22,7 +24,7 @@ pub fn Landing() -> Element {
             spawn(async move {
                 match check_subdomain(input).await {
                     Ok(s) => status.set(Some(s)),
-                    Err(_) => status.set(Some(SubdomainStatus::Invalid("Error checking".into()))),
+                    Err(_) => status.set(None), // Clear status on error
                 }
                 checking.set(false);
             });
@@ -37,18 +39,18 @@ pub fn Landing() -> Element {
                 // Hero
                 h1 {
                     class: "text-5xl font-bold text-gray-900 dark:text-white mb-4",
-                    "Your audience. Your revenue. Your rules."
+                    { t.t("landing-tagline") }
                 }
                 p {
                     class: "text-xl text-gray-600 dark:text-gray-400 mb-8",
-                    "Platforms control your audience. Payment processors control your revenue. Bits gives you both back."
+                    { t.t("landing-description") }
                 }
 
                 // Subdomain checker
                 div { class: "bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
                     h2 {
                         class: "text-2xl font-semibold text-gray-900 dark:text-white mb-6",
-                        "Reserve your username"
+                        { t.t("landing-reserve-username") }
                     }
 
                     div { class: "flex items-center gap-2 mb-4",
@@ -69,16 +71,18 @@ pub fn Landing() -> Element {
                         if checking() {
                             span { class: "text-gray-500 text-sm", "Checking..." }
                         } else if let Some(ref s) = status() {
-                            match s {
-                                SubdomainStatus::Available => rsx! {
-                                    span { class: "text-green-600 font-medium", "✓ Available" }
-                                },
-                                SubdomainStatus::Reserved(msg) => rsx! {
-                                    span { class: "text-yellow-600 font-medium", "🎭 {msg}" }
-                                },
-                                SubdomainStatus::Invalid(msg) => rsx! {
-                                    span { class: "text-red-600 font-medium", "✗ {msg}" }
-                                },
+                            {
+                                let msg = t.t(s.translation_key());
+                                let (icon, class) = match s {
+                                    SubdomainStatus::Available => ("✓", "text-green-600 font-medium"),
+                                    SubdomainStatus::InvalidLength |
+                                    SubdomainStatus::InvalidCharacters |
+                                    SubdomainStatus::InvalidFormat => ("✗", "text-red-600 font-medium"),
+                                    _ => ("🎭", "text-yellow-600 font-medium"),
+                                };
+                                rsx! {
+                                    span { class: "{class}", "{icon} {msg}" }
+                                }
                             }
                         }
                     }
@@ -96,15 +100,15 @@ pub fn Landing() -> Element {
                 div { class: "mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-left",
                     div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
                         h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Data" }
-                        p { class: "text-gray-600 dark:text-gray-400", "Self-host or use our managed service. Your choice." }
+                        p { class: "text-gray-600 dark:text-gray-400", { t.t("landing-feature-self-host") } }
                     }
                     div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
                         h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Revenue" }
-                        p { class: "text-gray-600 dark:text-gray-400", "Direct payments. No intermediaries taking a cut." }
+                        p { class: "text-gray-600 dark:text-gray-400", { t.t("landing-feature-direct-payments") } }
                     }
                     div { class: "p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700",
                         h3 { class: "font-semibold text-gray-900 dark:text-white mb-2", "Your Rules" }
-                        p { class: "text-gray-600 dark:text-gray-400", "Permissive content policies for adult creators." }
+                        p { class: "text-gray-600 dark:text-gray-400", { t.t("landing-feature-permissive") } }
                     }
                 }
 

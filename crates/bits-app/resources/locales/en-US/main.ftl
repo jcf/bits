@@ -72,3 +72,39 @@ error-404-message = The requested tenant does not exist.
 
 # Mobile menu
 mobile-menu-open = Open menu
+
+# Subdomain validation
+subdomain-available = Available
+subdomain-invalid-length = Must be 3-63 characters
+subdomain-invalid-characters = Only lowercase letters, numbers, and hyphens
+subdomain-invalid-format = Cannot start or end with hyphen
+subdomain-reserved-platform = Reserved for platform use
+subdomain-reserved-god = Sorry, this one's taken by a higher power
+subdomain-reserved-jesus = He'll be back in three days to claim it
+subdomain-reserved-satan = Already reserved in hell.bits.page
+subdomain-reserved-nsfw = Too on the nose, try something creative!
+subdomain-reserved-profanity-soft = We get it, but be more subtle
+subdomain-reserved-testing = Reserved for testing and demos
+subdomain-reserved-profanity-creative = Creative profanity is an art. This isn't it.
+subdomain-reserved-demo = This is a demo profile
+subdomain-already-taken = Already taken
+
+# Landing page
+landing-tagline = Your audience. Your revenue. Your rules.
+landing-description = Platforms control your audience. Payment processors control your revenue. Bits gives you both back.
+landing-reserve-username = Reserve your username
+landing-feature-self-host = Self-host or use our managed service. Your choice.
+landing-feature-direct-payments = Direct payments. No intermediaries taking a cut.
+landing-feature-permissive = Permissive content policies for adult creators.
+landing-modal-thanks = Thanks for your interest!
+landing-modal-description = We'd love to hear from you. To reserve
+landing-modal-email = Email hello@bits.page
+
+# Email verification
+verify-email-title = Verify your email
+verify-email-description = We sent a 6-digit code to
+verify-email-success = Email verified successfully! Redirecting...
+verify-email-resend-cooldown = Resend available in { $seconds } seconds
+
+# Server errors
+server-error-unauthorized = Unauthorized: Invalid or missing bearer token
