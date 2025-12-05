@@ -211,7 +211,7 @@ lint:
 # Run units tests
 [group('test')]
 unit:
-    env RUSTFLAGS="-D warnings" cargo nextest run --features server
+    env RUSTFLAGS="-D warnings" cargo nextest run --workspace --exclude bits-e2e --features server
 
 # Run integration tests
 [group('test')]
