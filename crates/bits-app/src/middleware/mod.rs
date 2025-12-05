@@ -1,3 +1,4 @@
+pub mod auth_rate_limit;
 mod csrf;
 pub mod metrics;
 mod realm;

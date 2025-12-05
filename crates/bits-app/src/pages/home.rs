@@ -9,22 +9,10 @@ pub fn Home() -> Element {
 
     match realm() {
         Some(Ok(crate::Realm::Demo(handle))) => {
-            // Render demo component
-            #[cfg(feature = "server")]
-            {
-                if let Some(demo_component) = crate::demos::get_demo(&handle) {
-                    rsx! { {demo_component()} }
-                } else {
-                    rsx! { NotFound {} }
-                }
-            }
-            #[cfg(not(feature = "server"))]
-            rsx! {
-                div { class: "flex min-h-full items-center justify-center p-8",
-                    h1 { class: "text-4xl font-bold text-gray-900 dark:text-gray-100",
-                        "{handle}"
-                    }
-                }
+            if let Some(demo_component) = crate::demos::get_demo(&handle) {
+                rsx! { {demo_component()} }
+            } else {
+                rsx! { NotFound {} }
             }
         }
         Some(Ok(crate::Realm::Creator(tenant))) => {

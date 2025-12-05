@@ -134,7 +134,7 @@ async fn valid_code_verifies_email() {
     let code = ctx
         .state
         .email_verification
-        .create_code(&ctx.state.argon2, &ctx.db_pool, email_address_id)
+        .create_code(&ctx.db_pool, email_address_id)
         .await
         .expect("Failed to create verification code");
 
@@ -142,7 +142,7 @@ async fn valid_code_verifies_email() {
     let result = ctx
         .state
         .email_verification
-        .verify_code(&ctx.state.argon2, &ctx.db_pool, email_address_id, &code)
+        .verify_code(&ctx.db_pool, email_address_id, &code)
         .await;
 
     assert!(result.is_ok(), "Valid code should verify successfully");
@@ -183,7 +183,7 @@ async fn invalid_code_fails_verification() {
 
     ctx.state
         .email_verification
-        .create_code(&ctx.state.argon2, &ctx.db_pool, email_address_id)
+        .create_code(&ctx.db_pool, email_address_id)
         .await
         .expect("Failed to create verification code");
 
@@ -191,7 +191,7 @@ async fn invalid_code_fails_verification() {
     let result = ctx
         .state
         .email_verification
-        .verify_code(&ctx.state.argon2, &ctx.db_pool, email_address_id, "000000")
+        .verify_code(&ctx.db_pool, email_address_id, "000000")
         .await;
 
     assert!(result.is_err(), "Invalid code should fail verification");
@@ -228,16 +228,17 @@ async fn expired_code_fails_verification() {
         resend_cooldown_secs: 60,
         max_resends_per_hour: 5,
     };
-    let service = EmailVerificationService::new(test_config);
+    let test_secret = b"test-secret-for-verification".to_vec();
+    let service = EmailVerificationService::new(test_config, test_secret);
 
     let code = service
-        .create_code(&ctx.state.argon2, &ctx.db_pool, email_address_id)
+        .create_code(&ctx.db_pool, email_address_id)
         .await
         .expect("Failed to create verification code");
 
     // Try to verify expired code
     let result = service
-        .verify_code(&ctx.state.argon2, &ctx.db_pool, email_address_id, &code)
+        .verify_code(&ctx.db_pool, email_address_id, &code)
         .await;
 
     assert!(result.is_err(), "Expired code should fail verification");
@@ -274,21 +275,22 @@ async fn too_many_attempts_blocks_verification() {
         resend_cooldown_secs: 60,
         max_resends_per_hour: 5,
     };
-    let service = EmailVerificationService::new(test_config);
+    let test_secret = b"test-secret-for-verification".to_vec();
+    let service = EmailVerificationService::new(test_config, test_secret);
 
     service
-        .create_code(&ctx.state.argon2, &ctx.db_pool, email_address_id)
+        .create_code(&ctx.db_pool, email_address_id)
         .await
         .expect("Failed to create verification code");
 
     // First wrong attempt
     let _ = service
-        .verify_code(&ctx.state.argon2, &ctx.db_pool, email_address_id, "000000")
+        .verify_code(&ctx.db_pool, email_address_id, "000000")
         .await;
 
     // Second attempt should be blocked
     let result = service
-        .verify_code(&ctx.state.argon2, &ctx.db_pool, email_address_id, "111111")
+        .verify_code(&ctx.db_pool, email_address_id, "111111")
         .await;
 
     assert!(
@@ -328,10 +330,11 @@ async fn resend_respects_cooldown() {
         resend_cooldown_secs: 3600, // 1 hour
         max_resends_per_hour: 5,
     };
-    let service = EmailVerificationService::new(test_config);
+    let test_secret = b"test-secret-for-verification".to_vec();
+    let service = EmailVerificationService::new(test_config, test_secret);
 
     service
-        .create_code(&ctx.state.argon2, &ctx.db_pool, email_address_id)
+        .create_code(&ctx.db_pool, email_address_id)
         .await
         .expect("Failed to create verification code");
 

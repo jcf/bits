@@ -9,7 +9,7 @@ pub fn VerifyEmail() -> Element {
     };
 
     let t = use_translation();
-    let session = use_context::<Resource<Result<SessionState>>>();
+    let mut session = use_context::<Resource<Result<SessionState>>>();
     let mut code = use_signal(String::new);
     let mut verify_action = use_action(verify_email_code);
     let mut resend_action = use_action(resend_verification_code);
@@ -71,7 +71,9 @@ pub fn VerifyEmail() -> Element {
     // Navigate to home on successful verification
     use_effect(move || {
         if verify_action.value().and_then(|r| r.ok()).is_some() {
-            nav.push(crate::app::Route::Auth {});
+            // Reload session to get updated verified status
+            session.restart();
+            nav.push(crate::app::Route::Home {});
         }
     });
 

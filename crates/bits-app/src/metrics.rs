@@ -42,3 +42,19 @@ pub fn record_session_operation(operation: &str) {
     let operation = operation.to_string();
     metrics::counter!("session_operations_total", "operation" => operation).increment(1);
 }
+
+/// Record rate limit checks
+pub fn record_rate_limit_check(endpoint: &str, result: &str) {
+    let endpoint = endpoint.to_string();
+    let result = result.to_string();
+    metrics::counter!("rate_limit_checks_total", "endpoint" => endpoint, "result" => result)
+        .increment(1);
+}
+
+/// Record rate limit hits (when limit is exceeded)
+pub fn record_rate_limit_hit(limit_type: &str, endpoint: &str) {
+    let limit_type = limit_type.to_string();
+    let endpoint = endpoint.to_string();
+    metrics::counter!("rate_limit_hits_total", "limit_type" => limit_type, "endpoint" => endpoint)
+        .increment(1);
+}

@@ -78,15 +78,11 @@ impl TestContext {
         email: &str,
         password: &str,
     ) -> Result<(User, String)> {
-        use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
-
-        let salt = SaltString::generate(&mut OsRng);
         let password_hash = self
             .state
-            .argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?
-            .to_string();
+            .password_service
+            .hash_password(password)
+            .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?;
 
         let user = self.create_user(email, &password_hash).await?;
         self.verify_email(user.id).await?;
@@ -178,6 +174,7 @@ pub fn config() -> Result<bits_app::config::Config> {
             argon2_m_cost: 19456, // Use lower memory cost for faster tests (19 MiB)
             argon2_t_cost: 2,     // Use lower time cost for faster tests
             argon2_p_cost: 1,     // Single thread for simpler test environment
+            master_key: "test-master-key-32-bytes-long!!".to_string(),
             port: 0,
             session_name: "b".to_string(),
             platform_domain: None,

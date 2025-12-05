@@ -4,11 +4,15 @@
 # The snapshot includes the Bits application and all configuration.
 #
 # Usage:
-#   nix-build iac/images/build-snapshot.nix \
+#   nix-build nix/images/build-snapshot.nix \
+#     --impure \
 #     --arg hcloud-token '"$HCLOUD_TOKEN"' \
 #     --arg snapshot-name '"nixos-25.05-abc1234"'
 {
-  pkgs ? import <nixpkgs> {},
+  pkgs ?
+    import <nixpkgs> {
+      config.allowUnfree = true;
+    },
   hcloud-token,
   snapshot-name,
   snapshot-description ? "NixOS snapshot for Bits platform",

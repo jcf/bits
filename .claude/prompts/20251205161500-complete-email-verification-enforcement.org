@@ -1,0 +1,140 @@
+#+title:    Complete Email Verification Enforcement
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Context
+
+We've implemented email verification infrastructure but haven't fully enforced it. Currently:
+
+** What's Done ✓
+- Database migration adds ~verified~ field to ~logins~ view (~migrations/20251205000001_logins_with_verification.sql~)
+- ~User~ struct has ~verified: bool~ field
+- ~UserState~ enum for type-safe user states (Anonymous, Unverified, Verified)
+- ~RequireVerified~ extractor in ~crates/bits-app/src/auth.rs~ (lines 137-167)
+- ~join~ endpoint returns ~User~ with verification status
+- Client-side: Auth and Join pages redirect to ~/verify-email~ based on ~user.verified~
+- After verification, session is reloaded to get updated status
+
+** What's Missing ✗
+- ~RequireVerified~ extractor is created but NOT USED anywhere
+- No server-side enforcement of verification requirement
+- Unverified users can access protected content by:
+  - Navigating directly to protected routes
+  - Calling protected API endpoints directly
+  - Bypassing client-side checks
+
+** The Problem
+
+An unverified user can:
+1. Sign up and get authenticated
+2. Skip the ~/verify-email~ page
+3. Navigate to ~/#~ or any other route
+4. Access the full application
+
+The ~RequireVerified~ extractor exists but doesn't protect anything because no endpoints use it.
+
+* Requirements
+
+Enforce email verification at the server level so unverified users cannot access protected resources.
+
+** Server-Side Enforcement
+
+*** Protected Endpoints
+Identify which endpoints require verification and use ~RequireVerified~ extractor:
+
+**** Definitely Protected
+- ~/api/passwords~ (POST) - Change password
+- ~/api/handles/:handle~ (GET) - Check subdomain availability
+- Any future tenant/creator endpoints
+
+**** Explicitly Allow Without Verification
+- ~/api/sessions~ (POST) - Sign in
+- ~/api/users~ (POST) - Sign up
+- ~/api/email-verifications~ (POST) - Verify code
+- ~/api/email-verifications/resend~ (POST) - Resend code
+- ~/api/session~ (GET) - Get current session
+- ~/api/realm~ (GET) - Get current realm
+- ~/healthz~ (GET) - Health check
+- ~/metrics~ (GET) - Metrics
+
+*** Pattern to Follow
+
+Replace:
+#+begin_src rust
+#[post("/api/some-endpoint", auth: AuthSession, state: Extension<AppState>)]
+pub async fn some_endpoint(...) -> Result<T, Error> {
+#+end_src
+
+With:
+#+begin_src rust
+#[post("/api/some-endpoint", verified: RequireVerified, state: Extension<AppState>)]
+pub async fn some_endpoint(...) -> Result<T, Error> {
+    let user = verified.0; // Access the verified user
+#+end_src
+
+*** Error Handling
+
+When ~RequireVerified~ extractor fails:
+- Returns ~AuthError::EmailNotVerified~ (already implemented)
+- Client receives 403 Forbidden
+- Client-side should catch this and redirect to ~/verify-email~
+
+** Client-Side Handling
+
+*** Error Interceptor
+Add global error handler to catch 403 with ~EmailNotVerified~ and redirect to ~/verify-email~.
+
+Check ~crates/bits-app/src/pages/auth.rs~ and ~join.rs~ for patterns of checking ~user.verified~.
+
+*** Protected Routes
+While server-side enforcement is primary, add client-side checks for better UX:
+- Show verification banner on protected pages for unverified users
+- Redirect to ~/verify-email~ before attempting protected actions
+
+** Testing
+
+Add integration tests in ~crates/bits-e2e/tests/~:
+1. Create unverified user (sign up)
+2. Attempt to access protected endpoint
+3. Verify 403 response
+4. Verify email
+5. Attempt same endpoint
+6. Verify 200 response
+
+** Current State Reference
+
+*** Extractor Location
+~crates/bits-app/src/auth.rs~ lines 137-167
+
+*** Usage Pattern
+See ~auth: AuthSession~ usage in existing endpoints like:
+- ~crates/bits-app/src/auth.rs:234~ (~auth~ endpoint)
+- ~crates/bits-app/src/auth.rs:448~ (~join~ endpoint)
+- ~crates/bits-app/src/auth.rs:524~ (~change_password~ endpoint)
+
+*** Error Type
+~AuthError::EmailNotVerified~ already exists and implements ~IntoResponse~ (lines 60-75)
+
+* Acceptance Criteria
+
+- [ ] Identify all endpoints that require verification
+- [ ] Replace ~auth: AuthSession~ with ~verified: RequireVerified~ on protected endpoints
+- [ ] Keep ~auth: AuthSession~ on auth/verification endpoints
+- [ ] Add integration test for unverified user accessing protected endpoint
+- [ ] Add integration test for verified user accessing protected endpoint
+- [ ] Document which endpoints require verification and why
+- [ ] Client-side handles 403 EmailNotVerified by redirecting to ~/verify-email~
+
+* Notes
+
+** Type Safety
+The ~RequireVerified~ extractor provides type-level guarantee that endpoints using it can only be called by verified users. This is better than manual ~if !user.verified~ checks scattered everywhere.
+
+** No Route-Level Enforcement
+We don't need middleware to block routes because:
+1. Pages are public (SSR doesn't know auth state)
+2. All server functions are explicitly protected with extractors
+3. Type system enforces the check at compile time
+
+** Verification is for Product Access, Not Authentication
+Users can authenticate (sign in) without verification. Verification is required to USE the product, not to sign in.

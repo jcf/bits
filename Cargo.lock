@@ -324,6 +324,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-governor"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09d809d0942a73a146907b6ba0e4e106d2c337aa3502540a6b3f0090a48ff939"
+dependencies = [
+ "axum",
+ "futures-util",
+ "http",
+ "lazy-limit",
+ "real",
+ "tokio",
+ "tower",
+ "tracing",
+]
+
+[[package]]
 name = "axum-macros"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -450,7 +466,9 @@ dependencies = [
  "anyhow",
  "argon2",
  "async-trait",
+ "axum",
  "axum-core",
+ "axum-governor",
  "axum_session",
  "axum_session_auth",
  "base64",
@@ -458,27 +476,35 @@ dependencies = [
  "bits-db",
  "bits-domain",
  "bits-tailwind-merge",
+ "bytes",
  "clap",
  "cookie",
+ "dashmap",
  "dioxus",
  "dioxus-fullstack",
  "dioxus-html",
  "figment",
  "fluent-bundle",
  "gloo-timers",
+ "hex",
+ "hkdf",
+ "hmac",
  "http",
  "http-body-util",
  "icu",
  "ipnetwork",
  "jiff 0.1.29",
  "js-sys",
+ "lazy-limit",
  "metrics",
  "metrics-exporter-prometheus",
  "orion",
  "phf",
  "rand 0.9.2",
+ "real",
  "rstest",
  "serde",
+ "sha2",
  "sqlx",
  "subtle",
  "thiserror 2.0.17",
@@ -3378,6 +3404,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "409273b42d0e3ae7c8ce6b8cfbc6a27b7c7d83bbb94fc7f93f22cc9b90eea078"
 
 [[package]]
+name = "lazy-limit"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e04199ba2a6f7aa619b29789889155a68e51dcd2f8516a21c6a47532e84bcece"
+dependencies = [
+ "once_cell",
+ "tokio",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4488,6 +4524,19 @@ checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "real"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75514ac76a7c35f48f704ba5bf8a26b68a63f678b9af44726447a0347eb54068"
+dependencies = [
+ "async-trait",
+ "axum",
+ "futures-util",
+ "thiserror 1.0.69",
+ "tower",
 ]
 
 [[package]]

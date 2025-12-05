@@ -75,6 +75,65 @@ impl BitsClient {
         response
     }
 
+    /// Login but return Result instead of panicking (for testing error cases)
+    pub async fn login_result(&self, email: &str, password: &str) -> Result<(), u16> {
+        let response = self
+            .post(format!("{}/api/sessions", self.base_url))
+            .form(&[("email", email), ("password", password)])
+            .send()
+            .await
+            .expect("Login request failed");
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(response.status().as_u16())
+        }
+    }
+
+    pub async fn join(&self, email: &str, password: &str) -> reqwest::Response {
+        let response = self
+            .post(format!("{}/api/users", self.base_url))
+            .form(&[("email", email), ("password", password)])
+            .send()
+            .await
+            .expect("Join request failed");
+
+        if !response.status().is_success() {
+            panic!(
+                "Join failed with status {}: {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            );
+        }
+
+        response
+    }
+
+    /// Join but return Result instead of panicking (for testing error cases)
+    pub async fn join_result(&self, email: &str, password: &str) -> Result<(), u16> {
+        let response = self
+            .post(format!("{}/api/users", self.base_url))
+            .form(&[("email", email), ("password", password)])
+            .send()
+            .await
+            .expect("Join request failed");
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(response.status().as_u16())
+        }
+    }
+
+    pub async fn logout(&self) {
+        self.client
+            .delete(format!("{}/api/session", self.base_url))
+            .send()
+            .await
+            .expect("Logout request failed");
+    }
+
     pub async fn get_session(&self) -> Option<bits_app::User> {
         let response = self
             .client

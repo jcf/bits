@@ -1,3 +1,21 @@
+//! Authentication and authorization.
+//!
+//! # Authorization Levels
+//!
+//! - **Public**: No authentication required
+//!   - `get_realm` - Get current realm (tenant/platform/demo)
+//!   - `get_session` - Check if request is authenticated
+//!
+//! - **Authenticated**: Requires login, allows unverified users
+//!   - `auth` - Sign in
+//!   - `join` - Sign up
+//!   - `sign_out` - Sign out
+//!   - `verify_email_code` - Verify email with code
+//!   - `resend_verification_code` - Resend verification code
+//!
+//! - **Verified**: Requires email verification (uses `RequireVerified` extractor)
+//!   - `change_password` - Change user password
+
 #[cfg(feature = "server")]
 use axum_session_auth::{Authentication, HasPermission};
 #[cfg(feature = "server")]
@@ -57,11 +75,30 @@ impl dioxus::fullstack::AsStatusCode for AuthError {
     }
 }
 
+#[cfg(feature = "server")]
+impl axum_core::response::IntoResponse for AuthError {
+    fn into_response(self) -> axum_core::response::Response {
+        use dioxus::server::axum::http::StatusCode;
+
+        let status = match self {
+            AuthError::InvalidCredentials => StatusCode::UNAUTHORIZED,
+            AuthError::EmailNotVerified => StatusCode::FORBIDDEN,
+            AuthError::EmailAlreadyRegistered => StatusCode::BAD_REQUEST,
+            AuthError::Forbidden => StatusCode::FORBIDDEN,
+            AuthError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+
+        (status, self.to_string()).into_response()
+    }
+}
+
 #[cfg_attr(feature = "server", derive(sqlx::FromRow))]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct User {
     pub id: i64,
     pub email: String,
+    #[serde(default)]
+    pub verified: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,12 +107,20 @@ pub enum SessionState {
     Authenticated(User),
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum UserState {
+    Anonymous,
+    Unverified(User),
+    Verified(User),
+}
+
 #[cfg(feature = "server")]
 impl Default for User {
     fn default() -> Self {
         Self {
             id: -1,
             email: String::new(),
+            verified: false,
         }
     }
 }
@@ -90,7 +135,7 @@ impl Authentication<User, i64, PgPool> for User {
 
         let user = sqlx::query_as!(
             User,
-            "select user_id as \"id!\", email as \"email!\" from logins where user_id = $1 limit 1",
+            "select user_id as \"id!\", email as \"email!\", verified as \"verified!\" from logins where user_id = $1 limit 1",
             userid
         )
         .fetch_one(pool)
@@ -117,6 +162,42 @@ impl Authentication<User, i64, PgPool> for User {
 impl HasPermission<PgPool> for User {
     async fn has(&self, _perm: &str, _pool: &Option<&PgPool>) -> bool {
         self.is_authenticated()
+    }
+}
+
+/// Extractor that requires email verification
+///
+/// Use this instead of AuthSession for endpoints that require verified users.
+/// Returns AuthError::EmailNotVerified if user is authenticated but not verified.
+#[cfg(feature = "server")]
+pub struct RequireVerified(pub User);
+
+#[cfg(feature = "server")]
+impl<S> axum_core::extract::FromRequestParts<S> for RequireVerified
+where
+    S: Send + Sync,
+    crate::AppState: axum_core::extract::FromRef<S>,
+{
+    type Rejection = AuthError;
+
+    async fn from_request_parts(
+        parts: &mut dioxus::server::axum::http::request::Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        let auth = AuthSession::from_request_parts(parts, state)
+            .await
+            .map_err(|_| AuthError::InvalidCredentials)?;
+
+        let user = auth
+            .current_user
+            .filter(|u| u.is_authenticated())
+            .ok_or(AuthError::InvalidCredentials)?;
+
+        if !user.verified {
+            return Err(AuthError::EmailNotVerified);
+        }
+
+        Ok(RequireVerified(user))
     }
 }
 
@@ -150,6 +231,7 @@ pub enum AuthResponse {
 struct LoginData {
     user_id: i64,
     password_hash: String,
+    verified: bool,
 }
 
 #[cfg(feature = "server")]
@@ -158,7 +240,7 @@ async fn load_login_data(db: &PgPool, email: &str) -> anyhow::Result<Option<Logi
 
     sqlx::query_as!(
         LoginData,
-        "select user_id as \"user_id!\", password_hash as \"password_hash!\" from logins where email = $1 limit 1",
+        "select user_id as \"user_id!\", password_hash as \"password_hash!\", verified as \"verified!\" from logins where email = $1 limit 1",
         email
     )
     .fetch_optional(db)
@@ -168,8 +250,6 @@ async fn load_login_data(db: &PgPool, email: &str) -> anyhow::Result<Option<Logi
 
 #[post("/api/sessions", auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<User, AuthError> {
-    use argon2::{PasswordHash, PasswordVerifier};
-
     let user = load_login_data(&state.db, &form.0.email).await?;
 
     let user = match user {
@@ -179,12 +259,9 @@ pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<User, AuthE
         }
     };
 
-    let parsed_hash =
-        PasswordHash::new(&user.password_hash).map_err(|_| AuthError::InvalidCredentials)?;
-
     state
-        .argon2
-        .verify_password(form.0.password.as_bytes(), &parsed_hash)
+        .password_service
+        .verify_password(&form.0.password, &user.password_hash)
         .map_err(|_| {
             crate::metrics::record_auth_event("login", false);
             AuthError::InvalidCredentials
@@ -192,11 +269,17 @@ pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<User, AuthE
 
     auth.session.renew();
     auth.login_user(user.user_id);
+
+    // Clear user from auth cache so next request loads fresh from database
+    // This ensures verification status and other user attributes are up-to-date
+    auth.cache_clear_user(user.user_id);
+
     crate::metrics::record_auth_event("login", true);
 
     Ok(User {
         id: user.user_id,
         email: form.0.email.clone(),
+        verified: user.verified,
     })
 }
 
@@ -216,19 +299,6 @@ pub async fn get_session() -> Result<SessionState> {
         }
     }
     Ok(SessionState::Anonymous)
-}
-
-#[cfg(feature = "server")]
-async fn hash_password(argon2: &argon2::Argon2<'_>, password: &str) -> anyhow::Result<String> {
-    use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
-
-    let salt = SaltString::generate(&mut OsRng);
-    let hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?
-        .to_string();
-
-    Ok(hash)
 }
 
 #[cfg(feature = "server")]
@@ -381,10 +451,10 @@ async fn invalidate_other_sessions(
 }
 
 #[post("/api/users", auth: AuthSession, state: Extension<crate::AppState>)]
-pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthError> {
+pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<User, AuthError> {
     #[cfg(feature = "server")]
     {
-        let password_hash = hash_password(&state.argon2, &form.0.password).await?;
+        let password_hash = state.password_service.hash_password(&form.0.password)?;
 
         match create_user_with_email(&state.db, &form.0.email, &password_hash).await {
             Ok(user_id) => {
@@ -399,7 +469,7 @@ pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthErr
                     Ok(email_address_id) => {
                         match state
                             .email_verification
-                            .create_code(&state.argon2, &state.db, email_address_id)
+                            .create_code(&state.db, email_address_id)
                             .await
                         {
                             Ok(code) => {
@@ -430,7 +500,11 @@ pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthErr
                     }
                 }
 
-                Ok(())
+                Ok(User {
+                    id: user_id,
+                    email: form.0.email.clone(),
+                    verified: false,
+                })
             }
             Err(e) => {
                 if let Some(source) = e.source() {
@@ -449,25 +523,19 @@ pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<(), AuthErr
         }
     }
     #[cfg(not(feature = "server"))]
-    Ok(())
+    Ok(User::default())
 }
 
 // TODO Use #[patch] when Dioxus next ships
 //
 // https://github.com/DioxusLabs/dioxus/commit/57e3543c6475b5f6af066774d2152a6dd6351196
-#[post("/api/passwords", auth: AuthSession, state: Extension<crate::AppState>)]
+#[post("/api/passwords", verified: RequireVerified, auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn change_password(
     form: dioxus::fullstack::Form<ChangePasswordForm>,
 ) -> Result<(), AuthError> {
     #[cfg(feature = "server")]
     {
-        use argon2::{PasswordHash, PasswordVerifier};
-
-        let user = auth
-            .current_user
-            .as_ref()
-            .filter(|u| u.is_authenticated())
-            .ok_or(AuthError::InvalidCredentials)?;
+        let user = &verified.0;
 
         if form.0.new_password != form.0.confirm_password {
             return Err(AuthError::Internal("Passwords do not match".to_string()));
@@ -476,15 +544,12 @@ pub async fn change_password(
         let login_data = load_login_data(&state.db, &user.email).await?;
         let login_data = login_data.ok_or(AuthError::InvalidCredentials)?;
 
-        let parsed_hash = PasswordHash::new(&login_data.password_hash)
-            .map_err(|_| AuthError::InvalidCredentials)?;
-
         state
-            .argon2
-            .verify_password(form.0.current_password.as_bytes(), &parsed_hash)
+            .password_service
+            .verify_password(&form.0.current_password, &login_data.password_hash)
             .map_err(|_| AuthError::InvalidCredentials)?;
 
-        let new_hash = hash_password(&state.argon2, &form.0.new_password).await?;
+        let new_hash = state.password_service.hash_password(&form.0.new_password)?;
         update_password_hash(&state.db, user.id, &new_hash).await?;
 
         let session_id = auth.session.get_session_id();
@@ -524,7 +589,7 @@ pub struct ResendResponse {
     pub next_resend_at: i64,
 }
 
-#[post("/api/email-verifications", state: Extension<crate::AppState>)]
+#[post("/api/email-verifications", auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn verify_email_code(
     form: dioxus::fullstack::Form<VerifyEmailForm>,
 ) -> Result<(), AuthError> {
@@ -545,7 +610,7 @@ pub async fn verify_email_code(
         // Verify the code
         state
             .email_verification
-            .verify_code(&state.argon2, &state.db, email_address_id, &form.0.code)
+            .verify_code(&state.db, email_address_id, &form.0.code)
             .await
             .map_err(|e| match e {
                 crate::verification::VerificationError::InvalidCode => {
@@ -566,13 +631,16 @@ pub async fn verify_email_code(
             "Email verified successfully"
         );
 
+        // Clear user from cache so next request loads updated verified status
+        auth.cache_clear_user(user_id);
+
         Ok(())
     }
     #[cfg(not(feature = "server"))]
     Ok(())
 }
 
-#[post("/api/email-verifications/resend", state: Extension<crate::AppState>)]
+#[post("/api/email-verifications/resend", _auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn resend_verification_code(
     form: dioxus::fullstack::Form<ResendForm>,
 ) -> Result<ResendResponse, AuthError> {
@@ -613,7 +681,7 @@ pub async fn resend_verification_code(
         // Get or create code (same code if still valid)
         let code = state
             .email_verification
-            .create_code(&state.argon2, &state.db, email_address_id)
+            .create_code(&state.db, email_address_id)
             .await
             .map_err(|e| AuthError::Internal(e.to_string()))?;
 

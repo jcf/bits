@@ -2,9 +2,10 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn Join() -> Element {
-    use crate::auth::{join, JoinForm};
+    use crate::auth::{join, JoinForm, SessionState};
     use crate::components::Input;
 
+    let mut session = use_context::<Resource<Result<SessionState>>>();
     let mut join_action = use_action(join);
     let nav = navigator();
     let t = crate::i18n::use_translation();
@@ -30,7 +31,8 @@ pub fn Join() -> Element {
                         evt.prevent_default();
                         let form: JoinForm = evt.parsed_values().unwrap();
                         join_action.call(dioxus::fullstack::Form(form)).await;
-                        if join_action.value().and_then(|r| r.ok()).is_some() {
+                        if let Some(Ok(user)) = join_action.value() {
+                            session.set(Some(Ok(SessionState::Authenticated(user()))));
                             nav.push(crate::app::Route::VerifyEmail {});
                         }
                     },

@@ -29,21 +29,18 @@ pub fn load_seeds(path: impl AsRef<Path>) -> Result<Seeds> {
     toml::from_str(&content).context("Failed to parse seeds TOML")
 }
 
-fn hash_password(argon2: &argon2::Argon2<'_>, password: &str) -> Result<String> {
-    use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
-
-    let salt = SaltString::generate(&mut OsRng);
-    let hash = argon2
-        .hash_password(password.as_bytes(), &salt)
-        .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?
-        .to_string();
-
-    Ok(hash)
+fn hash_password(
+    password_service: &bits_app::password::PasswordService,
+    password: &str,
+) -> Result<String> {
+    password_service
+        .hash_password(password)
+        .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))
 }
 
 async fn seed_user(
     pool: &PgPool,
-    argon2: &argon2::Argon2<'_>,
+    password_service: &bits_app::password::PasswordService,
     seed: &SeedUser,
 ) -> Result<Option<(User, EmailAddress)>> {
     // Check if email already exists
@@ -59,7 +56,7 @@ async fn seed_user(
         return Ok(None);
     }
 
-    let password_hash = hash_password(argon2, &seed.password)?;
+    let password_hash = hash_password(password_service, &seed.password)?;
 
     let user = sqlx::query_as::<_, User>(
         "insert into users (password_hash) values ($1) returning id, created_at",
@@ -146,7 +143,7 @@ async fn seed_tenant(
 
 pub async fn seed_all(
     pool: &PgPool,
-    argon2: &argon2::Argon2<'_>,
+    password_service: &bits_app::password::PasswordService,
     seeds: &Seeds,
 ) -> Result<SeedData> {
     let mut users = vec![];
@@ -154,7 +151,7 @@ pub async fn seed_all(
 
     // Seed users first
     for seed in &seeds.user {
-        if let Some(user_data) = seed_user(pool, argon2, seed).await? {
+        if let Some(user_data) = seed_user(pool, password_service, seed).await? {
             users.push(user_data);
         }
     }

@@ -313,6 +313,9 @@ pub fn is_reserved(name: &str) -> bool {
 }
 
 /// A validated tenant.
+///
+/// SECURITY: This struct is serialized in public Realm API responses.
+/// Only add fields that are safe to expose publicly (no emails, secrets, payment info, etc).
 #[cfg_attr(feature = "server", derive(sqlx::FromRow))]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Tenant {

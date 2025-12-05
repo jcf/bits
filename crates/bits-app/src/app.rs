@@ -11,8 +11,9 @@ use crate::pages::{Auth, Home, Join, Layout, VerifyEmail};
 pub struct AppState {
     pub config: std::sync::Arc<crate::Config>,
     pub db: sqlx::PgPool,
-    pub argon2: argon2::Argon2<'static>,
+    pub password_service: crate::password::PasswordService,
     pub email_verification: crate::verification::EmailVerificationService,
+    pub auth_rate_limit: crate::auth_rate_limit::AuthRateLimitService,
     pub metrics_handle: metrics_exporter_prometheus::PrometheusHandle,
     pub session_store:
         std::sync::Arc<tokio::sync::Mutex<bits_axum_session_sqlx::SessionPgSessionStore>>,
@@ -24,8 +25,9 @@ impl std::fmt::Debug for AppState {
         f.debug_struct("AppState")
             .field("config", &self.config)
             .field("db", &self.db)
-            .field("argon2", &self.argon2)
+            .field("password_service", &"<PasswordService>")
             .field("email_verification", &"<EmailVerificationService>")
+            .field("auth_rate_limit", &"<AuthRateLimitService>")
             .field("metrics_handle", &"<PrometheusHandle>")
             .field("session_store", &"<SessionStore>")
             .finish()
@@ -40,25 +42,25 @@ impl AppState {
             .connect(config.database_url.as_ref())
             .await?;
 
-        // Configure Argon2id with explicit parameters per OWASP recommendations
-        let argon2_params = argon2::Params::new(
-            config.argon2_m_cost,
-            config.argon2_t_cost,
-            config.argon2_p_cost,
-            Some(argon2::Params::DEFAULT_OUTPUT_LEN),
-        )
-        .map_err(|e| anyhow::anyhow!("Invalid Argon2 parameters: {}", e))?;
+        // Initialize password service with Argon2id
+        let password_service = crate::password::PasswordService::new(&config)?;
 
-        let argon2 = argon2::Argon2::new(
-            argon2::Algorithm::Argon2id,
-            argon2::Version::V0x13,
-            argon2_params,
-        );
+        // Derive email verification key from master key using HKDF
+        use hkdf::Hkdf;
+        use sha2::Sha256;
+        let hk = Hkdf::<Sha256>::new(None, config.master_key.as_bytes());
+        let mut verification_key = [0u8; 32];
+        hk.expand(b"email-verification-v1", &mut verification_key)
+            .expect("32 bytes is valid for HKDF-SHA256");
 
-        // Initialize email verification service
+        // Initialize email verification service with derived key
         let email_verification = crate::verification::EmailVerificationService::new(
             crate::verification::EmailVerificationConfig::default(),
+            verification_key.to_vec(),
         );
+
+        // Initialize auth rate limiting service
+        let auth_rate_limit = crate::auth_rate_limit::AuthRateLimitService::new();
 
         // Initialize metrics
         let metrics_handle = crate::metrics::init();
@@ -80,8 +82,9 @@ impl AppState {
         Ok(Self {
             config: std::sync::Arc::new(config),
             db,
-            argon2,
+            password_service,
             email_verification,
+            auth_rate_limit,
             metrics_handle,
             session_store: std::sync::Arc::new(tokio::sync::Mutex::new(session_store)),
         })

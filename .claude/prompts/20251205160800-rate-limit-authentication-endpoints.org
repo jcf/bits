@@ -1,0 +1,96 @@
+#+title:    Rate Limit Application Endpoints
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Context
+
+We have a DOS vulnerability. The Argon2 password hashing takes ~2 seconds per request (by design for security), but this means an attacker can spam ~/api/sessions~ and exhaust CPU resources.
+
+Currently there is NO rate limiting anywhere in the application.
+
+* Requirements
+
+Implement layered rate limiting using Tower Governor (https://github.com/benwis/tower-governor) to prevent DOS attacks.
+
+** Layer 1: Global Rate Limiting
+
+Apply to ALL requests across the entire application.
+
+*** Limits
+- 50 requests per second per IP address
+- Use sliding window or token bucket algorithm
+- No legitimate user needs thousands of req/sec
+
+*** Error Handling
+- Return 429 Too Many Requests
+- Include Retry-After header
+- Generic message: "Rate limit exceeded"
+
+** Layer 2: Authentication Endpoints
+
+Stricter limits on expensive operations that do Argon2 hashing (~2 sec per request).
+
+*** Endpoints to Protect
+1. ~/api/sessions~ (POST) - Sign in with email/password
+2. ~/api/users~ (POST) - Create new account
+
+*** Per IP Address
+- Allow 5 login attempts per minute per IP
+- Prevents single attacker from overwhelming server
+
+*** Per Email Address
+- Allow 3 login attempts per hour per email
+- Prevents targeted brute force on specific accounts
+- Store state in database (see ~email_verification_resend_log~ pattern in ~crates/bits-app/src/verification.rs~)
+
+*** Error Handling
+- Return same "Invalid credentials" error for both rate limit and auth failure
+- DO NOT leak which limit was hit (security)
+- Return 429 with generic message, not auth-specific
+
+** Implementation Notes
+
+*** Tower Governor Integration
+- Integrates as Axum middleware layer
+- Look at ~crates/bits-app/src/middleware/~ for existing patterns
+- Look at ~crates/bits-app/src/server.rs~ where middleware is applied
+
+*** IP Extraction
+- Extract from X-Forwarded-For header (we're behind nginx)
+- Fall back to connection IP if header missing
+- Document this in configuration
+
+*** State Storage
+- Global rate limit: In-memory (tower-governor built-in) is fine
+- Email-based rate limit: Database (multi-instance deployment)
+- Start with in-memory for simplicity, document Redis option for future
+
+*** Middleware Order
+Apply in ~server.rs~ in this order:
+1. Global rate limit (first line of defense)
+2. CSRF verification
+3. Auth-specific rate limit (for auth endpoints only)
+
+** Testing
+
+Add integration tests in ~crates/bits-e2e/tests/~:
+- Test global rate limiting across different endpoints
+- Test IP-based auth rate limiting
+- Test email-based auth rate limiting
+- Verify error messages don't leak information
+- Check legitimate users aren't blocked
+
+** References
+
+- Tower Governor: https://github.com/benwis/tower-governor
+- OWASP Auth Cheat Sheet: Rate limiting section
+- Existing patterns: ~crates/bits-app/src/verification.rs~ (email verification rate limiting)
+
+* Acceptance Criteria
+
+- [ ] Global rate limit (50 req/sec per IP) applied to all endpoints
+- [ ] Auth endpoints have stricter rate limits (5/min per IP, 3/hour per email)
+- [ ] Error messages don't leak which limit was hit
+- [ ] Integration tests verify all rate limiting works
+- [ ] Documentation explains configuration and tuning
+- [ ] IP extraction handles X-Forwarded-For correctly

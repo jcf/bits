@@ -36,6 +36,11 @@ fn default_argon2_p_cost() -> u32 {
     4 // 4 threads - Leverage multi-core processors
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn default_global_rate_limit() -> u32 {
+    50
+}
+
 #[derive(Args, Clone, Debug, Deserialize)]
 pub struct Config {
     /// Application version (typically git commit hash)
@@ -79,6 +84,11 @@ pub struct Config {
     #[serde(default = "default_argon2_p_cost")]
     pub argon2_p_cost: u32,
 
+    /// Master key for deriving application-specific secrets (required)
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "MASTER_KEY")]
+    pub master_key: String,
+
     #[arg(short, long, env = "PORT", default_value = "3000")]
     #[serde(default = "default_port")]
     pub port: u16,
@@ -98,6 +108,12 @@ pub struct Config {
     #[arg(long, env = "PLATFORM_DOMAIN")]
     #[serde(default)]
     pub platform_domain: Option<String>,
+
+    /// Global rate limit (requests per second per IP)
+    #[cfg(not(target_arch = "wasm32"))]
+    #[arg(long, env = "GLOBAL_RATE_LIMIT", default_value = "50")]
+    #[serde(default = "default_global_rate_limit")]
+    pub global_rate_limit: u32,
 }
 
 impl Config {

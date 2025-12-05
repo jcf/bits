@@ -28,7 +28,12 @@ pub fn Auth() -> Element {
                         auth_action.call(dioxus::fullstack::Form(form)).await;
                         if let Some(Ok(user)) = auth_action.value() {
                             session.set(Some(Ok(SessionState::Authenticated(user()))));
-                            nav.push(crate::app::Route::Home {});
+                            // Redirect based on verification status
+                            if user().verified {
+                                nav.push(crate::app::Route::Home {});
+                            } else {
+                                nav.push(crate::app::Route::VerifyEmail {});
+                            }
                         }
                     },
                     div {

@@ -12,12 +12,16 @@ pub mod subdomain;
 pub mod tenant;
 
 #[cfg(feature = "server")]
+pub mod auth_rate_limit;
+#[cfg(feature = "server")]
 pub mod csrf;
 pub mod demos;
 #[cfg(feature = "server")]
 pub mod metrics;
 #[cfg(feature = "server")]
 pub mod middleware;
+#[cfg(feature = "server")]
+pub mod password;
 #[cfg(feature = "server")]
 pub mod server;
 #[cfg(feature = "server")]
@@ -34,8 +38,11 @@ pub use app::AppState;
 // Re-exports - Auth
 pub use auth::{
     AuthError, AuthForm, AuthResponse, ChangePasswordForm, JoinForm, ResendForm, ResendResponse,
-    SessionState, User, VerifyEmailForm,
+    SessionState, User, UserState, VerifyEmailForm,
 };
+
+#[cfg(feature = "server")]
+pub use auth::RequireVerified;
 
 // Re-exports - Config
 pub use config::Config;

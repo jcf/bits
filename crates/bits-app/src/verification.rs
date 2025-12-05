@@ -1,12 +1,12 @@
 //! Email verification service with 6-digit codes
 //!
-//! Provides secure email verification using Argon2-hashed 6-digit codes with:
+//! Provides secure email verification using HMAC-SHA256-hashed 6-digit codes with:
 //! - Configurable expiration times
 //! - Rate limiting for resends
 //! - Attempt tracking to prevent brute force
 //! - Same code on resend (prevents DoS)
+//! - HKDF-derived keys from master secret
 
-use argon2::password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use ipnetwork::IpNetwork;
 use jiff::{Span, Timestamp};
 use sqlx::{types::chrono::DateTime, PgPool};
@@ -34,11 +34,15 @@ impl Default for EmailVerificationConfig {
 #[derive(Clone)]
 pub struct EmailVerificationService {
     config: EmailVerificationConfig,
+    hmac_secret: Vec<u8>,
 }
 
 impl EmailVerificationService {
-    pub fn new(config: EmailVerificationConfig) -> Self {
-        Self { config }
+    pub fn new(config: EmailVerificationConfig, hmac_secret: Vec<u8>) -> Self {
+        Self {
+            config,
+            hmac_secret,
+        }
     }
 
     pub fn with_config(mut self, config: EmailVerificationConfig) -> Self {
@@ -53,21 +57,22 @@ impl EmailVerificationService {
         format!("{:06}", rng.random_range(0..1000000))
     }
 
-    /// Hash a code using Argon2 for secure storage
-    fn hash_code(argon2: &argon2::Argon2<'_>, code: &str) -> Result<String, VerificationError> {
-        let salt = SaltString::generate(&mut OsRng);
-        argon2
-            .hash_password(code.as_bytes(), &salt)
-            .map_err(|e| VerificationError::Internal(format!("Failed to hash code: {}", e)))
-            .map(|hash| hash.to_string())
+    /// Hash a code using HMAC-SHA256 for secure storage
+    fn hash_code(&self, code: &str) -> String {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+
+        let mut mac =
+            Hmac::<Sha256>::new_from_slice(&self.hmac_secret).expect("HMAC accepts any key length");
+        mac.update(code.as_bytes());
+        hex::encode(mac.finalize().into_bytes())
     }
 
-    /// Verify a code matches its hash
-    fn verify_code_hash(argon2: &argon2::Argon2<'_>, code: &str, hash: &str) -> bool {
-        PasswordHash::new(hash)
-            .ok()
-            .and_then(|parsed_hash| argon2.verify_password(code.as_bytes(), &parsed_hash).ok())
-            .is_some()
+    /// Verify a code matches its hash using constant-time comparison
+    fn verify_code_hash(&self, code: &str, hash: &str) -> bool {
+        use subtle::ConstantTimeEq;
+        let expected = self.hash_code(code);
+        expected.as_bytes().ct_eq(hash.as_bytes()).into()
     }
 
     /// Create a new verification code or return existing valid one
@@ -75,12 +80,11 @@ impl EmailVerificationService {
     /// Returns the plaintext code (which should be emailed to the user)
     pub async fn create_code(
         &self,
-        argon2: &argon2::Argon2<'_>,
         db: &PgPool,
         email_address_id: i64,
     ) -> Result<String, VerificationError> {
         let code = Self::generate_code();
-        let code_hash = Self::hash_code(argon2, &code)?;
+        let code_hash = self.hash_code(&code);
         let now = Timestamp::now();
         let expires_at = now
             .checked_add(Span::new().hours(self.config.code_expiry_hours))
@@ -118,7 +122,6 @@ impl EmailVerificationService {
     /// Verify a code and mark the email address as verified
     pub async fn verify_code(
         &self,
-        argon2: &argon2::Argon2<'_>,
         db: &PgPool,
         email_address_id: i64,
         code: &str,
@@ -146,7 +149,7 @@ impl EmailVerificationService {
         }
 
         // Verify hash
-        if !Self::verify_code_hash(argon2, code, &record.code_hash) {
+        if !self.verify_code_hash(code, &record.code_hash) {
             // Increment attempt count
             sqlx::query!(
                 "update email_verification_codes

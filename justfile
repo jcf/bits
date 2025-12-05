@@ -304,6 +304,7 @@ snapshot-build snapshot_name="":
 
     # Build the Packer script from our Nix expression
     op run -- nix-build nix/images/build-snapshot.nix \
+      --impure \
       --arg hcloud-token "\"$HCLOUD_TOKEN\"" \
       --arg snapshot-name "\"${snapshot_name}\"" \
       --arg snapshot-description "\"NixOS 25.05 snapshot for Bits platform\"" \
@@ -410,3 +411,55 @@ nixos-rollback snapshot_name:
         echo "❌ Rollback cancelled"
         exit 1
     fi
+
+# ------------------------------------------------------------------------------
+# Secrets
+
+[group('secrets')]
+_secret_with_identity +cmd:
+    #!/usr/bin/env bash
+    tmpkey=$(mktemp)
+    trap "shred -u $tmpkey 2>/dev/null || rm -f $tmpkey" EXIT
+    chmod 600 $tmpkey
+
+    op item get "Max" --format json |
+      jq -r \
+        '.fields[]
+        | select(.label == "private key")
+        | .ssh_formats.openssh.value' > $tmpkey
+
+    {{ cmd }} -i $tmpkey
+
+# Encrypt stdin to a file
+[group('secrets')]
+secret-encrypt path:
+    #!/usr/bin/env bash
+    filename="{{ file_name(path) }}"
+    mapfile -t recipients < <(nix eval --json --impure --expr '
+      let
+        secrets = import ./secrets/secrets.nix;
+        allKeys = builtins.concatLists (builtins.attrValues (builtins.mapAttrs (n: v: v.publicKeys) secrets));
+      in builtins.attrValues (builtins.listToAttrs (map (k: {name = k; value = k;}) allKeys))
+    ' | jq -r '.[]')
+
+    args=()
+    for recipient in "${recipients[@]}"; do
+      args+=(--recipient "$recipient")
+    done
+
+    rage --encrypt "${args[@]}" --armor --output "secrets/$filename"
+
+# Edit a secret file
+[group('secrets')]
+secret-edit file:
+    @just _secret_with_identity "cd secrets && ragenix --editor vim -e {{ file_name(file) }}"
+
+# Rekey all secrets with recipients in secrets/secrets.nix
+[group('secrets')]
+secret-rekey:
+    @just _secret_with_identity "cd secrets && ragenix -r"
+
+# Decrypt a secret
+[group('secrets')]
+secret-decrypt file:
+    @just _secret_with_identity "rage --decrypt {{ file }}"

@@ -1,0 +1,371 @@
+#+title:    Replace Argon2 for Verification Codes
+#+date:     2025-12-05
+#+property: header-args :dir ../..
+
+* Context
+
+We're using Argon2 to hash 6-digit email verification codes. This creates a **2 second delay** every time a user verifies their email.
+
+** The Problem
+
+Argon2 is designed for passwords:
+- Long-lived (months/years)
+- Reused across sites
+- High value target for attackers
+- Worth spending 2 seconds to make brute force infeasible
+
+Verification codes are:
+- Single-use (deleted after successful verification)
+- Expire in 1 hour
+- Rate-limited to 3 attempts (then code expires)
+- Cannot be reused
+- Low value (no personal data, just proves email ownership)
+
+Using Argon2 for verification codes is **massive overkill** and creates terrible UX.
+
+** Current Implementation
+
+~crates/bits-app/src/verification.rs~:
+- Line 57: ~hash_code()~ uses Argon2
+- Line 66: ~verify_code_hash()~ uses Argon2
+- Every verification attempt waits 2 seconds
+
+** Impact
+
+User flow:
+1. User enters 6-digit code
+2. **Waits 2 seconds** (Argon2 hashing)
+3. Sees result
+
+This feels broken. Users think the app hung.
+
+* Requirements
+
+Replace Argon2 with appropriate security for verification codes.
+
+** Option 1: HMAC-SHA256 (Recommended)
+
+Use HMAC-SHA256 with a secret key:
+- **Fast**: Microseconds instead of seconds
+- **Secure**: Still cryptographically sound for tokens
+- **Standard**: Industry practice for single-use tokens
+- **Simple**: Built into Rust standard library
+
+#+begin_src rust
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
+
+type HmacSha256 = Hmac<Sha256>;
+
+fn hash_code(secret: &[u8], code: &str) -> String {
+    let mut mac = HmacSha256::new_from_slice(secret).expect("Valid key");
+    mac.update(code.as_bytes());
+    let result = mac.finalize();
+    hex::encode(result.into_bytes())
+}
+
+fn verify_code_hash(secret: &[u8], code: &str, hash: &str) -> bool {
+    let expected = hash_code(secret, code);
+    use subtle::ConstantTimeEq;
+    expected.as_bytes().ct_eq(hash.as_bytes()).into()
+}
+#+end_src
+
+** Option 2: Bcrypt with Low Cost (Alternative)
+
+Use bcrypt with cost=4 (very fast, still secure for low-value tokens):
+- **Fast**: ~10ms instead of 2 seconds
+- **Familiar**: Similar API to Argon2
+- **Sufficient**: For single-use, rate-limited codes
+
+** Option 3: Plaintext (Aggressive)
+
+Store codes in plaintext:
+- **Fastest**: No hashing at all
+- **Defensible**: Codes are single-use, expire quickly, rate-limited
+- **Risky**: If database leaked, codes could be used before expiry
+- **Not Recommended**: Optics are bad even if technically sound
+
+* Implementation
+
+** Architecture: Single Source of Entropy
+
+We already have ~MASTER_KEY~ environment variable for secrets. Instead of adding another secret (~EMAIL_VERIFICATION_SECRET~), we'll use **HKDF** (HMAC-based Key Derivation Function) to derive application-specific keys from the master key.
+
+Benefits:
+- **One secret to manage**: ~MASTER_KEY~ is the only secret
+- **Cryptographically sound**: HKDF is standard (used in TLS, Signal, etc.)
+- **Key isolation**: Compromise of derived key doesn't affect master key
+- **Unlimited derived keys**: Can derive keys for other purposes later
+- **Context-specific**: Each derived key has unique "info" parameter
+
+#+begin_src rust
+use hkdf::Hkdf;
+use sha2::Sha256;
+
+// Derive email verification key from master key
+let hk = Hkdf::<Sha256>::new(None, master_key.as_bytes());
+let mut verification_key = [0u8; 32];
+hk.expand(b"email-verification-v1", &mut verification_key)
+    .expect("32 bytes is valid for HKDF-SHA256");
+#+end_src
+
+** Changes Required
+
+*** 1. Add ~master_key~ to Config (~crates/bits-app/src/config.rs~)
+
+#+begin_src rust
+#[cfg(not(target_arch = "wasm32"))]
+#[arg(long, env = "MASTER_KEY")]
+pub master_key: String,  // Required - fail fast if not provided
+#+end_src
+
+*** 2. Create PasswordService (~crates/bits-app/src/password.rs~)
+
+Abstract Argon2 operations instead of passing naked ~argon2~ reference everywhere:
+
+#+begin_src rust
+#[derive(Clone)]
+pub struct PasswordService {
+    argon2: argon2::Argon2<'static>,
+}
+
+impl PasswordService {
+    pub fn new(config: &Config) -> Result<Self, anyhow::Error> {
+        let params = argon2::Params::new(
+            config.argon2_m_cost,
+            config.argon2_t_cost,
+            config.argon2_p_cost,
+            Some(argon2::Params::DEFAULT_OUTPUT_LEN),
+        )?;
+
+        let argon2 = argon2::Argon2::new(
+            argon2::Algorithm::Argon2id,
+            argon2::Version::V0x13,
+            params,
+        );
+
+        Ok(Self { argon2 })
+    }
+
+    pub fn hash_password(&self, password: &str) -> Result<String, Error> {
+        use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
+        let salt = SaltString::generate(&mut OsRng);
+        self.argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map(|hash| hash.to_string())
+            .map_err(Into::into)
+    }
+
+    pub fn verify_password(&self, password: &str, hash: &str) -> Result<(), Error> {
+        use argon2::password_hash::{PasswordHash, PasswordVerifier};
+        let parsed_hash = PasswordHash::new(hash)?;
+        self.argon2
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .map_err(Into::into)
+    }
+}
+#+end_src
+
+*** 3. Update AppState (~crates/bits-app/src/app.rs~)
+
+Replace ~argon2: Argon2<'static>~ with ~password_service: PasswordService~:
+
+#+begin_src rust
+pub struct AppState {
+    pub config: std::sync::Arc<Config>,
+    pub db: sqlx::PgPool,
+    pub password_service: PasswordService,  // Instead of argon2
+    pub email_verification: EmailVerificationService,
+    // ...
+}
+
+impl AppState {
+    pub async fn new(config: Config) -> Result<Self, anyhow::Error> {
+        // ... db setup ...
+
+        // Create password service
+        let password_service = PasswordService::new(&config)?;
+
+        // Derive email verification key from master key using HKDF
+        use hkdf::Hkdf;
+        use sha2::Sha256;
+        let hk = Hkdf::<Sha256>::new(None, config.master_key.as_bytes());
+        let mut verification_key = [0u8; 32];
+        hk.expand(b"email-verification-v1", &mut verification_key)
+            .expect("32 bytes is valid for HKDF-SHA256");
+
+        // Initialize email verification service with derived key
+        let email_verification = EmailVerificationService::new(
+            EmailVerificationConfig::default(),
+            verification_key.to_vec(),
+        );
+
+        Ok(Self {
+            config: std::sync::Arc::new(config),
+            db,
+            password_service,
+            email_verification,
+            // ...
+        })
+    }
+}
+#+end_src
+
+*** 4. Update EmailVerificationService (~crates/bits-app/src/verification.rs~)
+
+Add HMAC secret and replace Argon2 hashing:
+
+#+begin_src rust
+pub struct EmailVerificationService {
+    config: EmailVerificationConfig,
+    hmac_secret: Vec<u8>,  // Derived from master key via HKDF
+}
+
+impl EmailVerificationService {
+    pub fn new(config: EmailVerificationConfig, hmac_secret: Vec<u8>) -> Self {
+        Self { config, hmac_secret }
+    }
+
+    /// Hash a code using HMAC-SHA256 for secure storage
+    fn hash_code(&self, code: &str) -> String {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+
+        let mut mac = Hmac::<Sha256>::new_from_slice(&self.hmac_secret)
+            .expect("HMAC accepts any key length");
+        mac.update(code.as_bytes());
+        hex::encode(mac.finalize().into_bytes())
+    }
+
+    /// Verify a code matches its hash using constant-time comparison
+    fn verify_code_hash(&self, code: &str, hash: &str) -> bool {
+        use subtle::ConstantTimeEq;
+        let expected = self.hash_code(code);
+        expected.as_bytes().ct_eq(hash.as_bytes()).into()
+    }
+
+    // Remove argon2 parameter from create_code() and verify_code()
+    pub async fn create_code(
+        &self,
+        db: &PgPool,
+        email_address_id: i64,
+    ) -> Result<String, VerificationError> {
+        let code = Self::generate_code();
+        let code_hash = self.hash_code(&code);  // No argon2 needed
+        // ... rest of implementation
+    }
+
+    pub async fn verify_code(
+        &self,
+        db: &PgPool,
+        email_address_id: i64,
+        code: &str,
+    ) -> Result<(), VerificationError> {
+        // ... fetch record ...
+        if !self.verify_code_hash(code, &record.code_hash) {  // No argon2 needed
+            // ... increment attempts ...
+        }
+        // ... rest of implementation
+    }
+}
+#+end_src
+
+*** 5. Update auth.rs call sites
+
+Replace ~state.argon2~ with ~state.password_service~:
+
+#+begin_src rust
+// Before:
+state.argon2.verify_password(password.as_bytes(), &parsed_hash)
+
+// After:
+state.password_service.verify_password(&password, &hash)
+
+// Before:
+let hash = hash_password(&state.argon2, &password).await?;
+
+// After:
+let hash = state.password_service.hash_password(&password)?;
+#+end_src
+
+Remove ~argon2~ parameters from verification calls:
+
+#+begin_src rust
+// Before:
+state.email_verification.create_code(&state.argon2, &state.db, email_address_id)
+
+// After:
+state.email_verification.create_code(&state.db, email_address_id)
+#+end_src
+
+** Dependencies
+
+Add to ~crates/bits-app/Cargo.toml~:
+#+begin_src toml
+hkdf = "0.12"  # Key derivation
+# Already present:
+# hmac = "0.12"
+# sha2 = "0.10"
+# hex = "0.4"
+# subtle = "2.6"
+#+end_src
+
+** Testing
+
+Update tests in ~crates/bits-app/src/verification.rs~ and ~crates/bits-e2e/tests/auth.rs~:
+- Verify codes still work correctly
+- Check verification is FAST (< 100ms)
+- Ensure constant-time comparison prevents timing attacks
+
+* Acceptance Criteria
+
+- [ ] ~master_key~ added to ~Config~ (required, from ~MASTER_KEY~ env var)
+- [ ] ~PasswordService~ created to abstract Argon2 operations
+- [ ] HKDF derives verification key from master key
+- [ ] HMAC-SHA256 replaces Argon2 for verification code hashing
+- [ ] Verification response time < 100ms (down from 2000ms)
+- [ ] Constant-time comparison prevents timing attacks
+- [ ] ~argon2~ parameters removed from verification method signatures
+- [ ] ~auth.rs~ uses ~PasswordService~ instead of naked ~argon2~
+- [ ] All existing tests pass
+- [ ] UX feels instant instead of broken
+
+* Security Analysis
+
+** Why This Is Safe
+
+1. **Rate limiting**: 3 attempts max before code expires
+2. **Short-lived**: 1 hour expiry
+3. **Single-use**: Deleted after successful verification
+4. **Low value**: Only proves email ownership, no sensitive data
+5. **HMAC is secure**: Cryptographically sound for tokens
+
+** Attack Scenarios
+
+*** Database Leak
+- **With Argon2**: Attacker needs 2 seconds per code (still can't brute force)
+- **With HMAC**: Attacker needs HMAC secret to verify codes
+- **Impact**: If attacker has database AND master key, codes are compromised
+- **Mitigation**: HKDF provides key isolation - even if verification key leaked, master key remains safe. Codes expire in 1 hour anyway.
+- **Key derivation**: Verification key is derived via HKDF from ~MASTER_KEY~ with context "email-verification-v1"
+
+*** Brute Force
+- **With rate limiting**: 3 attempts per code (1M combinations / 3 = 333K codes needed)
+- **Without HMAC**: Impossible, need to hit API
+- **Impact**: Negligible
+
+*** Timing Attacks
+- **HMAC verification**: Use constant-time comparison (~subtle~ crate)
+- **Impact**: None if implemented correctly
+
+** Verdict
+
+HMAC-SHA256 is **completely appropriate** for this use case. Argon2 is overkill and hurts UX for no security benefit.
+
+* References
+
+- OWASP: Token-based authentication patterns
+- RFC 2104: HMAC specification
+- Django: Uses HMAC for email verification tokens
+- Rails: Uses HMAC for signed tokens

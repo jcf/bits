@@ -1,14 +1,18 @@
 use crate::{AppState, Config, CspMode, CsrfVerificationLayer, User};
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use axum_governor::GovernorLayer;
 use axum_session::{SessionConfig, SessionLayer, SessionStore};
 use axum_session_auth::{AuthConfig, AuthSessionLayer};
 use bits_axum_session_sqlx::SessionPgPool;
 use cookie::SameSite;
 use dioxus::prelude::Element;
 use dioxus::server::axum::{self, Extension};
+use lazy_limit::{init_rate_limiter, RuleConfig};
+use real::RealIpLayer;
 use sqlx::PgPool;
 use std::time::Duration;
+use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
@@ -43,6 +47,16 @@ pub fn init_tracing() {
 
 /// Initialize the application: database and migrations
 pub async fn init(config: Config) -> Result<AppState, anyhow::Error> {
+    // Initialize global rate limiter before creating state
+    // Default: 50 req/sec (production), configurable via GLOBAL_RATE_LIMIT env var
+    // Override to higher value in development (e.g., 200) to handle asset requests
+    let rate_limit = config.global_rate_limit;
+    init_rate_limiter!(
+        default: RuleConfig::new(lazy_limit::Duration::seconds(1), rate_limit),
+        max_memory: Some(64 * 1024 * 1024) // 64MB max memory for rate limiter
+    )
+    .await;
+
     let state = AppState::new(config).await?;
     run_migrations(&state.db).await?;
 
@@ -161,8 +175,17 @@ pub async fn build_router(
         .layer(axum::middleware::from_fn(
             crate::middleware::metrics::track_metrics,
         ))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            crate::middleware::auth_rate_limit::auth_rate_limit_middleware,
+        ))
         .layer(cors)
         .layer(CsrfVerificationLayer)
+        .layer(
+            ServiceBuilder::new()
+                .layer(RealIpLayer::default())
+                .layer(GovernorLayer::default()),
+        )
         .layer(SetResponseHeaderLayer::overriding(
             header::HeaderName::from_static("content-security-policy"),
             HeaderValue::try_from(csp).unwrap(),
