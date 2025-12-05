@@ -96,6 +96,7 @@ in {
 
     # Development
     fd
+    gnuplot
     just
     tokei
     tree
