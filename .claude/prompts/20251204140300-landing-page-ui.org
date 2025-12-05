@@ -41,15 +41,6 @@ pub fn Landing() -> Element {
     });
 
     rsx! {
-        // Prototype banner
-        div {
-            class: "bg-blue-50 border-b border-blue-200 p-3 text-center",
-            p {
-                class: "text-sm text-blue-800",
-                "🎨 Early Preview - Limited availability"
-            }
-        }
-
         div { class: "flex min-h-screen flex-col items-center justify-center p-8",
             div { class: "max-w-2xl w-full space-y-8 text-center",
                 // Hero
