@@ -4,7 +4,7 @@ use bits_e2e::fixtures;
 #[tokio::test]
 async fn resolve_realm_returns_platform_for_apex_domain() {
     let mut config = fixtures::config().expect("Failed to load config");
-    config.platform_domain = Some("example.com".to_string());
+    config.platform_domain = "example.com".to_string();
 
     let ctx = fixtures::setup_colo(config.clone())
         .await
@@ -18,7 +18,7 @@ async fn resolve_realm_returns_platform_for_apex_domain() {
 #[tokio::test]
 async fn resolve_realm_returns_tenancy_for_subdomain() {
     let mut config = fixtures::config().expect("Failed to load config");
-    config.platform_domain = Some("example.com".to_string());
+    config.platform_domain = "example.com".to_string();
 
     let ctx = fixtures::setup_colo(config.clone())
         .await
@@ -49,7 +49,7 @@ async fn resolve_realm_returns_tenancy_for_subdomain() {
 #[tokio::test]
 async fn resolve_realm_returns_unknown_for_nonexistent_subdomain() {
     let mut config = fixtures::config().expect("Failed to load config");
-    config.platform_domain = Some("example.com".to_string());
+    config.platform_domain = "example.com".to_string();
 
     let ctx = fixtures::setup_colo(config.clone())
         .await

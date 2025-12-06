@@ -14,6 +14,7 @@ use sqlx::PgPool;
 const TOKEN_LENGTH: usize = 32;
 
 /// Generate a new CSRF token (32 random bytes, base64 encoded)
+#[must_use]
 pub fn generate_token() -> String {
     let mut token_bytes = [0u8; TOKEN_LENGTH];
     rand::rng().fill_bytes(&mut token_bytes);
@@ -55,6 +56,7 @@ pub async fn delete_token(db: &PgPool, session_id: &str) -> Result<(), sqlx::Err
 /// Validate token format (length and base64 encoding)
 /// Returns true if token appears valid, false otherwise
 /// This is a fast check before expensive database lookup
+#[must_use]
 pub fn is_valid_format(token: &str) -> bool {
     // 32 bytes base64 encoded = 44 characters (with padding)
     if token.len() != 44 {
@@ -66,6 +68,7 @@ pub fn is_valid_format(token: &str) -> bool {
 }
 
 /// Verify a CSRF token using timing-safe comparison
+#[must_use]
 pub fn verify_token(expected: &str, provided: &str) -> bool {
     use subtle::ConstantTimeEq;
 

@@ -40,7 +40,7 @@ pub fn parse_class_name(class_name: &str) -> ParsedClassName<'_> {
     let len = chars.len();
 
     for index in 0..len {
-        let current_char = chars[index];
+        let current_char = *chars.get(index).expect("index is within bounds");
 
         if bracket_depth == 0 && paren_depth == 0 {
             if current_char == MODIFIER_SEPARATOR {

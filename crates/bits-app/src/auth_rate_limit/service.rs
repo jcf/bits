@@ -1,7 +1,6 @@
 //! Service layer for authentication rate limiting
 
 use super::{config::AuthRateLimitConfig, error::RateLimitError, storage};
-use jiff::{Span, Timestamp};
 use sqlx::PgPool;
 use std::net::IpAddr;
 
@@ -13,6 +12,7 @@ pub struct AuthRateLimitService {
 }
 
 impl AuthRateLimitService {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             login_config: AuthRateLimitConfig::for_login(),
@@ -21,6 +21,7 @@ impl AuthRateLimitService {
         }
     }
 
+    #[must_use]
     pub fn with_configs(
         login_config: AuthRateLimitConfig,
         registration_config: AuthRateLimitConfig,
@@ -76,8 +77,6 @@ impl AuthRateLimitService {
         let ip_attempts = self.ip_tracker.count_attempts(ip, config.ip_window_secs);
 
         if ip_attempts >= config.ip_attempts_per_window {
-            let now = Timestamp::now().as_second();
-            let cutoff = now - config.ip_window_secs;
             let retry_after = config.ip_window_secs as u64;
 
             return Err(RateLimitError::IpLimitExceeded(retry_after));

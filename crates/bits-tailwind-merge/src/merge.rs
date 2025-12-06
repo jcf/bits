@@ -10,11 +10,13 @@ fn get_config() -> &'static Config {
 }
 
 /// Merge multiple class strings with conflict resolution
+#[must_use]
 pub fn tw_merge_slice(class_list: &[&str]) -> String {
     merge_class_list(&class_list.join(" "), get_config())
 }
 
 /// Merge a single class list string with conflict resolution
+#[must_use]
 pub fn tw_merge(classes: &str) -> String {
     merge_class_list(classes, get_config())
 }
@@ -70,7 +72,11 @@ fn merge_class_list(class_list: &str, config: &Config) -> String {
         let variant_modifier = if parsed.modifiers.is_empty() {
             String::new()
         } else if parsed.modifiers.len() == 1 {
-            parsed.modifiers[0].to_string()
+            parsed
+                .modifiers
+                .first()
+                .expect("checked len == 1")
+                .to_string()
         } else {
             // Sort modifiers alphabetically (preserving arbitrary variants)
             let mut sorted_mods = parsed.modifiers.clone();

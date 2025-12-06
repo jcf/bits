@@ -20,6 +20,7 @@ pub struct IpAttemptTracker {
 }
 
 impl IpAttemptTracker {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             attempts: Arc::new(DashMap::new()),
@@ -36,6 +37,7 @@ impl IpAttemptTracker {
     }
 
     /// Count attempts from the given IP within the time window
+    #[must_use]
     pub fn count_attempts(&self, ip: IpAddr, window_secs: i64) -> u32 {
         let now = Timestamp::now().as_second();
         let cutoff = now - window_secs;

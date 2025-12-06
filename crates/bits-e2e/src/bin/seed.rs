@@ -3,7 +3,7 @@ use bits_e2e::seeds;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = bits_app::Config::from_env()?;
+    let config = bits_app::load_config()?;
     let state = bits_app::AppState::new(config).await?;
 
     let seeds_path = std::env::current_dir()?.join("seeds.toml");

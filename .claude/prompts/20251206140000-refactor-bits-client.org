@@ -1,0 +1,223 @@
+#+title:    Refactor BitsClient
+#+date:     2025-12-06
+#+property: header-args :dir ../..
+
+* Goal
+
+Refactor ~crates/bits-e2e/src/client.rs~ to eliminate code duplication and improve error handling consistency.
+
+* Background
+
+Code review identified several issues:
+
+1. *Massive duplication* - ~login~/~login_result~ and ~join~/~join_result~ duplicate 68 lines
+2. *Inconsistent error handling* - Mix of panics, silent failures, Option, and raw Response
+3. *Repetitive URL construction* - ~format!("{}/api/...", self.base_url)~ repeated everywhere
+4. *Silent CSRF failures* - Missing token doesn't cause errors
+5. *Hard-coded selectors* - CSS selector compiled on every call
+
+* Success Criteria
+
+- [ ] Zero duplication between ~login~/~join~ variants
+- [ ] Consistent ~Result~-based error handling across all methods
+- [ ] No ~.expect()~ or ~.unwrap()~ in library code (only in tests)
+- [ ] Single ~url()~ helper for path construction
+- [ ] ~fetch_csrf_token()~ returns ~Result~ to catch missing tokens
+- [ ] Static/lazy CSRF selector compilation
+- [ ] All tests pass after refactor
+- [ ] No clippy warnings
+- [ ] Code coverage maintained or improved
+
+* Non-Goals
+
+- Changing public API contracts (request/response formats)
+- Adding new features or endpoints
+- Modifying cookie store implementation
+- Redesigning session management
+
+* Proposed Changes
+
+** 1. Define proper error type
+
+Replace ad-hoc error handling with typed errors:
+
+#+begin_src rust
+#[derive(Debug)]
+pub enum ClientError {
+    Request(reqwest::Error),
+    StatusCode(StatusCode),
+    CsrfTokenMissing,
+    ParseError(String),
+}
+
+impl std::fmt::Display for ClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClientError::Request(e) => write!(f, "Request failed: {}", e),
+            ClientError::StatusCode(s) => write!(f, "HTTP {}", s),
+            ClientError::CsrfTokenMissing => write!(f, "CSRF token not found"),
+            ClientError::ParseError(msg) => write!(f, "Parse error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for ClientError {}
+#+end_src
+
+** 2. Extract ~post_form_data~ helper
+
+Eliminate duplication in login/join methods:
+
+#+begin_src rust
+async fn post_form_data(
+    &self,
+    path: &str,
+    form: &[(&str, &str)]
+) -> Result<Response, ClientError> {
+    self.post(self.url(path))
+        .form(form)
+        .send()
+        .await
+        .map_err(ClientError::Request)
+}
+#+end_src
+
+** 3. Convert to Result-based API
+
+Remove panic variants, return ~Result<(), ClientError>~ everywhere:
+
+#+begin_src rust
+pub async fn login(&self, email: &str, password: &str) -> Result<(), ClientError> {
+    let response = self.post_form_data(
+        "/api/sessions",
+        &[("email", email), ("password", password)]
+    ).await?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        Err(ClientError::StatusCode(response.status()))
+    }
+}
+#+end_src
+
+Tests use ~.unwrap()~ for happy paths, ~.unwrap_err()~ for error cases.
+
+** 4. Add ~url()~ helper
+
+#+begin_src rust
+fn url(&self, path: &str) -> String {
+    format!("{}{}", self.base_url, path)
+}
+#+end_src
+
+** 5. Make CSRF fetching explicit
+
+Return ~Result~ to catch missing tokens:
+
+#+begin_src rust
+pub async fn fetch_csrf_token(&mut self) -> Result<(), ClientError> {
+    let response = self.client
+        .get(self.url("/"))
+        .send()
+        .await
+        .map_err(ClientError::Request)?;
+
+    let html = response
+        .text()
+        .await
+        .map_err(ClientError::Request)?;
+
+    let document = Html::parse_document(&html);
+
+    self.csrf_token = document
+        .select(&CSRF_SELECTOR)
+        .next()
+        .and_then(|el| el.value().attr("content"))
+        .map(String::from);
+
+    self.csrf_token
+        .as_ref()
+        .ok_or(ClientError::CsrfTokenMissing)?;
+
+    Ok(())
+}
+#+end_src
+
+** 6. Use static selector
+
+#+begin_src rust
+use std::sync::LazyLock;
+
+static CSRF_SELECTOR: LazyLock<Selector> = LazyLock::new(|| {
+    Selector::parse("meta[name='csrf-token']").unwrap()
+});
+#+end_src
+
+** 7. Update other methods for consistency
+
+- ~logout()~ → ~Result<(), ClientError>~
+- ~get_session()~ → ~Result<Option<User>, ClientError>~
+- ~change_password()~ → ~Result<(), ClientError>~
+
+** 8. Document CSRF token usage
+
+Current behavior: CSRF token is fetched from ~<meta name="csrf-token">~ and
+stored in ~self.csrf_token~. Verify all authenticated requests include the CSRF
+token in the appropriate header or form field.
+
+* Test Updates
+
+Minimal changes required:
+
+#+begin_src rust
+// Before:
+client.login("user@example.com", "password").await;
+
+// After (happy path):
+client.login("user@example.com", "password").await.unwrap();
+
+// After (error case):
+let err = client.login("user@example.com", "wrong").await.unwrap_err();
+match err {
+    ClientError::StatusCode(status) => assert_eq!(status, StatusCode::UNAUTHORIZED),
+    _ => panic!("Expected StatusCode error"),
+}
+
+// Or for simpler assertions in tests:
+let err = client.login("user@example.com", "wrong").await.unwrap_err();
+assert!(matches!(err, ClientError::StatusCode(StatusCode::UNAUTHORIZED)));
+#+end_src
+
+* Implementation Steps
+
+1. Define ~ClientError~ enum with ~Display~ and ~Error~ implementations
+2. Add ~url()~ helper method
+3. Add ~post_form_data()~ helper method
+4. Add static ~CSRF_SELECTOR~
+5. Update ~fetch_csrf_token()~ to return ~Result<(), ClientError>~
+6. Replace ~login()~/~login_result()~ with single ~login()~ returning ~Result~
+7. Replace ~join()~/~join_result()~ with single ~join()~ returning ~Result~
+8. Update ~logout()~ to return ~Result~
+9. Update ~get_session()~ error handling
+10. Update ~change_password()~ to return ~Result~
+11. Update authentication tests (~tests/auth.rs~)
+12. Update session tests (~tests/session.rs~)
+13. Update other test files as needed
+14. Run ~cargo test~ to verify all tests pass
+15. Run ~cargo clippy~ to check for warnings
+
+* Rollback Plan
+
+If tests fail or issues arise:
+
+1. Revert to commit before refactor: ~git reset --hard HEAD~1~
+2. Create feature branch for iterative fixes
+3. Apply changes incrementally with tests passing at each step
+
+* Notes
+
+- Keep existing ~cookie_store~ and ~csrf_token~ behavior
+- Don't change request/response formats (API contract stays same)
+- Focus on internal refactoring, not feature additions
+- ~ClientError~ provides type-safe error handling replacing ~u16~ and ~&'static str~

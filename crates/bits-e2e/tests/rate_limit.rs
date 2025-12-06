@@ -7,19 +7,23 @@ async fn ip_based_login_rate_limit_blocks_excessive_attempts() {
         .await
         .expect("Failed to setup test");
 
-    let email = "test@example.com";
     let password = "correct-password";
 
-    ctx.create_verified_user(email, password)
-        .await
-        .expect("Failed to create user");
+    // Create multiple users to avoid hitting email-based limit
+    for i in 0..11 {
+        let email = format!("user{}@example.com", i);
+        ctx.create_verified_user(&email, password)
+            .await
+            .expect("Failed to create user");
+    }
 
     let mut client = BitsClient::new(ctx.server.url(""));
     client.fetch_csrf_token().await;
 
-    // Make 10 login attempts (should succeed based on IP limit)
+    // Make 10 login attempts with different emails (stay under email limit)
     for i in 0..10 {
-        let result = client.login_result(email, "wrong-password").await;
+        let email = format!("user{}@example.com", i);
+        let result = client.login_result(&email, "wrong-password").await;
         assert!(
             result.is_err(),
             "Attempt {} should fail with wrong password",
@@ -27,8 +31,8 @@ async fn ip_based_login_rate_limit_blocks_excessive_attempts() {
         );
     }
 
-    // 11th attempt should be rate limited (IP limit is 10 per 15 minutes)
-    let result = client.login_result(email, password).await;
+    // 11th attempt should be rate limited by IP (10 per 15 minutes)
+    let result = client.login_result("user10@example.com", password).await;
     assert!(
         result.is_err(),
         "11th attempt should be rate limited (IP limit)"
@@ -123,10 +127,7 @@ async fn email_based_registration_rate_limit_prevents_spam() {
 
     // First registration should succeed
     let result = client.join_result(email, "password1").await;
-    assert!(
-        result.is_err(),
-        "First attempt fails (email already exists)"
-    );
+    assert!(result.is_ok(), "First registration should succeed");
 
     // Second attempt with same email should still be blocked
     // (email limit is 2 per hour for registration)
@@ -162,7 +163,7 @@ async fn successful_login_does_not_trigger_rate_limit() {
     client.fetch_csrf_token().await;
 
     // Successful login should not count toward rate limit
-    for i in 0..3 {
+    for _i in 0..3 {
         client.login(email, password).await;
         client.logout().await;
         client.fetch_csrf_token().await; // Get fresh CSRF token after logout
@@ -195,6 +196,9 @@ async fn rate_limit_records_are_created_in_database() {
 
     // Make a failed login attempt
     let _ = client.login_result(email, "wrong-password").await;
+
+    // Wait for async recording to complete (spawned task in middleware)
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
     // Check database for auth_attempts record
     let count: i64 = sqlx::query_scalar("select count(*) from auth_attempts where email = $1")

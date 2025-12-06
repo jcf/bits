@@ -280,16 +280,19 @@ impl Handle {
     }
 
     /// Create from trusted source (e.g., database) without validation
+    #[must_use]
     pub fn from_trusted(s: String) -> Self {
         Handle(s)
     }
 
     /// Get the validated handle as a string slice
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consume and return the inner String
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
@@ -308,6 +311,7 @@ impl AsRef<str> for Handle {
 }
 
 /// Check if a name is reserved (system use)
+#[must_use]
 pub fn is_reserved(name: &str) -> bool {
     reserved::NAMES.contains(&name.to_ascii_lowercase())
 }
@@ -365,31 +369,30 @@ pub async fn resolve_realm(
 
     #[cfg(feature = "colo")]
     {
-        if let Some(ref platform_domain) = state.config.platform_domain {
-            if normalized_host == *platform_domain {
-                return Realm::Platform {
-                    domain: platform_domain.clone(),
-                };
+        let platform_domain = &state.config.platform_domain;
+        if normalized_host == *platform_domain {
+            return Realm::Platform {
+                domain: platform_domain.clone(),
+            };
+        }
+
+        if normalized_host.ends_with(&format!(".{}", platform_domain)) {
+            let subdomain = normalized_host
+                .strip_suffix(&format!(".{}", platform_domain))
+                .unwrap();
+
+            let handle = Handle::from_trusted(subdomain.to_string());
+
+            // Check if demo (no DB hit!)
+            if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+                return Realm::Demo(handle);
             }
 
-            if normalized_host.ends_with(&format!(".{}", platform_domain)) {
-                let subdomain = normalized_host
-                    .strip_suffix(&format!(".{}", platform_domain))
-                    .unwrap();
-
-                let handle = Handle::from_trusted(subdomain.to_string());
-
-                // Check if demo (no DB hit!)
-                if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
-                    return Realm::Demo(handle);
-                }
-
-                // Check database for real tenants
-                if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
-                    return Realm::Creator(tenant);
-                }
-                return Realm::NotFound;
+            // Check database for real tenants
+            if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
+                return Realm::Creator(tenant);
             }
+            return Realm::NotFound;
         }
     }
 

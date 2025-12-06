@@ -21,16 +21,19 @@ impl Request {
     }
 }
 
+#[must_use]
 pub fn get(ctx: &TestContext, path: &str) -> Request {
     let builder = ctx.client.get(ctx.server.url(path));
     Request { builder }
 }
 
+#[must_use]
 pub fn post(ctx: &TestContext, path: &str) -> Request {
     let builder = ctx.client.post(ctx.server.url(path));
     Request { builder }
 }
 
+#[must_use]
 pub fn cookie_client() -> Client {
     Client::builder()
         .cookie_store(true)

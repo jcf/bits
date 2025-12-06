@@ -9,8 +9,9 @@
 
 use ipnetwork::IpNetwork;
 use jiff::{Span, Timestamp};
-use sqlx::{types::chrono::DateTime, PgPool};
+use sqlx::PgPool;
 use std::net::IpAddr;
+use time::OffsetDateTime;
 
 #[derive(Clone, Debug)]
 pub struct EmailVerificationConfig {
@@ -38,6 +39,7 @@ pub struct EmailVerificationService {
 }
 
 impl EmailVerificationService {
+    #[must_use]
     pub fn new(config: EmailVerificationConfig, hmac_secret: Vec<u8>) -> Self {
         Self {
             config,
@@ -45,6 +47,7 @@ impl EmailVerificationService {
         }
     }
 
+    #[must_use]
     pub fn with_config(mut self, config: EmailVerificationConfig) -> Self {
         self.config = config;
         self
@@ -92,9 +95,9 @@ impl EmailVerificationService {
                 VerificationError::Internal(format!("Failed to calculate expiration time: {}", e))
             })?;
 
-        // Convert to chrono for database
-        let expires_at_chrono = DateTime::from_timestamp(expires_at.as_second(), 0)
-            .ok_or_else(|| VerificationError::Internal("Invalid timestamp".to_string()))?;
+        // Convert to time::OffsetDateTime for database
+        let expires_at_time = OffsetDateTime::from_unix_timestamp(expires_at.as_second())
+            .map_err(|e| VerificationError::Internal(format!("Invalid timestamp: {}", e)))?;
 
         sqlx::query!(
             "insert into email_verification_codes
@@ -111,7 +114,7 @@ impl EmailVerificationService {
                 attempt_count = 0",
             email_address_id,
             code_hash,
-            expires_at_chrono
+            expires_at_time
         )
         .execute(db)
         .await?;
@@ -138,7 +141,7 @@ impl EmailVerificationService {
         .ok_or(VerificationError::InvalidCode)?;
 
         // Check expiry
-        let expires_at = Timestamp::from_second(record.expires_at.timestamp()).unwrap();
+        let expires_at = Timestamp::from_second(record.expires_at.unix_timestamp()).unwrap();
         if expires_at < Timestamp::now() {
             return Err(VerificationError::Expired);
         }
@@ -208,7 +211,7 @@ impl EmailVerificationService {
         .await?;
 
         if let Some(last_sent) = last_sent {
-            let last_sent_ts = Timestamp::from_second(last_sent.timestamp()).unwrap();
+            let last_sent_ts = Timestamp::from_second(last_sent.unix_timestamp()).unwrap();
             let now = Timestamp::now();
             let elapsed = now.duration_since(last_sent_ts).as_secs();
             if elapsed < self.config.resend_cooldown_secs {
@@ -222,15 +225,15 @@ impl EmailVerificationService {
         let one_hour_ago = now
             .checked_sub(Span::new().hours(1))
             .map_err(|_| RateLimitError::TooManyRequests)?;
-        let one_hour_ago_chrono = DateTime::from_timestamp(one_hour_ago.as_second(), 0)
-            .ok_or(RateLimitError::TooManyRequests)?;
+        let one_hour_ago_time = OffsetDateTime::from_unix_timestamp(one_hour_ago.as_second())
+            .map_err(|_| RateLimitError::TooManyRequests)?;
         let email_resends = sqlx::query_scalar!(
             "select count(*)
              from email_verification_resend_log
              where email_address_id = $1
                and created_at > $2",
             email_address_id,
-            one_hour_ago_chrono
+            one_hour_ago_time
         )
         .fetch_one(db)
         .await?;
@@ -248,7 +251,7 @@ impl EmailVerificationService {
                  where ip_address = $1
                    and created_at > $2",
                 ip_network as _,
-                one_hour_ago_chrono
+                one_hour_ago_time
             )
             .fetch_one(db)
             .await?;
@@ -317,7 +320,7 @@ impl EmailVerificationService {
         .await?;
 
         Ok(last_sent.and_then(|ts| {
-            let timestamp = Timestamp::from_second(ts.timestamp()).ok()?;
+            let timestamp = Timestamp::from_second(ts.unix_timestamp()).ok()?;
             timestamp
                 .checked_add(Span::new().seconds(self.config.resend_cooldown_secs))
                 .ok()

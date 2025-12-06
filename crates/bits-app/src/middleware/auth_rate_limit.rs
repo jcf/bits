@@ -1,6 +1,6 @@
 //! Middleware for authentication endpoint rate limiting
 
-use crate::auth_rate_limit::{AuthRateLimitService, RateLimitError};
+use crate::auth_rate_limit::RateLimitError;
 use crate::AppState;
 use axum::body::Body;
 use axum::extract::{Request, State};
@@ -112,19 +112,17 @@ pub async fn auth_rate_limit_middleware(
     // Record attempt after handler completes (regardless of auth success/failure)
     // This happens in background to not slow down response
     let state_clone = state.clone();
-    let email_clone = email.clone();
-    let path_clone = path.to_string();
     tokio::spawn(async move {
         if let Err(e) = state_clone
             .auth_rate_limit
-            .record_attempt(&state_clone.db, client_ip, &email_clone, &path_clone)
+            .record_attempt(&state_clone.db, client_ip, &email, &path)
             .await
         {
             tracing::error!(
                 error = %e,
                 ip = %client_ip,
-                email = %email_clone,
-                endpoint = %path_clone,
+                email = %email,
+                endpoint = %path,
                 "Failed to record auth attempt"
             );
         }

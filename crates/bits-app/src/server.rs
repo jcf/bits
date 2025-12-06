@@ -6,7 +6,6 @@ use axum_session::{SessionConfig, SessionLayer, SessionStore};
 use axum_session_auth::{AuthConfig, AuthSessionLayer};
 use bits_axum_session_sqlx::SessionPgPool;
 use cookie::SameSite;
-use dioxus::prelude::Element;
 use dioxus::server::axum::{self, Extension};
 use lazy_limit::{init_rate_limiter, RuleConfig};
 use real::RealIpLayer;
@@ -47,15 +46,18 @@ pub fn init_tracing() {
 
 /// Initialize the application: database and migrations
 pub async fn init(config: Config) -> Result<AppState, anyhow::Error> {
-    // Initialize global rate limiter before creating state
-    // Default: 50 req/sec (production), configurable via GLOBAL_RATE_LIMIT env var
-    // Override to higher value in development (e.g., 200) to handle asset requests
-    let rate_limit = config.global_rate_limit;
-    init_rate_limiter!(
-        default: RuleConfig::new(lazy_limit::Duration::seconds(1), rate_limit),
-        max_memory: Some(64 * 1024 * 1024) // 64MB max memory for rate limiter
-    )
-    .await;
+    if let Some(limit) = config.global_rate_limit {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static RATE_LIMITER_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+        if !RATE_LIMITER_INITIALIZED.swap(true, Ordering::SeqCst) {
+            init_rate_limiter!(
+                default: RuleConfig::new(lazy_limit::Duration::seconds(1), limit),
+                max_memory: Some(64 * 1024 * 1024)
+            )
+            .await;
+        }
+    }
 
     let state = AppState::new(config).await?;
     run_migrations(&state.db).await?;
@@ -135,7 +137,7 @@ async fn metrics_handler(
 /// Build a production-ready router with security middleware
 pub async fn build_router(
     state: AppState,
-    app: fn() -> Element,
+    app: fn() -> dioxus::prelude::Element,
 ) -> Result<axum::Router, anyhow::Error> {
     let session_store = state.session_store.lock().await.clone();
 
@@ -180,12 +182,19 @@ pub async fn build_router(
             crate::middleware::auth_rate_limit::auth_rate_limit_middleware,
         ))
         .layer(cors)
-        .layer(CsrfVerificationLayer)
-        .layer(
+        .layer(CsrfVerificationLayer);
+
+    let router = if state.config.global_rate_limit.is_some() {
+        router.layer(
             ServiceBuilder::new()
                 .layer(RealIpLayer::default())
                 .layer(GovernorLayer::default()),
         )
+    } else {
+        router
+    };
+
+    let router = router
         .layer(SetResponseHeaderLayer::overriding(
             header::HeaderName::from_static("content-security-policy"),
             HeaderValue::try_from(csp).unwrap(),

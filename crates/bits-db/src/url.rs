@@ -20,10 +20,12 @@ impl PgUrl {
         Ok(Self(url))
     }
 
+    #[must_use]
     pub fn database(&self) -> Option<&str> {
         self.0.path().strip_prefix('/')
     }
 
+    #[must_use]
     pub fn with_database(&self, db: &str) -> Self {
         let mut url = self.0.clone();
         url.set_path(&format!("/{}", db));

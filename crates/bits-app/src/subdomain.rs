@@ -17,6 +17,7 @@ pub enum SubdomainStatus {
 
 impl SubdomainStatus {
     /// Get the translation key for this status
+    #[must_use]
     pub fn translation_key(&self) -> &'static str {
         match self {
             Self::Available => "subdomain-available",
@@ -37,16 +38,19 @@ impl SubdomainStatus {
     }
 
     /// Check if this is an available status
+    #[must_use]
     pub fn is_available(&self) -> bool {
         matches!(self, Self::Available)
     }
 
     /// Check if this is an error (invalid input)
+    #[must_use]
     pub fn is_error(&self) -> bool {
         matches!(self, Self::Invalid(_))
     }
 
     /// Check if this is a notice (reserved or taken)
+    #[must_use]
     pub fn is_notice(&self) -> bool {
         matches!(self, Self::Reserved | Self::AlreadyTaken)
     }
@@ -91,25 +95,23 @@ pub async fn check_subdomain(handle: String) -> Result<SubdomainStatus, Subdomai
     }
 
     // Check database for existing tenant
-    if let Some(platform_domain) = &state.config.platform_domain {
-        let domain = format!("{}.{}", handle, platform_domain);
+    let domain = format!("{}.{}", handle, state.config.platform_domain);
 
-        let exists = sqlx::query_scalar!(
-            "select exists(
-                select 1
-                from tenant_domains
-                where domain = $1
-                and valid_to = 'infinity'
-            )",
-            domain
-        )
-        .fetch_one(&state.db)
-        .await?
-        .unwrap_or(false);
+    let exists = sqlx::query_scalar!(
+        "select exists(
+            select 1
+            from tenant_domains
+            where domain = $1
+            and valid_to = 'infinity'
+        )",
+        domain
+    )
+    .fetch_one(&state.db)
+    .await?
+    .unwrap_or(false);
 
-        if exists {
-            return Ok(SubdomainStatus::AlreadyTaken);
-        }
+    if exists {
+        return Ok(SubdomainStatus::AlreadyTaken);
     }
 
     Ok(SubdomainStatus::Available)

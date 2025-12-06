@@ -78,20 +78,23 @@ impl Decode<'_, Postgres> for PgTimestamp {
 
 impl PgTimestamp {
     /// Returns true if this is the infinity value
+    #[must_use]
     pub fn is_infinity(&self) -> bool {
         matches!(self, PgTimestamp::Infinity)
     }
 
     /// Returns true if this is the negative infinity value
+    #[must_use]
     pub fn is_neg_infinity(&self) -> bool {
         matches!(self, PgTimestamp::NegInfinity)
     }
 
     /// Returns the concrete timestamp if this is not infinity
+    #[must_use]
     pub fn timestamp(&self) -> Option<Timestamp> {
         match self {
             PgTimestamp::Timestamp(ts) => Some(*ts),
-            _ => None,
+            PgTimestamp::Infinity | PgTimestamp::NegInfinity => None,
         }
     }
 }

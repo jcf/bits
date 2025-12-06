@@ -403,11 +403,11 @@ async fn invalidate_other_sessions(
             .await
             .context("Failed to count sessions before deletion")?;
 
-    eprintln!(
-        "[invalidate_other_sessions] user_id={} current_session_id={} total_sessions={}",
-        user_id,
-        current_session_id,
-        count_before.unwrap_or(0)
+    tracing::debug!(
+        user_id = user_id,
+        current_session_id = %current_session_id,
+        total_sessions = count_before,
+        "Invalidating other sessions (pre-deletion count)"
     );
 
     tracing::info!(
@@ -435,10 +435,10 @@ async fn invalidate_other_sessions(
             .await
             .context("Failed to count sessions after deletion")?;
 
-    eprintln!(
-        "[invalidate_other_sessions] deleted={} remaining={}",
-        result.rows_affected(),
-        count_after.unwrap_or(0)
+    tracing::debug!(
+        deleted = result.rows_affected(),
+        remaining = count_after,
+        "Sessions deleted (post-deletion count)"
     );
 
     tracing::info!(
@@ -553,16 +553,16 @@ pub async fn change_password(
         update_password_hash(&state.db, user.id, &new_hash).await?;
 
         let session_id = auth.session.get_session_id();
-        eprintln!(
-            "[change_password] user_id={} session_id={}",
-            user.id, session_id
+        tracing::debug!(
+            user_id = user.id,
+            session_id = %session_id,
+            "Password changed, invalidating other sessions"
         );
 
         invalidate_other_sessions(&state.db, &state.session_store, user.id, &session_id).await?;
 
         // Clear user from auth cache so other sessions can't use cached auth
         auth.cache_clear_user(user.id);
-        eprintln!("[change_password] Cleared user {} from auth cache", user.id);
         tracing::info!(user_id = user.id, "Cleared user from auth cache");
     }
     Ok(())
@@ -622,7 +622,10 @@ pub async fn verify_email_code(
                 crate::verification::VerificationError::Expired => AuthError::Internal(
                     "Verification code has expired. Please request a new code.".to_string(),
                 ),
-                _ => AuthError::Internal("Verification failed".to_string()),
+                crate::verification::VerificationError::Internal(_)
+                | crate::verification::VerificationError::Database(_) => {
+                    AuthError::Internal("Verification failed".to_string())
+                }
             })?;
 
         tracing::info!(

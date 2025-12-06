@@ -12,6 +12,7 @@ pub struct AuthRateLimitConfig {
 
 impl AuthRateLimitConfig {
     /// Configuration for login endpoints (stricter limits)
+    #[must_use]
     pub fn for_login() -> Self {
         Self {
             ip_attempts_per_window: 10,
@@ -21,6 +22,7 @@ impl AuthRateLimitConfig {
     }
 
     /// Configuration for registration endpoints (more lenient)
+    #[must_use]
     pub fn for_registration() -> Self {
         Self {
             ip_attempts_per_window: 20,

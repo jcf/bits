@@ -9,6 +9,7 @@ pub struct BitsClient {
 }
 
 impl BitsClient {
+    #[must_use]
     pub fn new(base_url: String) -> Self {
         let mut headers = header::HeaderMap::new();
         headers.insert(

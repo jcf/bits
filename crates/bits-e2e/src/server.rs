@@ -7,6 +7,7 @@ pub struct TestServer {
 }
 
 impl TestServer {
+    #[must_use]
     pub fn url(&self, path: &str) -> String {
         format!("http://{}{}", self.addr, path)
     }

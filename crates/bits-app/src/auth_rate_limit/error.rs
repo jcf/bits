@@ -21,11 +21,12 @@ pub enum RateLimitError {
 
 impl RateLimitError {
     /// Calculate retry-after duration for rate limit errors
+    #[must_use]
     pub fn retry_after(&self) -> Option<Duration> {
         match self {
             RateLimitError::IpLimitExceeded(secs) => Some(Duration::from_secs(*secs)),
             RateLimitError::EmailLimitExceeded => Some(Duration::from_secs(3600)), // 1 hour
-            _ => None,
+            RateLimitError::Database(_) | RateLimitError::Internal(_) => None,
         }
     }
 }

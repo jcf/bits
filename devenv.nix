@@ -69,7 +69,6 @@ in {
     DATABASE_URL_TEST = "postgres://bits:please@127.0.0.1:5432/bits_test";
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
-    GLOBAL_RATE_LIMIT = "100";
     MASTER_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     PLATFORM_DOMAIN = dev.hosts.page.domain;
 

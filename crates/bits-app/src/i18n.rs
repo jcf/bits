@@ -30,6 +30,7 @@ impl LocaleContext {
     }
 
     /// Get the current locale
+    #[must_use]
     pub fn locale(&self) -> &LanguageIdentifier {
         &self.locale
     }
@@ -91,11 +92,13 @@ pub fn create_default_locale() -> Result<LocaleContext, String> {
 }
 
 /// Parse a locale from an Accept-Language header or similar string
+#[must_use]
 pub fn parse_locale(locale_str: &str) -> Option<LanguageIdentifier> {
     locale_str.parse().ok()
 }
 
 /// Hook to access the translation function
+#[must_use]
 pub fn use_translation() -> LocaleContext {
     use_context::<LocaleContext>()
 }

@@ -1,0 +1,86 @@
+#+title:    Add Garde validation library
+#+date:     2025-12-06
+#+property: header-args :dir ../..
+
+* Problem
+
+We need a validation library for two use cases:
+
+1. **Config validation** - Currently validating ~global_rate_limit~ range (1-1000) in
+   ~server.rs:init()~, which is too late. Should validate at config parse time in
+   ~Config::from_env()~.
+
+2. **User input validation** - Will need to validate email addresses, passwords,
+   subdomain handles, and other user input throughout the application.
+
+The type system can't express numeric ranges like ~1..=1000~, so we need runtime
+validation with good error messages.
+
+* Solution
+
+Add ~garde~ validation library (modern rewrite of ~validator~ with better ergonomics):
+
+** Add dependency
+
+#+begin_src toml
+garde = { version = "0.22", features = ["serde", "url", "email-idna", "regex" "unicode"] }
+#+end_src
+
+| Name         | Description                                                                     | Extra dependencies   |
+|--------------+---------------------------------------------------------------------------------+----------------------|
+| derive       | Enables the usage of the derive(Validate) macro                                 | garde_derive         |
+| url          | Validation of URLs via the url crate.                                           | url                  |
+| email        | Validation of emails according to HTML5                                         | regex, once_cell     |
+| email-idna   | Support for Internationalizing Domain Names for Applications in email addresses | idna                 |
+| regex        | Support for regular expressions in pattern via the regex crate                  | regex, once_cell     |
+| credit-card  | Validation of credit card numbers via the card-validate crate                   | card-validate        |
+| phone-number | Validation of phone numbers via the phonenumber crate                           | phonenumber          |
+| unicode      | Validation of grapheme count via the unicode-segmentation crate                 | unicode-segmentation |
+
+We might want URL, email + IDNA, regex, and unicode features.
+
+** Validate Config on deserialization
+
+#+begin_src rust
+use garde::Validate;
+
+#[derive(Deserialize, Validate)]
+pub struct Config {
+    #[garde(skip)]  // Skip fields that don't need validation
+    pub database_url: PgUrl,
+
+    #[garde(range(min = 1, max = 1000))]
+    #[garde(skip(if = "self.disable_rate_limiter"))]
+    pub global_rate_limit: u32,
+}
+
+impl Config {
+    pub fn from_env() -> Result<Self, Box<figment::Error>> {
+        let config: Self = Figment::new()
+            .merge(Env::prefixed(""))
+            .extract()
+            .map_err(Box::new)?;
+
+        config.validate()?;  // Validate after deserialization
+        Ok(config)
+    }
+}
+#+end_src
+
+** Remove manual validation
+
+Delete validation logic from ~server.rs:init()~.
+
+** Benefits
+
+- Validation at parse time (fail fast)
+- Declarative validation with derive macros
+- Good error messages out of the box
+- Can use for user input validation later (email, subdomain handles, etc.)
+
+** Why garde over validator?
+
+~garde~ is a modern rewrite with:
+- Better conditional validation support (~skip(if = ...)~)
+- More composable validators
+- Cleaner error types

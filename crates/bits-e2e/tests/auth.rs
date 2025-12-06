@@ -81,17 +81,10 @@ async fn password_change_invalidates_all_other_sessions() {
         }))
         .await;
 
-    eprintln!(
-        "[TEST] Password change response status: {}",
-        response.status()
+    assert!(
+        response.status().is_success(),
+        "Password change should succeed"
     );
-    if !response.status().is_success() {
-        eprintln!(
-            "[TEST] Password change failed: {}",
-            response.text().await.unwrap()
-        );
-        panic!("Password change failed");
-    }
 
     let session1_after = client1.get_session().await;
     assert_eq!(
@@ -124,12 +117,10 @@ async fn valid_code_verifies_email() {
         .expect("Failed to create user");
 
     // Generate verification code
-    let email_address_id =
-        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
-            .bind(user.id)
-            .fetch_one(&ctx.db_pool)
-            .await
-            .expect("Failed to get email address id");
+    let email_address_id = ctx
+        .get_email_address_id(user.id)
+        .await
+        .expect("Failed to get email address id");
 
     let code = ctx
         .state
@@ -174,12 +165,10 @@ async fn invalid_code_fails_verification() {
         .await
         .expect("Failed to create user");
 
-    let email_address_id =
-        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
-            .bind(user.id)
-            .fetch_one(&ctx.db_pool)
-            .await
-            .expect("Failed to get email address id");
+    let email_address_id = ctx
+        .get_email_address_id(user.id)
+        .await
+        .expect("Failed to get email address id");
 
     ctx.state
         .email_verification
@@ -214,12 +203,10 @@ async fn expired_code_fails_verification() {
         .await
         .expect("Failed to create user");
 
-    let email_address_id =
-        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
-            .bind(user.id)
-            .fetch_one(&ctx.db_pool)
-            .await
-            .expect("Failed to get email address id");
+    let email_address_id = ctx
+        .get_email_address_id(user.id)
+        .await
+        .expect("Failed to get email address id");
 
     // Create service with immediate expiration
     let test_config = EmailVerificationConfig {
@@ -261,12 +248,10 @@ async fn too_many_attempts_blocks_verification() {
         .await
         .expect("Failed to create user");
 
-    let email_address_id =
-        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
-            .bind(user.id)
-            .fetch_one(&ctx.db_pool)
-            .await
-            .expect("Failed to get email address id");
+    let email_address_id = ctx
+        .get_email_address_id(user.id)
+        .await
+        .expect("Failed to get email address id");
 
     // Create service with only 1 attempt allowed
     let test_config = EmailVerificationConfig {
@@ -316,12 +301,10 @@ async fn resend_respects_cooldown() {
         .await
         .expect("Failed to create user");
 
-    let email_address_id =
-        sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
-            .bind(user.id)
-            .fetch_one(&ctx.db_pool)
-            .await
-            .expect("Failed to get email address id");
+    let email_address_id = ctx
+        .get_email_address_id(user.id)
+        .await
+        .expect("Failed to get email address id");
 
     // Create service with long cooldown
     let test_config = EmailVerificationConfig {

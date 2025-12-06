@@ -31,6 +31,7 @@ const CSP_DEVELOPMENT: [&str; 6] = [
     "img-src 'self'",
 ];
 
+#[must_use]
 pub fn csp_header(mode: CspMode) -> String {
     match mode {
         CspMode::Strict => CSP_STRICT.join("; "),
@@ -60,6 +61,7 @@ impl Scheme {
     }
 }
 
+#[must_use]
 pub fn normalize_host(scheme: Scheme, host: &str) -> String {
     if let Some(default_port) = scheme.default_port() {
         if let Some(h) = host.strip_suffix(&format!(":{}", default_port)) {

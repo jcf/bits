@@ -33,10 +33,11 @@ base64 = "0.22"
 clap = { version = "4", features = ["derive", "env"] }
 dioxus = { version = "0.7.1", features = ["router", "fullstack"] }
 fake = { version = "4.4", features = ["derive", "chrono"] }
+garde = { version = "0.22", features = ["derive", "serde", "url", "email-idna", "regex", "unicode"] }
 jiff = "0.2"
 rand = "0.9"
 serde = { version = "1", features = ["derive"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "ipnetwork"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "ipnetwork", "time"] }
 subtle = "2.6"
 tokio = { version = "1", features = ["sync"] }
 toml = "0.9"
