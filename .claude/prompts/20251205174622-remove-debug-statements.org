@@ -1,6 +1,6 @@
 #+title:    Remove Debug Statements
 #+date:     2025-12-05
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Overview
@@ -150,22 +150,22 @@ rg 'eprintln!' crates/bits-app/src --type rust
 
 * Tasks
 
-- [ ] Find all =eprintln!= statements in bits-app
-- [ ] Categorize each by appropriate log level
-- [ ] Replace with =tracing= macros
-- [ ] Remove duplicate logging (eprintln + tracing)
-- [ ] Test log output with =RUST_LOG=debug=
-- [ ] Run =cargo check= and =cargo test=
+- [X] Find all =eprintln!= statements in bits-app
+- [X] Categorize each by appropriate log level
+- [X] Replace with =tracing= macros
+- [X] Remove duplicate logging (eprintln + tracing)
+- [X] Test log output with =RUST_LOG=debug=
+- [X] Run =cargo check= and =cargo test=
 
 * Success Criteria
 
-- [ ] No =eprintln!= in bits-app/src production code
-- [ ] All logging uses =tracing= macros
-- [ ] Log levels are appropriate
-- [ ] Structured fields are used consistently
-- [ ] =cargo check= passes
-- [ ] =cargo test= passes
-- [ ] Log output is readable with =RUST_LOG=info,bits_app=debug=
+- [X] No =eprintln!= in bits-app/src production code
+- [X] All logging uses =tracing= macros
+- [X] Log levels are appropriate
+- [X] Structured fields are used consistently
+- [X] =cargo check= passes
+- [X] =cargo test= passes (39 tests passed)
+- [X] Log output is readable with =RUST_LOG=info,bits_app=debug=
 
 * Notes
 
