@@ -100,21 +100,6 @@ fi
 #+results:
 : ✅ https://foo.bits.page.test
 
-** Decision records
-#+begin_src sh :results output raw :exports output :exports results
-fd --type file '\.org$' decisions | while read -r file; do
-  title=$(awk -F':[[:space:]]*' 'NR==1 { print $2 }' "$file")
-  echo "- [[file:$file][$title]]"
-done
-#+end_src
-
-#+results:
-- [[file:decisions/20251009133634-get-the-message-out.org][Get the message out]]
-- [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
-- [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
-- [[file:decisions/20251119230950-ci-can-wait.org][CI can wait]]
-- [[file:decisions/20251208184623-llms-are-my-colleagues.org][LLMs are my colleagues]]
-
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
 just --list
@@ -232,6 +217,21 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 
 1039b0f-dirty @ 2025/12/08 21:32
 #+end_example
+
+* Decision records
+#+begin_src sh :results output raw :exports output :exports results
+fd --type file '\.org$' decisions | while read -r file; do
+  title=$(awk -F':[[:space:]]*' 'NR==1 { print $2 }' "$file")
+  echo "- [[file:$file][$title]]"
+done
+#+end_src
+
+#+results:
+- [[file:decisions/20251009133634-get-the-message-out.org][Get the message out]]
+- [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
+- [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
+- [[file:decisions/20251119230950-ci-can-wait.org][CI can wait]]
+- [[file:decisions/20251208184623-llms-are-my-colleagues.org][LLMs are my colleagues]]
 
 * Tasks
 ** Setup                                                          :NOEXPORT:
