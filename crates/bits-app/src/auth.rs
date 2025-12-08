@@ -570,6 +570,12 @@ pub async fn change_password(
 
 #[get("/api/realm", realm: crate::Realm)]
 pub async fn get_realm() -> Result<crate::Realm> {
+    if matches!(realm, crate::Realm::NotFound) {
+        dioxus::fullstack::FullstackContext::commit_http_status(
+            dioxus::fullstack::StatusCode::NOT_FOUND,
+            None,
+        );
+    }
     Ok(realm)
 }
 

@@ -1,5 +1,5 @@
 use bits_app::{http::Scheme, tenant::Realm};
-use bits_e2e::fixtures;
+use bits_e2e::{fixtures, request};
 
 #[tokio::test]
 async fn resolve_realm_returns_platform_for_apex_domain() {
@@ -59,4 +59,25 @@ async fn resolve_realm_returns_unknown_for_nonexistent_subdomain() {
         bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "nonexistent.example.com").await;
 
     assert!(matches!(realm, Realm::NotFound));
+}
+
+#[tokio::test]
+async fn nonexistent_tenant_returns_404_status() {
+    let mut config = fixtures::config().expect("Failed to load config");
+    config.platform_domain = "example.com".to_string();
+
+    let ctx = fixtures::setup_colo(config.clone())
+        .await
+        .expect("Failed to setup test");
+
+    let response = request::get(&ctx, "/")
+        .header("Host", "nonexistent.example.com")
+        .send()
+        .await;
+
+    assert_eq!(
+        response.status(),
+        404,
+        "Non-existent tenant should return 404 status"
+    );
 }
