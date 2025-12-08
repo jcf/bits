@@ -274,6 +274,62 @@ pub use components::{Button, Header};
 - **Feature gating** - Server code only compiles when needed, reducing WASM bundle size
 - **Layout component** - Shared layout with error boundaries provides consistent structure
 
+### Server Functions
+
+**CRITICAL: Use `#[post]`/`#[get]` macros, NOT `#[server]`.**
+
+The `#[server]` macro generates generic endpoints. Use HTTP method-specific macros instead for explicit routing and better type safety.
+
+**Dioxus server functions generate both client stubs and server implementations.**
+
+The `#[post]` and `#[get]` macros create TWO functions:
+1. **Client stub** - Called from browser, serializes parameters and makes HTTP request
+2. **Server handler** - Runs on server, deserializes parameters and executes logic
+
+**Server-only dependencies (database, auth session, config) cannot be in the function signature** because the client stub must compile without them. They're extracted from request context instead.
+
+```rust
+// CORRECT: Server-only extractors in macro, serializable params in signature
+#[post("/api/sessions", auth: AuthSession, state: Extension<crate::AppState>)]
+pub async fn auth(form: dioxus::fullstack::Form<AuthForm>) -> Result<User, AuthError> {
+    // auth and state injected by macro on server side only
+    let user = load_login_data(&state.db, &form.0.email).await?;
+    Argon2::default()
+        .verify_password(password.as_bytes(), &hash)
+        .map_err(|_| AuthError::InvalidCredentials)?;
+    auth.session.renew();
+    auth.login_user(user_id);
+}
+
+// Client can call this:
+// let user = auth(AuthForm { email, password }).await?;
+// Client stub only needs to serialize AuthForm, not AppState/AuthSession
+
+// WRONG: Don't use #[server]
+#[server]  // ❌ Use #[post] or #[get] instead
+pub async fn auth(form: AuthForm) -> Result<User, AuthError> { }
+
+// WRONG: Server-only types in signature break client compilation
+#[post("/api/sessions")]
+pub async fn auth(
+    auth: AuthSession,  // ❌ Client can't construct this
+    state: Extension<crate::AppState>,  // ❌ Client has no AppState
+    form: dioxus::fullstack::Form<AuthForm>
+) -> Result<User, AuthError> { }
+```
+
+**In the macro (server-only extraction):**
+- `auth: AuthSession` - Extracted from request extensions
+- `state: Extension<crate::AppState>` - Extracted from request extensions
+- Any type that only exists on the server
+
+**In the signature (client can provide):**
+- Request body/form data that serializes over the wire
+- Primitive types, strings, serializable structs
+- `dioxus::fullstack::Form<T>` where `T: Serialize + Deserialize`
+
+This is how Dioxus fullstack achieves isomorphic functions - client calls with serializable args, server extracts context automatically.
+
 ### Session Security
 
 Follow OWASP guidelines for session management:
