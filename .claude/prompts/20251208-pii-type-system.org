@@ -1,6 +1,6 @@
 #+title:    PII Type System
 #+date:     2025-12-08
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Context
@@ -202,14 +202,90 @@ tracing::debug!(
 
 * Acceptance Criteria
 
-- [ ] Decide on PII types (email, IP, etc.)
-- [ ] Choose implementation approach (newtype, generic, derive, etc.)
-- [ ] Implement chosen design
-- [ ] Update existing code to use PII types
-- [ ] Add tests for Debug output redaction
-- [ ] Document PII handling in CLAUDE.md
-- [ ] Consider GDPR/compliance implications
-- [ ] Audit all ~tracing::~ calls for PII exposure
+- [X] Decide on PII types (email, IP, etc.)
+- [X] Choose implementation approach (newtype, generic, derive, etc.)
+- [X] Implement chosen design
+- [X] Update existing code to use PII types
+- [X] Add tests for Debug output redaction
+- [X] Document PII handling in CLAUDE.md
+- [X] Consider GDPR/compliance implications
+- [X] Audit all ~tracing::~ calls for PII exposure
+
+* Implementation Summary
+
+** What Was Implemented
+
+Chose *Option 1 (Minimal) + Option 2 (Generic Wrapper)* for pragmatic balance:
+
+*** Dedicated PII Types (in ~bits-domain~)
+- ~Email~ - Already existed, enhanced documentation
+- ~IpAddress~ - New type for IPv4/IPv6 addresses
+- ~Name~ - New type for first/last/full names
+
+*** Generic Wrapper
+- ~Pii<T>~ - Escape hatch for ad-hoc PII (phone numbers, physical addresses)
+
+*** Secrets (existing, using ~secrecy~ crate)
+- ~Password~ - Plaintext passwords (auto-zeroized)
+- ~PasswordHash~ - Argon2 hashes (auto-zeroized)
+
+** Design Decisions
+
+1. *Dedicated types over derive macro*: Explicit is better than implicit. Each type has validation, normalization, and clear semantics.
+
+2. *Generic ~Pii<T>~ for flexibility*: Provides escape hatch without requiring new type definitions.
+
+3. *Debug redaction automatic*: All PII types implement ~Debug~ to show ~<redacted>~. Display shows actual value (for user-facing UI).
+
+4. *Explicit access methods*: Makes PII usage auditable in code review
+   - ~.as_str()~ for Email/Name
+   - ~.as_ip_addr()~ for IpAddress
+   - ~.expose()~ for Pii<T>
+   - ~.expose_secret()~ for Password/PasswordHash
+
+5. *Secrets vs PII distinction*:
+   - Secrets (passwords, tokens): NEVER log, auto-zeroized
+   - PII (emails, IPs, names): Sometimes needed in security logs, but controlled
+
+** Test Coverage
+
+All types have comprehensive tests:
+- Valid/invalid parsing
+- Normalization (lowercase, trimming)
+- Debug output redaction
+- Display output showing actual value
+- Serialization/deserialization
+
+** Security Audit Results
+
+*** ✅ Safe
+- Email addresses logged in security/audit contexts (intentional)
+- User IDs and session IDs logged (not PII)
+- User struct has PII-safe Debug (email auto-redacts)
+- No accidental struct dumps exposing PII
+
+*** ⚠️ Development-Only
+- Verification codes logged at ~auth.rs:597, 849~
+- Acceptable for development (no email sending configured)
+- In production, these would be sent via email instead of logged
+
+** Documentation
+
+Added comprehensive PII section to ~CLAUDE.md~ covering:
+- Available types (Email, Name, IpAddress, Pii<T>, Password, PasswordHash)
+- Debug output safety (automatic redaction)
+- Explicit access patterns
+- Type selection guide
+- Security logging examples
+- Secrets vs PII distinction
+
+** Future Enhancements (Deferred)
+
+Not implemented (YAGNI until proven necessary):
+- Derive macro for struct-level redaction
+- Contextual logging with targets
+- Partial redaction strategies (e.g., ~u***r@e*****e.com~)
+- Hash-based correlation for metrics
 
 * References
 

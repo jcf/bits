@@ -4,24 +4,45 @@
 
 ### Imports
 
-Avoid glob imports (`use module::*`) - they make it hard to trace where items
-come from. Always use explicit imports or module paths.
+Follow Rust community conventions:
+
+- **Types/traits/enums**: Import directly - they appear in many signatures and are self-documenting
+- **Functions**: Module-qualify - shows domain context at call site
+- **Never use glob imports** (`use module::*`) - hard to trace where items come from
 
 ```rust
-// Preferred: Explicit imports
-use bits_e2e::server::spawn_colo;
-use bits_e2e::fixtures::create_tenant;
+// Good: Import types directly
+use bits_domain::{Email, UserId, TenantId};
+use bits_e2e::fixtures::{CreateTenantParams, TestUser};
 
-// Or: Module-qualified usage
+fn create_user(email: Email, tenant: TenantId) -> UserId {
+    // Types are self-documenting, no repetition needed
+}
+
+// Good: Module-qualify functions for context
 use bits_e2e::{server, fixtures};
 
-fn test() {
-    let srv = server::spawn_colo();
-    fixtures::create_tenant("name");
+#[tokio::test]
+async fn test_behavior() {
+    let srv = server::spawn_colo().await;  // Clear it's a server fixture
+    let tenant = fixtures::create_tenant("jcf").await;  // Clear it's a test fixture
 }
+
+// Avoid: Fully-qualified type usage (repetitive)
+fn create_user(email: bits_domain::Email) -> bits_domain::UserId { }
 
 // Avoid: Glob imports
 use bits_e2e::fixtures::*;  // Hard to trace where create_tenant comes from
+```
+
+**Handle naming collisions with module aliases:**
+
+```rust
+// When multiple crates have the same type name
+use bits_domain as domain;
+use external_crate as external;
+
+fn process(email: domain::Email, other: external::Email) { }
 ```
 
 ### Function Parameters
@@ -169,6 +190,145 @@ async fn test_behavior() {
     let srv = server::spawn_colo().await;
     let tenant = fixtures::create_tenant("jcf").await;
     // Test logic
+}
+```
+
+### PII (Personally Identifiable Information)
+
+**Core principle:** PII must be explicit in the type system and protected from accidental logging.
+
+#### Available Types
+
+**Dedicated PII types** (prefer these):
+
+- `Email` - Email addresses with validation and normalization
+- `Name` - First/last/full names with length validation
+- `IpAddress` - IPv4/IPv6 addresses
+
+**Secrets** (use `secrecy` crate, never log):
+
+- `Password` - Plaintext passwords from user input
+- `PasswordHash` - Argon2/bcrypt hashes
+
+**Generic wrapper** (for ad-hoc PII):
+
+- `Pii<T>` - Wraps any type as PII (phone numbers, addresses, etc.)
+
+#### Debug Output Safety
+
+**All PII types automatically redact in Debug output:**
+
+```rust
+let email = Email::parse("user@example.com")?;
+let name = Name::parse("Alice")?;
+let ip = IpAddress::parse("192.168.1.1")?;
+
+// Debug output is safe - shows "<redacted>"
+println!("{:?}", email);  // Email(<redacted>)
+println!("{:?}", name);   // Name(<redacted>)
+println!("{:?}", ip);     // IpAddress(<redacted>)
+
+// Display shows actual value (for user-facing UI)
+println!("{}", email);    // user@example.com
+```
+
+#### Explicit Access
+
+**PII access is intentionally explicit for auditability:**
+
+```rust
+// Email, Name - use .as_str()
+let email: Email = Email::parse(input)?;
+sqlx::query("select * from users where email = $1")
+    .bind(email.as_str())  // Explicit: we're exposing PII for DB query
+
+// IpAddress - use .as_ip_addr()
+let ip: IpAddress = IpAddress::from(socket_addr.ip());
+tracing::warn!(
+    ip = %ip.as_ip_addr(),  // Explicit: logging PII for security
+    "Rate limit exceeded"
+);
+
+// Password/PasswordHash - use .expose_secret()
+use secrecy::ExposeSecret;
+let password: Password = Password::new(form.password);
+service.verify_password(password.expose_secret(), &hash)?;
+
+// Pii<T> - use .expose()
+let phone: Pii<String> = Pii::new("+1-555-0100".to_string());
+send_sms(phone.expose())?;
+```
+
+#### Type Selection Guide
+
+```rust
+// GOOD: Use dedicated types when available
+pub struct User {
+    pub id: UserId,
+    pub email: Email,        // ✓ Dedicated type
+    pub name: Name,          // ✓ Dedicated type
+    pub ip: IpAddress,       // ✓ Dedicated type
+}
+
+// GOOD: Use Pii<T> for one-off PII
+pub struct UserProfile {
+    pub phone: Pii<String>,  // ✓ Ad-hoc PII wrapper
+    pub address: Pii<String>,
+}
+
+// BAD: Using plain strings for PII
+pub struct User {
+    pub email: String,       // ✗ Not explicit, could leak in logs
+    pub name: String,        // ✗ Not explicit
+}
+```
+
+#### Security Logging
+
+**When PII is needed in security logs, be explicit:**
+
+```rust
+// Rate limiting - include IP for incident response
+tracing::warn!(
+    target: "security",
+    ip = %ip.as_ip_addr(),
+    email = email.as_str(),
+    "Failed login attempt"
+);
+
+// Audit logging - include PII with proper context
+tracing::info!(
+    target: "audit",
+    user_id = user.id,
+    email = email.as_str(),
+    "Password changed"
+);
+```
+
+#### Secrets vs PII
+
+**Secrets:** NEVER log, always redact
+
+- Passwords, API keys, tokens, session IDs
+- Use `secrecy::Secret<T>` for memory zeroing
+- Access via `.expose_secret()`
+
+**PII:** Sometimes needed in logs (security, audit), but controlled
+
+- Emails, names, IP addresses
+- Use dedicated types (`Email`, `Name`, `IpAddress`) or `Pii<T>`
+- Access via `.as_str()`, `.as_ip_addr()`, `.expose()`
+
+```rust
+// Good: Clear distinction
+pub struct LoginData {
+    pub email: Email,              // PII - may log in security context
+    pub password_hash: PasswordHash, // Secret - NEVER log
+}
+
+impl fmt::Debug for LoginData {
+    // Both are redacted automatically
+    // Email(<redacted>), PasswordHash(<redacted>)
 }
 ```
 

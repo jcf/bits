@@ -28,9 +28,7 @@ pub mod config;
 pub mod error;
 pub mod service;
 pub mod storage;
-pub mod types;
 
 pub use config::AuthRateLimitConfig;
 pub use error::RateLimitError;
 pub use service::AuthRateLimitService;
-pub use types::{EmailAddress, Visitor};

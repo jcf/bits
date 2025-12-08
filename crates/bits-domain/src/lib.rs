@@ -8,11 +8,17 @@
 
 pub mod email;
 pub mod id;
+pub mod ip_address;
+pub mod name;
 pub mod password;
 pub mod password_hash;
+pub mod pii;
 
 // Re-exports for convenience
 pub use email::{Email, EmailError};
 pub use id::{EmailAddressId, TenantId, UserId};
+pub use ip_address::{IpAddress, IpAddressError};
+pub use name::{Name, NameError};
 pub use password::Password;
 pub use password_hash::PasswordHash;
+pub use pii::Pii;
