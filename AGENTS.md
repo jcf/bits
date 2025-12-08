@@ -283,6 +283,7 @@ The `#[server]` macro generates generic endpoints. Use HTTP method-specific macr
 **Dioxus server functions generate both client stubs and server implementations.**
 
 The `#[post]` and `#[get]` macros create TWO functions:
+
 1. **Client stub** - Called from browser, serializes parameters and makes HTTP request
 2. **Server handler** - Runs on server, deserializes parameters and executes logic
 
@@ -319,11 +320,13 @@ pub async fn auth(
 ```
 
 **In the macro (server-only extraction):**
+
 - `auth: AuthSession` - Extracted from request extensions
 - `state: Extension<crate::AppState>` - Extracted from request extensions
 - Any type that only exists on the server
 
 **In the signature (client can provide):**
+
 - Request body/form data that serializes over the wire
 - Primitive types, strings, serializable structs
 - `dioxus::fullstack::Form<T>` where `T: Serialize + Deserialize`
