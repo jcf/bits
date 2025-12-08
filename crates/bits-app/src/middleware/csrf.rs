@@ -20,7 +20,14 @@ fn extract_session_id(req: &Request, session_name: &str) -> Option<String> {
     let cookie_prefix = format!("{}=", session_name);
     req.headers()
         .get(header::COOKIE)
-        .and_then(|v| v.to_str().ok())
+        .and_then(|v| {
+            v.to_str()
+                .map_err(|e| {
+                    tracing::debug!(error = %e, "Failed to parse Cookie header as UTF-8");
+                    e
+                })
+                .ok()
+        })
         .and_then(|cookies| {
             cookies
                 .split(';')
@@ -33,7 +40,14 @@ fn extract_session_id(req: &Request, session_name: &str) -> Option<String> {
 fn extract_csrf_token_from_header(req: &Request) -> Option<String> {
     req.headers()
         .get("csrf-token")
-        .and_then(|v| v.to_str().ok())
+        .and_then(|v| {
+            v.to_str()
+                .map_err(|e| {
+                    tracing::debug!(error = %e, "Failed to parse csrf-token header as UTF-8");
+                    e
+                })
+                .ok()
+        })
         .map(|s| s.to_string())
 }
 
@@ -41,10 +55,14 @@ async fn extract_csrf_token_from_form(req: &mut Request) -> Option<String> {
     use http_body_util::BodyExt;
 
     // Check if content-type is form-urlencoded
-    let content_type = req
-        .headers()
-        .get(header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())?;
+    let content_type = req.headers().get(header::CONTENT_TYPE).and_then(|v| {
+        v.to_str()
+            .map_err(|e| {
+                tracing::debug!(error = %e, "Failed to parse Content-Type header as UTF-8");
+                e
+            })
+            .ok()
+    })?;
 
     if !content_type.contains("application/x-www-form-urlencoded") {
         return None;
@@ -70,7 +88,10 @@ async fn extract_csrf_token_from_form(req: &mut Request) -> Option<String> {
     for pair in form_data.split('&') {
         if let Some((key, value)) = pair.split_once('=') {
             if key == "csrf_token" {
-                csrf_token = Some(urlencoding::decode(value).ok()?.to_string());
+                csrf_token = Some(urlencoding::decode(value).map_err(|e| {
+                    tracing::debug!(error = %e, value = %value, "Failed to URL decode csrf_token from form");
+                    e
+                }).ok()?.to_string());
             } else {
                 other_fields.push(pair);
             }
@@ -127,7 +148,12 @@ where
             let requested_with = req
                 .headers()
                 .get("requested-with")
-                .and_then(|v| v.to_str().ok())
+                .and_then(|v| {
+                    v.to_str().map_err(|e| {
+                    tracing::debug!(error = %e, "Failed to parse requested-with header as UTF-8");
+                    e
+                }).ok()
+                })
                 .unwrap_or("unknown")
                 .to_string();
 

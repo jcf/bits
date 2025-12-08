@@ -113,7 +113,7 @@ async fn valid_code_verifies_email() {
 
     // Create unverified user
     let user = ctx
-        .create_user(email, password)
+        .create_user(email, &bits_domain::PasswordHash::new(password.to_string()))
         .await
         .expect("Failed to create user");
 
@@ -162,7 +162,7 @@ async fn invalid_code_fails_verification() {
     let password = "secure-password";
 
     let user = ctx
-        .create_user(email, password)
+        .create_user(email, &bits_domain::PasswordHash::new(password.to_string()))
         .await
         .expect("Failed to create user");
 
@@ -200,7 +200,7 @@ async fn expired_code_fails_verification() {
     let password = "secure-password";
 
     let user = ctx
-        .create_user(email, password)
+        .create_user(email, &bits_domain::PasswordHash::new(password.to_string()))
         .await
         .expect("Failed to create user");
 
@@ -245,7 +245,7 @@ async fn too_many_attempts_blocks_verification() {
     let password = "secure-password";
 
     let user = ctx
-        .create_user(email, password)
+        .create_user(email, &bits_domain::PasswordHash::new(password.to_string()))
         .await
         .expect("Failed to create user");
 
@@ -298,7 +298,7 @@ async fn resend_respects_cooldown() {
     let password = "secure-password";
 
     let user = ctx
-        .create_user(email, password)
+        .create_user(email, &bits_domain::PasswordHash::new(password.to_string()))
         .await
         .expect("Failed to create user");
 

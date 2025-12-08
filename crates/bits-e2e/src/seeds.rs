@@ -33,8 +33,11 @@ fn hash_password(
     password_service: &bits_app::password::PasswordService,
     password: &str,
 ) -> Result<String> {
+    use secrecy::ExposeSecret;
+    let pw = bits_domain::Password::new(password.to_string());
     password_service
-        .hash_password(password)
+        .hash_password(&pw)
+        .map(|hash| hash.expose_secret().to_string())
         .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))
 }
 
@@ -157,11 +160,14 @@ pub async fn seed_all(
     }
 
     // Use first user as the one who added domains, or default to 1
-    let added_by = users.first().map(|(u, _)| u.id).unwrap_or(1);
+    let added_by = users
+        .first()
+        .map(|(u, _)| u.id)
+        .unwrap_or(bits_domain::UserId::new(1));
 
     // Seed tenants
     for seed in &seeds.tenant {
-        if let Some(tenant_data) = seed_tenant(pool, seed, added_by).await? {
+        if let Some(tenant_data) = seed_tenant(pool, seed, added_by.get()).await? {
             tenants.push(tenant_data);
         }
     }

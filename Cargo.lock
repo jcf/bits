@@ -505,6 +505,7 @@ dependencies = [
  "rand 0.9.2",
  "real",
  "rstest",
+ "secrecy",
  "serde",
  "sha2",
  "sqlx",
@@ -569,7 +570,11 @@ dependencies = [
 name = "bits-domain"
 version = "0.1.0"
 dependencies = [
+ "garde",
+ "secrecy",
  "serde",
+ "sqlx",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -582,6 +587,7 @@ dependencies = [
  "bits-app",
  "bits-colo",
  "bits-db",
+ "bits-domain",
  "bits-solo",
  "fake",
  "jiff 0.2.16",
@@ -590,6 +596,7 @@ dependencies = [
  "reqwest",
  "rstest",
  "scraper",
+ "secrecy",
  "serde",
  "serde_json",
  "sqlx",
@@ -4883,6 +4890,16 @@ dependencies = [
  "precomputed-hash",
  "selectors",
  "tendril",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "serde",
+ "zeroize",
 ]
 
 [[package]]

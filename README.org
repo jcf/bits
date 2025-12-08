@@ -113,6 +113,7 @@ done
 - [[file:decisions/20251009144920-python-style-environment-variables.org][Python-style environment variables]]
 - [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
 - [[file:decisions/20251119230950-ci-can-wait.org][CI can wait]]
+- [[file:decisions/20251208184623-llms-are-my-colleagues.org][LLMs are my colleagues]]
 
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
@@ -209,12 +210,12 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  HTML                      2           22           22            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      2          589          355          120          114
+ Just                      2          593          357          121          115
  MDX                       1           56            0           39           17
- Nix                       9         1161          754          230          177
- Org                      14         2502         2216            4          282
+ Nix                       9         1167          760          230          177
+ Org                      16         2620         2314            4          302
  SQL                       9          321          261           26           34
- TOML                     15          396          343            2           51
+ TOML                     15          418          363            2           53
  TypeScript                3           36           30            1            5
  YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
@@ -222,14 +223,14 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  |- Rust                   1          200          141           34           25
  (Total)                              376          141          150           85
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     87        14628        12149          837         1642
- |- Markdown              32          325            4          285           36
- (Total)                            14953        12153         1122         1678
+ Rust                     94        15968        13235          879         1854
+ |- Markdown              37          405            4          345           56
+ (Total)                            16373        13239         1224         1910
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   212        27680        22023         1843         3814
+ Total                   221        29250        23235         1946         4069
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-5215799-dirty @ 2025/12/08 13:07
+1039b0f-dirty @ 2025/12/08 21:32
 #+end_example
 
 * Tasks
@@ -300,37 +301,54 @@ SQL
 We maintain version-controlled prompt docs that describe sessions with language
 models where we plan, generate, and review functionality.
 
+** =TODO=
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
 fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
   title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
   status=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
   date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
-  echo -e "=$status=\t=$date=\t[[file:$file][$title]]"
+  [[ $status = "DONE" ]] || echo -e "=$status=\t=$date=\t[[file:$file][$title]]"
 done
 #+end_src
 
 #+results:
-| Status  | Date         | Title                                   |
-|---------+--------------+-----------------------------------------|
-| =TODO=  | =2025-12-04= | [[file:.claude/prompts/20251204140000-infrastructure-foundation.org][Infrastructure Foundation]]               |
-| =DONE=  | =2025-12-04= | [[file:.claude/prompts/20251204140100-type-system-refactoring.org][Type System Refactoring]]                 |
-| =DONE=  | =2025-12-04= | [[file:.claude/prompts/20251204140200-features-and-organization.org][Features and Organization]]               |
-| =DONE=  | =2025-12-04= | [[file:.claude/prompts/20251204140300-landing-page-ui.org][Landing Page UI]]                         |
-| =TODO=  | =2025-12-04= | [[file:.claude/prompts/20251204140400-production-deployment.org][Production Deployment]]                   |
-| =TODO=  | =2025-12-04= | [[file:.claude/prompts/20251204182609-packer-nixos-image-for-hetzner.org][Packer NixOS Image for Hetzner]]          |
-| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205120511-handle-validation-improvements.org][Handle Validation Improvements]]          |
-| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205133111-nixos-deployment-cleanup.org][NixOS deployment cleanup]]                |
-| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org][Rate Limit Application Endpoints]]        |
-| =DOING= | =2025-12-05= | [[file:.claude/prompts/20251205161500-complete-email-verification-enforcement.org][Complete Email Verification Enforcement]] |
-| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org][Replace Argon2 for Verification Codes]]   |
-| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174618-eliminate-boolean-parameters.org][Eliminate Boolean Parameters]]            |
-| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174620-introduce-domain-newtypes.org][Introduce Domain Newtypes]]               |
-| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205174622-remove-debug-statements.org][Remove Debug Statements]]                 |
-| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174624-add-critical-unit-tests.org][Add Critical Unit Tests]]                 |
-| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174626-improve-error-handling.org][Improve Error Handling]]                  |
-| =DONE=  | =2025-12-06= | [[file:.claude/prompts/20251206140000-refactor-bits-client.org][Refactor BitsClient]]                     |
-| =DONE=  | =2025-12-06= | [[file:.claude/prompts/20251206153200-add-garde-validation-library.org][Add Garde validation library]]            |
-| =DONE=  | =2025-12-08= | [[file:.claude/prompts/20251208121140-interactive-prompt-execution-with-fzf.org][Interactive prompt execution with fzf]]   |
+| Status | Date         | Title                          |
+|--------+--------------+--------------------------------|
+| =TODO= | =2025-12-04= | [[file:.claude/prompts/20251204140000-infrastructure-foundation.org][Infrastructure Foundation]]      |
+| =TODO= | =2025-12-04= | [[file:.claude/prompts/20251204140400-production-deployment.org][Production Deployment]]          |
+| =TODO= | =2025-12-04= | [[file:.claude/prompts/20251204182609-packer-nixos-image-for-hetzner.org][Packer NixOS Image for Hetzner]] |
+| =TODO= | =2025-12-08= | [[file:.claude/prompts/20251208-pii-type-system.org][PII Type System]]                |
+
+** =DONE=
+#+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
+fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
+  title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
+  status=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
+  date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
+  [[ $status = "DONE" ]] && echo -e "=$status=\t=$date=\t[[file:$file][$title]]"
+done
+#+end_src
+
+#+results:
+| Status | Date         | Title                                       |
+|--------+--------------+---------------------------------------------|
+| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140100-type-system-refactoring.org][Type System Refactoring]]                     |
+| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140200-features-and-organization.org][Features and Organization]]                   |
+| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140300-landing-page-ui.org][Landing Page UI]]                             |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205120511-handle-validation-improvements.org][Handle Validation Improvements]]              |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205133111-nixos-deployment-cleanup.org][NixOS deployment cleanup]]                    |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org][Rate Limit Application Endpoints]]            |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205161500-complete-email-verification-enforcement.org][Complete Email Verification Enforcement]]     |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org][Replace Argon2 for Verification Codes]]       |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174618-eliminate-boolean-parameters.org][Eliminate Boolean Parameters]]                |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174620-introduce-domain-newtypes.org][Introduce Domain Newtypes]]                   |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174622-remove-debug-statements.org][Remove Debug Statements]]                     |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174624-add-critical-unit-tests.org][Add Critical Unit Tests]]                     |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174626-improve-error-handling.org][Improve Error Handling]]                      |
+| =DONE= | =2025-12-06= | [[file:.claude/prompts/20251206140000-refactor-bits-client.org][Refactor BitsClient]]                         |
+| =DONE= | =2025-12-06= | [[file:.claude/prompts/20251206153200-add-garde-validation-library.org][Add Garde validation library]]                |
+| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208121140-interactive-prompt-execution-with-fzf.org][Interactive prompt execution with fzf]]       |
+| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208204054-share-auth-form-between-sign-in-and-sign-up.org][Share auth form between sign in and sign up]] |
 
 * TODOs
 #+begin_src sh :results output verbatim :exports results
@@ -339,7 +357,10 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 
 #+results:
 : crates/bits-app/src/auth.rs:// TODO Use #[patch] when Dioxus next ships
+: crates/bits-app/src/auth_rate_limit/types.rs:// TODO: Replace with comprehensive PII type system
+: crates/bits-app/src/config.rs:// TODO Wrap u32 in 'Limit' type.
 : crates/bits-app/src/pages/layout.rs:    // TODO Make csrf_token a proper type akin to Option<String>.
+: crates/bits-app/src/server.rs:// TODO Add health checks to core components within `AppState`.
 : devenv.nix:    # TODO Create a dedicated Bits Postmark account.
 
 * Troubleshooting

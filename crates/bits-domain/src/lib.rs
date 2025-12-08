@@ -6,4 +6,13 @@
 #![deny(clippy::unneeded_field_pattern)]
 #![deny(clippy::wildcard_enum_match_arm)]
 
-// Nothing to see here, yet.
+pub mod email;
+pub mod id;
+pub mod password;
+pub mod password_hash;
+
+// Re-exports for convenience
+pub use email::{Email, EmailError};
+pub use id::{EmailAddressId, TenantId, UserId};
+pub use password::Password;
+pub use password_hash::PasswordHash;

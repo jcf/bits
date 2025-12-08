@@ -2,6 +2,21 @@ use bits_app::CspMode;
 use bits_e2e::{assertions, fixtures, request};
 use rstest::rstest;
 
+/// Helper to create a tenant for solo mode tests
+async fn setup_solo_with_tenant() -> bits_e2e::fixtures::TestContext {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    // Create a tenant so solo mode has something to return
+    ctx.create_tenant("Test Tenant")
+        .await
+        .expect("Failed to create tenant");
+
+    ctx
+}
+
 #[rstest]
 #[case(CspMode::Strict)]
 #[case(CspMode::Development)]
@@ -13,6 +28,11 @@ async fn solo_has_security_headers(#[case] mode: CspMode) {
     let ctx = fixtures::setup_solo(config)
         .await
         .expect("Failed to setup test");
+
+    // Create a tenant for solo mode
+    ctx.create_tenant("Test Tenant")
+        .await
+        .expect("Failed to create tenant");
 
     let response = request::get(&ctx, "/").send().await;
 
@@ -40,10 +60,7 @@ async fn solo_has_security_headers(#[case] mode: CspMode) {
 
 #[tokio::test]
 async fn csrf_blocks_requests_without_token() {
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     let response = request::post(&ctx, "/api/sessions").send().await;
 
@@ -56,10 +73,7 @@ async fn csrf_blocks_requests_without_token() {
 async fn csrf_allows_requests_with_valid_token() {
     use scraper::{Html, Selector};
 
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     // Create a client with cookie jar to maintain session
     let client = request::cookie_client();
@@ -105,10 +119,7 @@ async fn csrf_allows_requests_with_valid_token() {
 
 #[tokio::test]
 async fn csrf_rejects_invalid_token() {
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     // Create a client with cookie jar
     let client = request::cookie_client();
@@ -141,10 +152,7 @@ async fn csrf_rejects_invalid_token() {
 async fn csrf_allows_token_in_form_body() {
     use scraper::{Html, Selector};
 
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     let client = request::cookie_client();
     let base_url = ctx.server.url("/");
@@ -193,10 +201,7 @@ async fn csrf_allows_token_in_form_body() {
 async fn csrf_supports_multi_tab_usage() {
     use scraper::{Html, Selector};
 
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     let client = request::cookie_client();
     let base_url = ctx.server.url("/");
@@ -255,10 +260,7 @@ async fn csrf_supports_multi_tab_usage() {
 async fn csrf_rejects_cross_session_tokens() {
     use scraper::{Html, Selector};
 
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     // Client 1: Get CSRF token in session A
     let client1 = request::cookie_client();
@@ -307,10 +309,7 @@ async fn csrf_rejects_cross_session_tokens() {
 
 #[tokio::test]
 async fn csrf_allows_get_requests_without_token() {
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     // GET requests should not require CSRF token
     let response = request::get(&ctx, "/").send().await;
@@ -323,10 +322,7 @@ async fn csrf_allows_get_requests_without_token() {
 
 #[tokio::test]
 async fn csrf_blocks_post_from_fresh_session() {
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     let client = request::cookie_client();
     let base_url = ctx.server.url("/");
@@ -360,10 +356,7 @@ fn get_request_id(response: &reqwest::Response) -> &str {
 
 #[tokio::test]
 async fn request_id_generated_for_requests() {
-    let config = fixtures::config().expect("Failed to load config");
-    let ctx = fixtures::setup_solo(config)
-        .await
-        .expect("Failed to setup test");
+    let ctx = setup_solo_with_tenant().await;
 
     let r1 = request::get(&ctx, "/").send().await;
     let r2 = request::get(&ctx, "/").send().await;

@@ -5,7 +5,7 @@ use sqlx::PgPool;
 
 #[derive(sqlx::FromRow, Debug, Clone)]
 pub struct Tenant {
-    pub id: i64,
+    pub id: bits_domain::TenantId,
     pub name: String,
     pub created_at: PgTimestamp,
 }
@@ -13,7 +13,7 @@ pub struct Tenant {
 #[derive(sqlx::FromRow, Debug, Clone)]
 pub struct TenantDomain {
     pub id: i64,
-    pub tenant_id: i64,
+    pub tenant_id: bits_domain::TenantId,
     pub domain: String,
     pub valid_from: PgTimestamp,
     pub valid_to: PgTimestamp,
@@ -21,15 +21,15 @@ pub struct TenantDomain {
 
 #[derive(sqlx::FromRow, Debug, Clone)]
 pub struct User {
-    pub id: i64,
+    pub id: bits_domain::UserId,
     pub created_at: PgTimestamp,
 }
 
 #[derive(sqlx::FromRow, Debug, Clone)]
 pub struct EmailAddress {
-    pub id: i64,
-    pub user_id: i64,
-    pub address: String,
+    pub id: bits_domain::EmailAddressId,
+    pub user_id: bits_domain::UserId,
+    pub address: bits_domain::Email,
     pub valid_from: PgTimestamp,
     pub valid_to: PgTimestamp,
 }
@@ -42,18 +42,25 @@ pub struct TestContext {
 }
 
 impl TestContext {
-    pub async fn create_user(&self, email: &str, password_hash: &str) -> Result<User> {
+    pub async fn create_user(
+        &self,
+        email: &str,
+        password_hash: &bits_domain::PasswordHash,
+    ) -> Result<User> {
+        use secrecy::ExposeSecret;
+
         let user = sqlx::query_as::<_, User>(
             "insert into users (password_hash) values ($1) returning id, created_at",
         )
-        .bind(password_hash)
+        .bind(password_hash.expose_secret())
         .fetch_one(&self.db_pool)
         .await?;
 
+        let email_domain = bits_domain::Email::parse(email)?;
         sqlx::query!(
             "insert into email_addresses (user_id, address) values ($1, $2)",
-            user.id,
-            email
+            user.id.get(),
+            email_domain.as_str()
         )
         .execute(&self.db_pool)
         .await?;
@@ -61,11 +68,11 @@ impl TestContext {
         Ok(user)
     }
 
-    pub async fn verify_email(&self, user_id: i64) -> Result<()> {
+    pub async fn verify_email(&self, user_id: bits_domain::UserId) -> Result<()> {
         sqlx::query!(
             "insert into email_verifications (email_address_id)
              select id from email_addresses where user_id = $1",
-            user_id
+            user_id.get()
         )
         .execute(&self.db_pool)
         .await?;
@@ -77,11 +84,12 @@ impl TestContext {
         &self,
         email: &str,
         password: &str,
-    ) -> Result<(User, String)> {
+    ) -> Result<(User, bits_domain::PasswordHash)> {
+        let password_domain = bits_domain::Password::new(password.to_string());
         let password_hash = self
             .state
             .password_service
-            .hash_password(password)
+            .hash_password(&password_domain)
             .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))?;
 
         let user = self.create_user(email, &password_hash).await?;
@@ -90,11 +98,16 @@ impl TestContext {
         Ok((user, password_hash))
     }
 
-    pub async fn get_email_address_id(&self, user_id: i64) -> Result<i64> {
-        let id = sqlx::query_scalar::<_, i64>("select id from email_addresses where user_id = $1")
-            .bind(user_id)
-            .fetch_one(&self.db_pool)
-            .await?;
+    pub async fn get_email_address_id(
+        &self,
+        user_id: bits_domain::UserId,
+    ) -> Result<bits_domain::EmailAddressId> {
+        let id = sqlx::query_scalar::<_, bits_domain::EmailAddressId>(
+            "select id from email_addresses where user_id = $1",
+        )
+        .bind(user_id.get())
+        .fetch_one(&self.db_pool)
+        .await?;
 
         Ok(id)
     }
@@ -114,7 +127,7 @@ impl TestContext {
         &self,
         name: &str,
         domain: &str,
-        added_by: i64,
+        added_by: bits_domain::UserId,
     ) -> Result<(Tenant, TenantDomain)> {
         let tenant = self.create_tenant(name).await?;
 
@@ -123,9 +136,9 @@ impl TestContext {
              values ($1, $2, $3)
              returning id, tenant_id, domain, valid_from, valid_to",
         )
-        .bind(tenant.id)
+        .bind(tenant.id.get())
         .bind(domain)
-        .bind(added_by)
+        .bind(added_by.get())
         .fetch_one(&self.db_pool)
         .await?;
 

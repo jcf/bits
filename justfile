@@ -55,9 +55,8 @@ mkcert:
 # Setup a local development environment
 [group('setup')]
 setup:
-    @just mkcert
-    @just hetzner-contexts
     devenv shell true
+    @just mkcert hetzner-contexts db-migrate db-seed
     pnpm install
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ BOLD }}"
 
@@ -191,7 +190,8 @@ execute *args:
     message="
     # $title
 
-    Please read the prompt document at '$prompt_file' and execute the plan
+    Please read the prompt document at '$prompt_file', review the plan, and
+    formulate a suitable plan to execute.
 
     ## Process
 
@@ -208,6 +208,7 @@ execute *args:
     - Follow all guidelines in CLAUDE.md
     - Run tests after changes
     - Keep commits focused
+    - Update the prompt doc with important changes and on-going status
 
     Ready to begin?"
 
@@ -326,7 +327,7 @@ unit:
 # Run integration tests
 [group('test')]
 integrate:
-    env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --features server
+    env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --no-default-features --features server
 
 # Run unit and integration tests
 [group('test')]

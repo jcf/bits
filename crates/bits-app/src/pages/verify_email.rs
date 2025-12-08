@@ -17,7 +17,7 @@ pub fn VerifyEmail() -> Element {
 
     // Get email from authenticated session and store in signal
     let email = use_signal(|| match session() {
-        Some(Ok(SessionState::Authenticated(user))) => user.email.clone(),
+        Some(Ok(SessionState::Authenticated(user))) => user.email.as_str().to_string(),
         _ => String::new(),
     });
 

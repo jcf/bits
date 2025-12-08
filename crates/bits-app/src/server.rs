@@ -11,7 +11,6 @@ use lazy_limit::{init_rate_limiter, RuleConfig};
 use real::RealIpLayer;
 use sqlx::PgPool;
 use std::time::Duration;
-use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
@@ -86,6 +85,7 @@ pub async fn setup_session_store(
     Ok(session_store)
 }
 
+// TODO Add health checks to core components within `AppState`.
 /// Health check endpoint for monitoring and systemd checks
 /// Verifies database connectivity without authentication
 async fn healthz_handler(Extension(state): Extension<AppState>) -> Response {
@@ -134,30 +134,11 @@ async fn metrics_handler(
     state.metrics_handle.render().into_response()
 }
 
-/// Build a production-ready router with security middleware
-pub async fn build_router(
-    state: AppState,
-    app: fn() -> dioxus::prelude::Element,
-) -> Result<axum::Router, anyhow::Error> {
-    let session_store = state.session_store.lock().await.clone();
+const MAX_REQUEST_BODY_BYTES: usize = 10 * 1024 * 1024;
+const REQUEST_TIMEOUT_SECONDS: u64 = 30;
 
-    let auth_config = AuthConfig::<i64>::default().with_anonymous_user_id(Some(-1));
-
-    let auth_layer =
-        AuthSessionLayer::<User, i64, SessionPgPool, sqlx::PgPool>::new(Some(state.db.clone()))
-            .with_config(auth_config);
-
-    let csp_mode = if state.config.dangerously_allow_javascript_evaluation {
-        CspMode::Development
-    } else {
-        CspMode::Strict
-    };
-    let csp = crate::http::csp_header(csp_mode);
-
-    #[allow(unused_mut)]
+fn base_router(app: fn() -> dioxus::prelude::Element) -> axum::Router {
     let mut router = dioxus::server::router(app);
-
-    // Add health check and metrics endpoints
     router = router.route("/healthz", axum::routing::get(healthz_handler));
     router = router.route("/metrics", axum::routing::get(metrics_handler));
 
@@ -166,82 +147,98 @@ pub async fn build_router(
         router = router.layer(RealmLayer);
     }
 
-    // Explicitly reject all cross-origin requests
-    // Each tenant accesses their own domain, no cross-origin requests needed
-    let cors = CorsLayer::new()
+    router
+}
+
+/// Build a production-ready router with security middleware
+pub async fn build_router(
+    state: AppState,
+    app: fn() -> dioxus::prelude::Element,
+) -> Result<axum::Router, anyhow::Error> {
+    let session_store = state.session_store.lock().await.clone();
+
+    let csp_mode = if state.config.dangerously_allow_javascript_evaluation {
+        CspMode::Development
+    } else {
+        CspMode::Strict
+    };
+    let csp = crate::http::csp_header(csp_mode);
+
+    // CORS: reject all cross-origin requests (each tenant uses their own domain)
+    let cors_layer = CorsLayer::new()
         .allow_methods(vec![])
         .allow_headers(vec![])
         .allow_origin(tower_http::cors::AllowOrigin::predicate(|_, _| false));
 
-    let router = router
-        .layer(axum::middleware::from_fn(
-            crate::middleware::metrics::track_metrics,
+    // Authentication session
+    let auth_config = AuthConfig::<bits_domain::UserId>::default()
+        .with_anonymous_user_id(Some(bits_domain::UserId::new(-1)));
+    let auth_layer =
+        AuthSessionLayer::<User, bits_domain::UserId, SessionPgPool, sqlx::PgPool>::new(Some(
+            state.db.clone(),
         ))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            crate::middleware::auth_rate_limit::auth_rate_limit_middleware,
-        ))
-        .layer(cors)
-        .layer(CsrfVerificationLayer);
+        .with_config(auth_config);
 
-    let router = if state.config.global_rate_limit.is_some() {
-        router.layer(
-            ServiceBuilder::new()
-                .layer(RealIpLayer::default())
-                .layer(GovernorLayer::default()),
-        )
-    } else {
-        router
-    };
+    // Request tracking
+    let request_id_layer = SetRequestIdLayer::x_request_id(MakeRequestUuid);
+    let propagate_id_layer = PropagateRequestIdLayer::x_request_id();
 
-    let router = router
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("content-security-policy"),
-            HeaderValue::try_from(csp).unwrap(),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("referrer-policy"),
-            HeaderValue::from_static("strict-origin"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::SERVER,
-            HeaderValue::from_static("bits"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("strict-transport-security"),
-            HeaderValue::from_static("max-age=31536000; includeSubdomains"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("x-content-type-options"),
-            HeaderValue::from_static("nosniff"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("x-download-options"),
-            HeaderValue::from_static("noopen"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("x-frame-options"),
-            HeaderValue::from_static("DENY"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("x-permitted-cross-domain-policies"),
-            HeaderValue::from_static("none"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::HeaderName::from_static("x-xss-protection"),
-            HeaderValue::from_static("1; mode=block"),
-        ))
-        .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
-        .layer(TimeoutLayer::with_status_code(
-            StatusCode::REQUEST_TIMEOUT,
-            Duration::from_secs(30),
-        ))
-        .layer(PropagateRequestIdLayer::x_request_id())
-        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(auth_layer)
-        .layer(SessionLayer::new(session_store))
-        .layer(Extension(state.config.clone()))
-        .layer(Extension(state));
+    // Limits
+    let body_limit_layer = RequestBodyLimitLayer::new(MAX_REQUEST_BODY_BYTES);
+    let timeout_layer = TimeoutLayer::with_status_code(
+        StatusCode::REQUEST_TIMEOUT,
+        Duration::from_secs(REQUEST_TIMEOUT_SECONDS),
+    );
+
+    // Security headers
+    let security_headers = [
+        ("content-security-policy", csp.as_str()),
+        ("referrer-policy", "strict-origin"),
+        ("server", "bits"),
+        (
+            "strict-transport-security",
+            "max-age=31536000; includeSubdomains",
+        ),
+        ("x-content-type-options", "nosniff"),
+        ("x-download-options", "noopen"),
+        ("x-frame-options", "DENY"),
+        ("x-permitted-cross-domain-policies", "none"),
+        ("x-xss-protection", "1; mode=block"),
+    ];
+
+    let mut router = base_router(app);
+
+    // Apply middleware layers in order (outermost to innermost)
+    router = router.layer(axum::middleware::from_fn(
+        crate::middleware::metrics::track_metrics,
+    ));
+    router = router.layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        crate::middleware::auth_rate_limit::auth_rate_limit_middleware,
+    ));
+    router = router.layer(cors_layer);
+    router = router.layer(CsrfVerificationLayer);
+
+    if state.config.global_rate_limit.is_some() {
+        router = router.layer(RealIpLayer::default());
+        router = router.layer(GovernorLayer::default());
+    }
+
+    for (name, value) in security_headers {
+        router = router.layer(SetResponseHeaderLayer::overriding(
+            header::HeaderName::try_from(name).unwrap(),
+            HeaderValue::try_from(value).unwrap(),
+        ));
+    }
+
+    router = router.layer(body_limit_layer);
+    router = router.layer(timeout_layer);
+    router = router.layer(propagate_id_layer);
+    router = router.layer(request_id_layer);
+    router = router.layer(auth_layer);
+    router = router.layer(SessionLayer::new(session_store));
+    router = router.layer(Extension(state.config.clone()));
+    router = router.layer(Extension(state));
 
     Ok(router)
 }

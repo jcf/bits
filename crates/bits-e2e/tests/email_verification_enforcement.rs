@@ -15,7 +15,7 @@ async fn unverified_user_cannot_change_password() {
     let password_hash = ctx
         .state
         .password_service
-        .hash_password(password)
+        .hash_password(&bits_domain::Password::new(password.to_string()))
         .expect("Failed to hash password");
 
     let user = ctx
@@ -137,7 +137,7 @@ async fn full_flow_signup_blocked_verify_success() {
     let password_hash = ctx
         .state
         .password_service
-        .hash_password(password)
+        .hash_password(&bits_domain::Password::new(password.to_string()))
         .expect("Failed to hash password");
 
     let user = ctx

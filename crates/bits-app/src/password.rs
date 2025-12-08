@@ -25,19 +25,28 @@ impl PasswordService {
         Ok(Self { argon2 })
     }
 
-    pub fn hash_password(&self, password: &str) -> Result<String, anyhow::Error> {
+    pub fn hash_password(
+        &self,
+        password: &bits_domain::Password,
+    ) -> Result<bits_domain::PasswordHash, anyhow::Error> {
+        use secrecy::ExposeSecret;
         let salt = SaltString::generate(&mut OsRng);
         self.argon2
-            .hash_password(password.as_bytes(), &salt)
-            .map(|hash| hash.to_string())
+            .hash_password(password.expose_secret().as_bytes(), &salt)
+            .map(|hash| bits_domain::PasswordHash::new(hash.to_string()))
             .map_err(|e| anyhow::anyhow!("Failed to hash password: {}", e))
     }
 
-    pub fn verify_password(&self, password: &str, hash: &str) -> Result<(), anyhow::Error> {
-        let parsed_hash =
-            PasswordHash::new(hash).map_err(|e| anyhow::anyhow!("Invalid password hash: {}", e))?;
+    pub fn verify_password(
+        &self,
+        password: &bits_domain::Password,
+        hash: &bits_domain::PasswordHash,
+    ) -> Result<(), anyhow::Error> {
+        use secrecy::ExposeSecret;
+        let parsed_hash = PasswordHash::new(hash.expose_secret())
+            .map_err(|e| anyhow::anyhow!("Invalid password hash: {}", e))?;
         self.argon2
-            .verify_password(password.as_bytes(), &parsed_hash)
+            .verify_password(password.expose_secret().as_bytes(), &parsed_hash)
             .map_err(|e| anyhow::anyhow!("Password verification failed: {}", e))
     }
 }
@@ -66,58 +75,65 @@ mod tests {
 
     #[test]
     fn hash_password_produces_valid_hash() {
+        use secrecy::ExposeSecret;
+
         let config = test_config();
         let service = PasswordService::new(&config).unwrap();
-        let password = "test-password-123";
+        let password = bits_domain::Password::new("test-password-123".to_string());
 
-        let hash = service.hash_password(password).unwrap();
+        let hash = service.hash_password(&password).unwrap();
 
         // Verify format: starts with $argon2id$
-        assert!(hash.starts_with("$argon2id$v=19$"));
+        assert!(hash.expose_secret().starts_with("$argon2id$v=19$"));
     }
 
     #[test]
     fn verify_password_succeeds_with_correct_password() {
         let config = test_config();
         let service = PasswordService::new(&config).unwrap();
-        let password = "correct-password";
+        let password = bits_domain::Password::new("correct-password".to_string());
 
-        let hash = service.hash_password(password).unwrap();
-        assert!(service.verify_password(password, &hash).is_ok());
+        let hash = service.hash_password(&password).unwrap();
+        assert!(service.verify_password(&password, &hash).is_ok());
     }
 
     #[test]
     fn verify_password_fails_with_wrong_password() {
         let config = test_config();
         let service = PasswordService::new(&config).unwrap();
-        let password = "correct-password";
+        let correct_password = bits_domain::Password::new("correct-password".to_string());
+        let wrong_password = bits_domain::Password::new("wrong-password".to_string());
 
-        let hash = service.hash_password(password).unwrap();
-        assert!(service.verify_password("wrong-password", &hash).is_err());
+        let hash = service.hash_password(&correct_password).unwrap();
+        assert!(service.verify_password(&wrong_password, &hash).is_err());
     }
 
     #[test]
     fn verify_password_fails_with_invalid_hash() {
         let config = test_config();
         let service = PasswordService::new(&config).unwrap();
+        let password = bits_domain::Password::new("password".to_string());
+        let invalid_hash = bits_domain::PasswordHash::new("not-a-hash".to_string());
 
-        assert!(service.verify_password("password", "not-a-hash").is_err());
+        assert!(service.verify_password(&password, &invalid_hash).is_err());
     }
 
     #[test]
     fn hash_password_produces_unique_salts() {
+        use secrecy::ExposeSecret;
+
         let config = test_config();
         let service = PasswordService::new(&config).unwrap();
-        let password = "same-password";
+        let password = bits_domain::Password::new("same-password".to_string());
 
-        let hash1 = service.hash_password(password).unwrap();
-        let hash2 = service.hash_password(password).unwrap();
+        let hash1 = service.hash_password(&password).unwrap();
+        let hash2 = service.hash_password(&password).unwrap();
 
         // Same password should produce different hashes due to random salt
-        assert_ne!(hash1, hash2);
+        assert_ne!(hash1.expose_secret(), hash2.expose_secret());
 
         // But both should verify
-        assert!(service.verify_password(password, &hash1).is_ok());
-        assert!(service.verify_password(password, &hash2).is_ok());
+        assert!(service.verify_password(&password, &hash1).is_ok());
+        assert!(service.verify_password(&password, &hash2).is_ok());
     }
 }

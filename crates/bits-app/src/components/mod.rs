@@ -1,4 +1,5 @@
 pub mod alert;
+pub mod auth_form_fields;
 pub mod avatar;
 pub mod button;
 pub mod category_item;
@@ -12,6 +13,7 @@ pub mod sign_out_button;
 pub mod sign_out_link;
 
 pub use alert::{Alert, AlertVariant};
+pub use auth_form_fields::{AuthFormFields, AuthFormState};
 pub use avatar::Avatar;
 pub use button::{Button, ButtonLink, ButtonSize, ButtonVariant, Spinner};
 pub use category_item::{CategoryItem, MobileCategoryItem};

@@ -10,12 +10,14 @@ name = "bits-seed"
 path = "src/bin/seed.rs"
 
 [features]
-default = ["server"]
+default = ["server", "colo"]
 server = ["bits-solo/server", "bits-colo/server"]
+colo = ["bits-app/colo", "bits-colo/colo"]
 
 [dependencies]
 bits-app.workspace = true
 bits-db.workspace = true
+bits-domain = { workspace = true, features = ["sqlx"] }
 bits-colo.workspace = true
 bits-solo.workspace = true
 anyhow.workspace = true
@@ -27,6 +29,7 @@ jiff-sqlx = { version = "0.1.1", features = ["postgres"] }
 rand.workspace = true
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 scraper = "0.22"
+secrecy = "0.10"
 serde.workspace = true
 serde_json = "1"
 sqlx.workspace = true

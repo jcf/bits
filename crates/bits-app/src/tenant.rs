@@ -323,7 +323,7 @@ pub fn is_reserved(name: &str) -> bool {
 #[cfg_attr(feature = "server", derive(sqlx::FromRow))]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Tenant {
-    pub id: i64,
+    pub id: bits_domain::TenantId,
     pub name: String,
 }
 
@@ -340,7 +340,7 @@ pub enum Realm {
     NotFound,
 }
 
-#[cfg(feature = "server")]
+#[cfg(all(feature = "server", feature = "colo"))]
 async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Result<Option<Tenant>, sqlx::Error> {
     sqlx::query_as!(
         Tenant,
@@ -365,64 +365,66 @@ pub async fn resolve_realm(
 ) -> Realm {
     let normalized_host = crate::http::normalize_host(scheme, host);
 
-    // Check colo-specific routing (platform domain and subdomains)
+    // Colo only: platform apex domain check
     #[cfg(feature = "colo")]
-    if let Some(realm) = resolve_colo_realm(state, &normalized_host).await {
-        return realm;
+    if normalized_host == state.config.platform_domain {
+        return Realm::Platform {
+            domain: state.config.platform_domain.clone(),
+        };
     }
 
-    // Check for custom domain tenant (both colo and solo)
-    match load_tenant_by_domain(&state.db, &normalized_host).await {
-        Ok(Some(tenant)) => return Realm::Creator(tenant),
-        Ok(None) => {}
+    // Check if this is a demo subdomain
+    if let Some(handle) = demo_from_host(&state.config.platform_domain, &normalized_host) {
+        return Realm::Demo(handle);
+    }
+
+    // Look up tenant in database
+    match load_tenant(&state.db, &normalized_host).await {
+        Ok(Some(tenant)) => Realm::Creator(tenant),
+        Ok(None) => Realm::NotFound,
         Err(e) => {
             tracing::error!(
-                domain = %normalized_host,
+                host = %host,
+                normalized_host = %normalized_host,
                 error = %e,
-                "Failed to load tenant from database"
+                "Failed to load tenant"
             );
+            Realm::NotFound
         }
     }
-
-    // Default realm when no tenant found
-    Realm::NotFound
 }
 
-/// Resolve realm for colo mode (platform domain and subdomains)
-#[cfg(all(feature = "server", feature = "colo"))]
-async fn resolve_colo_realm(state: &crate::AppState, normalized_host: &str) -> Option<Realm> {
-    let platform_domain = &state.config.platform_domain;
-
-    // Exact match: apex domain
-    if normalized_host == *platform_domain {
-        return Some(Realm::Platform {
-            domain: platform_domain.clone(),
-        });
-    }
-
-    // Must be a subdomain of platform domain, otherwise None
-    let subdomain = normalized_host.strip_suffix(&format!(".{}", platform_domain))?;
+/// Extract demo handle if host is a subdomain of platform domain
+#[cfg(feature = "server")]
+fn demo_from_host(platform_domain: &str, host: &str) -> Option<Handle> {
+    let subdomain = host.strip_suffix(&format!(".{platform_domain}"))?;
     let handle = Handle::from_trusted(subdomain.to_string());
+    crate::demos::SUBDOMAINS
+        .contains(&handle.as_str())
+        .then_some(handle)
+}
 
-    // Check if demo (no DB hit!)
-    if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
-        return Some(Realm::Demo(handle));
+/// Load tenant from database (dispatches to colo or solo mode)
+#[cfg(feature = "server")]
+async fn load_tenant(db: &PgPool, host: &str) -> Result<Option<Tenant>, sqlx::Error> {
+    #[cfg(feature = "colo")]
+    {
+        load_tenant_by_domain(db, host).await
     }
 
-    // Check database for real tenants
-    match load_tenant_by_domain(&state.db, normalized_host).await {
-        Ok(Some(tenant)) => return Some(Realm::Creator(tenant)),
-        Ok(None) => {}
-        Err(e) => {
-            tracing::error!(
-                domain = %normalized_host,
-                error = %e,
-                "Failed to load tenant from database"
-            );
-        }
+    #[cfg(not(feature = "colo"))]
+    {
+        let _ = host; // Host unused in solo mode
+        load_single_tenant(db).await
     }
+}
 
-    Some(Realm::NotFound)
+/// Load single tenant for solo mode
+#[cfg(all(feature = "server", not(feature = "colo")))]
+async fn load_single_tenant(db: &PgPool) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(Tenant, "select id, name from tenants limit 1")
+        .fetch_optional(db)
+        .await
 }
 
 #[cfg(feature = "server")]

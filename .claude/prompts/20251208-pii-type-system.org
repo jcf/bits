@@ -1,0 +1,220 @@
+#+title:    PII Type System
+#+date:     2025-12-08
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Context
+
+Currently we use a simple ~EmailAddress~ newtype wrapper to distinguish email addresses from plain strings in the type system. This is minimal PII tracking.
+
+We need a comprehensive approach to handling Personally Identifiable Information (PII) that:
+1. Makes PII explicit in the type system
+2. Prevents accidental logging/exposure
+3. Supports security monitoring when needed
+4. Follows established best practices
+
+* Research
+
+** Established Crates
+
+*** secrecy
+- Most popular for secrets (passwords, API keys)
+- ~Secret<T>~ wrapper with ~Debug~ → ~[REDACTED]~
+- Access via ~.expose_secret()~
+- Auto-zeroized on drop
+- Use case: Things that should NEVER appear in logs
+
+*** veil
+- Derive macro for redactable structs
+- Configurable redaction per field
+- Use case: Partial redaction of complex types
+
+*** data-privacy
+- ~Sensitive<T>~ wrapper
+- Configurable redaction engine
+- Use case: GDPR/compliance-focused
+
+** Key Distinction
+
+*Secrets* vs *PII*:
+- *Secrets* (passwords, tokens): NEVER log, always redact
+- *PII* (emails, names, IPs): Sometimes needed in security logs, but carefully controlled
+
+Example security log we WANT:
+#+begin_example
+WARN: 5 failed login attempts for victim@example.com from IP 1.2.3.4
+#+end_example
+
+Example we DON'T want:
+#+begin_example
+DEBUG: User{email: "victim@example.com", password_hash: "$argon2..."}
+#+end_example
+
+* Requirements
+
+** Type System
+
+Make PII explicit in function signatures:
+
+#+begin_src rust
+// Clear: This function handles PII
+fn send_email(recipient: EmailAddress, subject: &str) -> Result<()>
+
+// Unclear: Is this PII?
+fn send_email(recipient: String, subject: &str) -> Result<()>
+#+end_src
+
+** Controlled Logging
+
+Support different logging contexts:
+
+1. *Security logs*: Include PII for incident response
+2. *Debug logs*: Redact PII
+3. *Audit logs*: Include PII with access controls
+4. *Metrics/telemetry*: Hash/anonymize PII
+
+** Derive Macro
+
+Auto-detect PII fields:
+
+#+begin_src rust
+#[derive(Debug, Pii)]
+struct User {
+    pub id: i64,                    // Not PII
+    #[pii]
+    pub email: String,              // PII - redact in Debug
+    #[pii]
+    pub ip_address: IpAddr,         // PII - redact in Debug
+    pub created_at: OffsetDateTime, // Not PII
+}
+
+// Debug output:
+// User { id: 123, email: <redacted>, ip_address: <redacted>, created_at: ... }
+#+end_src
+
+** Explicit Access
+
+Make PII access auditable:
+
+#+begin_src rust
+let email: EmailAddress = user.email;
+
+// Explicit unwrap for database queries
+sqlx::query("select * from users where email = $1")
+    .bind(email.as_str())  // Clear: we're exposing PII for DB query
+
+// Explicit unwrap for logging (security context)
+tracing::warn!(
+    email = email.as_str(),  // Clear: we're intentionally logging PII
+    "Failed login attempt"
+);
+#+end_src
+
+* Design Questions
+
+** What types are PII?
+
+- Email addresses ✓
+- IP addresses ✓
+- Names (first, last, full)
+- Phone numbers
+- Physical addresses
+- User IDs? (depends on use case)
+- Session IDs? (often treated as secrets)
+
+** Redaction Strategy
+
+Options:
+1. *Full redaction*: ~<redacted>~
+2. *Partial*: ~u***r@e*****e.com~
+3. *Hash*: ~sha256(email)~ for correlation
+4. *Contextual*: Different behavior based on log level/destination
+
+** Integration with secrecy
+
+Should we:
+1. Use ~secrecy::Secret~ for passwords/tokens, custom ~Pii<T>~ for PII?
+2. Extend ~secrecy~ with PII-specific behavior?
+3. Build on ~veil~ derive macro?
+
+* Implementation Options
+
+** Option 1: Minimal (Current)
+
+Simple newtype wrappers:
+
+#+begin_src rust
+pub struct EmailAddress(String);
+pub struct IpAddress(IpAddr);
+
+// Pros: Simple, explicit
+// Cons: No automatic redaction, manual Debug impl for each
+#+end_src
+
+** Option 2: Generic Wrapper
+
+#+begin_src rust
+pub struct Pii<T>(T);
+
+impl<T> Debug for Pii<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<redacted>")
+    }
+}
+
+// Pros: Reusable, explicit in types
+// Cons: Verbose (Pii<String>, Pii<IpAddr>)
+#+end_src
+
+** Option 3: Derive Macro
+
+Use or build derive macro for automatic field-level redaction:
+
+#+begin_src rust
+#[derive(Debug, Pii)]
+struct User {
+    #[pii(redact)]
+    email: String,
+
+    #[pii(partial)]  // Show first char + domain
+    name: String,
+}
+#+end_src
+
+** Option 4: Contextual Logging
+
+Different behavior based on context:
+
+#+begin_src rust
+// Security context: include PII
+tracing::warn!(
+    target: "security",
+    email = %user.email,
+    "Failed login"
+);
+
+// Debug context: redact PII
+tracing::debug!(
+    user = ?user,  // Auto-redacts PII fields
+    "Processing request"
+);
+#+end_src
+
+* Acceptance Criteria
+
+- [ ] Decide on PII types (email, IP, etc.)
+- [ ] Choose implementation approach (newtype, generic, derive, etc.)
+- [ ] Implement chosen design
+- [ ] Update existing code to use PII types
+- [ ] Add tests for Debug output redaction
+- [ ] Document PII handling in CLAUDE.md
+- [ ] Consider GDPR/compliance implications
+- [ ] Audit all ~tracing::~ calls for PII exposure
+
+* References
+
+- secrecy: https://docs.rs/secrecy
+- veil: https://docs.rs/veil
+- data-privacy: https://github.com/geeknoid/data-privacy
+- OWASP Logging Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html
+- GDPR Article 32: Security of processing

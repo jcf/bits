@@ -12,6 +12,7 @@ name = "bits"
 path = "src/main.rs"
 
 [features]
+default = []
 server = ["bits-app/server"]
 
 [dependencies]

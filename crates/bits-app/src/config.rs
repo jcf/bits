@@ -47,6 +47,7 @@ fn default_argon2_p_cost() -> u32 {
     4 // 4 threads - Leverage multi-core processors
 }
 
+// TODO Wrap u32 in 'Limit' type.
 #[cfg(not(target_arch = "wasm32"))]
 fn default_global_rate_limit() -> Option<u32> {
     Some(50)

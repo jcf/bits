@@ -87,6 +87,7 @@ in {
     fd
     fzf
     gnuplot
+    htmlq
     just
     tokei
     tree
@@ -156,6 +157,7 @@ in {
     enable = true;
     httpConfig = ''
       error_log stderr error;
+      server_tokens off;
 
       upstream page {
         server localhost:${toString dev.upstreams.page.port};
@@ -175,6 +177,7 @@ in {
 
         location / {
           proxy_pass http://${dev.hosts.page.upstream};
+          proxy_pass_header Server;
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -195,6 +198,7 @@ in {
 
         location / {
           proxy_pass http://${dev.hosts.page-customers.upstream};
+          proxy_pass_header Server;
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -215,6 +219,7 @@ in {
 
         location / {
           proxy_pass http://${dev.hosts.custom-domains.upstream};
+          proxy_pass_header Server;
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";
@@ -235,6 +240,7 @@ in {
 
         location / {
           proxy_pass http://${dev.hosts.www.upstream};
+          proxy_pass_header Server;
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection "upgrade";

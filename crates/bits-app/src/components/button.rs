@@ -16,6 +16,13 @@ pub enum ButtonSize {
     XL,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ButtonContent {
+    TextOnly,
+    WithIcon,
+    WithSpinner,
+}
+
 impl ButtonSize {
     fn classes(&self) -> &'static str {
         match self {
@@ -48,16 +55,16 @@ impl ButtonVariant {
 fn build_button_classes(
     variant: ButtonVariant,
     size: ButtonSize,
-    has_icon: bool,
-    loading: bool,
+    content: ButtonContent,
 ) -> String {
     let base = "font-semibold";
     let variant_classes = variant.classes();
     let size_classes = size.classes();
-    let layout = if has_icon || loading {
-        format!("inline-flex items-center {}", size.gap_classes())
-    } else {
-        String::new()
+    let layout = match content {
+        ButtonContent::TextOnly => String::new(),
+        ButtonContent::WithIcon | ButtonContent::WithSpinner => {
+            format!("inline-flex items-center {}", size.gap_classes())
+        }
     };
 
     format!("{} {} {} {}", base, variant_classes, size_classes, layout)
@@ -101,7 +108,14 @@ pub fn Button(
     icon: Option<Element>,
     children: Element,
 ) -> Element {
-    let base_classes = build_button_classes(variant, size, icon.is_some(), loading);
+    let content = if loading {
+        ButtonContent::WithSpinner
+    } else if icon.is_some() {
+        ButtonContent::WithIcon
+    } else {
+        ButtonContent::TextOnly
+    };
+    let base_classes = build_button_classes(variant, size, content);
     let all_classes = if class.is_empty() {
         base_classes
     } else {
@@ -138,7 +152,12 @@ pub fn ButtonLink(
     icon: Option<Element>,
     children: Element,
 ) -> Element {
-    let base_classes = build_button_classes(variant, size, icon.is_some(), false);
+    let content = if icon.is_some() {
+        ButtonContent::WithIcon
+    } else {
+        ButtonContent::TextOnly
+    };
+    let base_classes = build_button_classes(variant, size, content);
     let all_classes = if class.is_empty() {
         base_classes
     } else {

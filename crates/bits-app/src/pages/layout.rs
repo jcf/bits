@@ -42,6 +42,7 @@ fn get_csrf_token_for_ssr() -> String {
 #[component]
 pub fn Layout() -> Element {
     use crate::auth::{get_realm, get_session};
+    use crate::components::AuthFormState;
 
     let session = use_server_future(move || async move { get_session().await })?;
     let realm = use_server_future(move || async move { get_realm().await })?;
@@ -51,6 +52,10 @@ pub fn Layout() -> Element {
     use_context_provider(|| session);
     use_context_provider(|| realm);
     use_context_provider(|| locale);
+    use_context_provider(|| AuthFormState {
+        email: Signal::new(String::new()),
+        password: Signal::new(String::new()),
+    });
 
     // TODO Make csrf_token a proper type akin to Option<String>.
     #[cfg(feature = "server")]

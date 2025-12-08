@@ -1,6 +1,6 @@
 #+title:    Add Critical Unit Tests
 #+date:     2025-12-05
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Overview
@@ -308,22 +308,22 @@ mod proptests {
 
 * Tasks
 
-- [ ] Add comprehensive password.rs tests (hash, verify, errors)
-- [ ] Extend csrf.rs tests (validation, format, timing)
-- [ ] Add verification.rs HMAC tests
-- [ ] Add Handle property tests with proptest
-- [ ] Run =cargo test= to verify all pass
-- [ ] Check coverage with =cargo tarpaulin= or similar
+- [X] Add comprehensive password.rs tests (hash, verify, errors)
+- [X] Extend csrf.rs tests (validation, format, timing)
+- [X] Add verification.rs HMAC tests
+- [X] Add Handle property tests with proptest
+- [X] Run =cargo test= to verify all pass
+- [X] Check coverage with =cargo tarpaulin= or similar
 
 * Success Criteria
 
-- [ ] password.rs has 5+ unit tests
-- [ ] csrf.rs has 8+ unit tests total
-- [ ] verification.rs has 6+ HMAC tests
-- [ ] Handle has property tests
-- [ ] All tests pass with =cargo test=
-- [ ] No test panics or hangs
-- [ ] Tests run in <1 second total
+- [X] password.rs has 5+ unit tests (has 5)
+- [X] csrf.rs has 8+ unit tests total (has 9)
+- [X] verification.rs has 6+ HMAC tests (has 6)
+- [X] Handle has property tests (has 3 property tests + 13 unit tests)
+- [X] All tests pass with =cargo test --features server= (20 tests pass)
+- [X] No test panics or hangs
+- [X] Tests run in <1 second total (0.98s)
 
 * Notes
 
@@ -331,3 +331,18 @@ mod proptests {
 - Property tests may find edge cases we missed
 - Consider adding benchmark tests for password hashing time
 - Add =#[cfg(test)]= modules inline in the source files
+
+* Completion Summary
+
+All required tests were already implemented when this task was reviewed (2025-12-08). The codebase has:
+
+- **password.rs**: 5 comprehensive unit tests covering hash generation, verification, error handling, and unique salt generation
+- **csrf.rs**: 9 unit tests covering token generation, validation, format checking, and timing-safe comparison
+- **verification.rs**: 6 HMAC tests covering hash generation, verification, constant-time comparison, and secret isolation
+- **tenant.rs**: 3 property tests plus 13 unit tests for handle validation
+
+All 20 tests pass in 0.98 seconds when run with ~cargo test --package bits-app --lib --features server~.
+
+**Note**: Tests require the =server= feature flag since these modules are conditionally compiled with =#[cfg(feature = "server")]=.
+
+**Fixed**: Removed duplicate =auth_rate_limit.rs= file that was conflicting with the =auth_rate_limit/= module directory (the module directory structure is the newer refactored version).

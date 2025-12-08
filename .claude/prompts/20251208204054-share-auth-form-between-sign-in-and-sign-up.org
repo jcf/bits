@@ -1,0 +1,85 @@
+#+title:    Share auth form between sign in and sign up
+#+date:     2025-12-08
+#+status:   done
+#+property: header-args :dir ../..
+
+* Problem
+
+Users frequently start on the wrong auth page (=/auth= vs =/join=) and lose their
+entered email/password when switching between pages. This creates a frustrating
+experience where they have to re-enter credentials.
+
+* Solution
+
+Keep separate =/auth= (sign in) and =/join= (sign up) routes, but share the
+underlying form component. Use global signals (Dioxus context) to preserve
+email/password when users navigate between routes.
+
+This approach:
+- Preserves meaningful URLs (=/join= clearly indicates signup)
+- Keeps form data in memory only (not browser storage)
+- Avoids security risks of storing passwords in sessionStorage
+- Maintains separation between login and signup logic
+
+* Implementation
+
+** 1. Create shared form component
+
+New =AuthFormFields= component in =src/components/auth_form_fields.rs=:
+- Controlled email and password inputs
+- Reads/writes to global signals (via context)
+- No submit logic (handled by parent pages)
+
+** 2. Add global state for form data
+
+In =src/app.rs=:
+- Add global context for auth form state (email, password signals)
+- Initialize in root App component
+- Use =use_context_provider= pattern
+
+** 3. Update Input component
+
+Enhance =src/components/input.rs=:
+- Add optional =value= prop for controlled mode
+- Add optional =oninput= handler for change tracking
+- Keep backward compatibility with existing uncontrolled usage
+
+** 4. Update Auth and Join pages
+
+Both =src/pages/auth.rs= and =src/pages/join.rs=:
+- Replace inline Input components with shared =AuthFormFields=
+- Keep separate submit handlers (login vs signup)
+- Keep separate titles, error displays, and success messages
+- Form data automatically preserved via global signals
+
+** 5. Clear form data on success
+
+Clear global signals after successful auth/join to avoid leaking data to next
+user session.
+
+* Security Considerations
+
+- Do NOT use sessionStorage for passwords (accessible to XSS, extensions)
+- Use in-memory global signals only (cleared on page refresh)
+- Clear signals after successful authentication
+- This approach acceptable for email (not sensitive) and password (in-memory only)
+
+* References
+
+- CLAUDE.md: Dioxus application structure guidelines
+- Existing usage of =use_context= for SessionState in codebase
+
+* Completion Notes
+
+Implementation completed with the following changes:
+
+1. Refactored =Input= component to use =InputProps= struct (avoiding too many
+   positional parameters per CLAUDE.md guidelines)
+2. Created =AuthFormFields= component with global signals for email/password
+3. Added =AuthFormState= context provider in Layout component
+4. Updated Auth and Join pages to use shared =AuthFormFields= component
+5. Added =clear()= method to reset form state after successful authentication
+
+The form state is now preserved when navigating between =/auth= and =/join=
+routes, and is properly cleared after successful authentication to prevent data
+leakage between sessions.

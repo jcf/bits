@@ -1,0 +1,92 @@
+#+title:    LLMs are my colleagues
+#+author:   James Conroy-Finn <james@invetica.co.uk>
+#+date:     2025-12-08
+#+property: header-args :dir ..
+
+While ignoring the widely-understood ethical issues with the creation and use of
+large-language models, the dynamics of managing a team of language models is a
+reality in 2025.
+
+They don't have individual names, but there are specialisms emerging.
+
+#+begin_src sh :results output verbatim
+ls .claude/agents
+#+end_src
+
+#+results:
+#+begin_example
+architecture-designer.md
+code-reviewer.md
+database-specialist.md
+devops-specialist.md
+documentation-writer.md
+fullstack-developer.md
+nix-specialist.md
+quality-assurance.md
+refactoring.md
+security-specialist.md
+#+end_example
+
+For now, I'm embracing this new reality and building with a team I lightly
+supervise, much as I would leading a multidisciplinary team made of meat.
+
+The workflow consists of planning a feature as part of an implementation team.
+Research options, consider risks and suitable mitigation, document the plan, and
+tee up in the "ready to dev" column.
+
+After that, a new day and in a new session, we start up our oracle model.
+
+#+begin_src sh :eval never
+just execute
+#+end_src
+
+#+begin_example
+➜ just execute
+Select prompt:                                                             ╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  5/5 ──────────────────────────────────────────────────────────────────── │ #+title:    PII Type System                                                                           1/220││
+  [ ]  2025/12/04 14:00:00  Infrastructure Foundation Deployment           │ #+date:     2025-12-08                                                                                     ││
+  [ ]  2025/12/04 14:04:00  Production Deployment                          │ #+status:   todo                                                                                           ││
+  [ ]  2025/12/04 18:26:09  Packer NixOS Image for Hetzner                 │ #+property: header-args :dir ../..                                                                         ││
+  [ ]  2025/12/05 17:46:20  Introduce Domain Newtypes                      │                                                                                                            ││
+▌ [ ]  2025/12/08 -p:ii:-t  PII Type System                                │ * Context                                                                                                   │
+                                                                           │                                                                                                             │
+                                                                           │ Currently we use a simple ~EmailAddress~ newtype wrapper to distinguish email addresses from plain strings  │
+                                                                           │ ↳ in the type system. This is minimal PII tracking.                                                         │
+                                                                           │                                                                                                             │
+                                                                           │ We need a comprehensive approach to handling Personally Identifiable Information (PII) that:                │
+                                                                           │ 1. Makes PII explicit in the type system                                                                    │
+                                                                           │ 2. Prevents accidental logging/exposure                                                                     │
+                                                                           │ 3. Supports security monitoring when needed                                                                 │
+                                                                           │ 4. Follows established best practices                                                                       │
+                                                                           │                                                                                                             │
+                                                                           │ * Research                                                                                                  │
+                                                                           │                                                                                                             │
+                                                                           │ ** Established Crates                                                                                       │
+                                                                           │                                                                                                             │
+                                                                           │ *** secrecy                                                                                                 │
+                                                                           │ - Most popular for secrets (passwords, API keys)                                                            │
+                                                                           │ - ~Secret<T>~ wrapper with ~Debug~ → ~[REDACTED]~                                                           │
+                                                                           │ - Access via ~.expose_secret()~                                                                             │
+                                                                           │ - Auto-zeroized on drop                                                                                     │
+                                                                           │ - Use case: Things that should NEVER appear in logs                                                         │
+                                                                           │                                                                                                             │
+                                                                           │ *** veil                                                                                                    │
+                                                                           │ - Derive macro for redactable structs                                                                       │
+                                                                           │ - Configurable redaction per field                                                                          │
+                                                                           │ - Use case: Partial redaction of complex types                                                              │
+                                                                           │                                                                                                             │
+                                                                           │ *** data-privacy                                                                                            │
+                                                                           │ - ~Sensitive<T>~ wrapper                                                                                    │
+                                                                           ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+#+end_example
+
+Notice a bug as above, fire up a new Claude session to draft a prompt for the
+team to review.
+
+Perhaps a new =just= task to start Claude in planning mode…
+
+#+begin_src sh :eval never
+just draft <title...>
+#+end_src
+
+Just as with meat teams, accumulated effort requires review and refactor.

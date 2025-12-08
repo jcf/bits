@@ -50,6 +50,11 @@ pub use auth::{
 #[cfg(feature = "server")]
 pub use auth::{Authenticated, Verified};
 
+// Re-exports - Domain types
+pub use bits_domain::{
+    Email, EmailAddressId, EmailError, Password, PasswordHash, TenantId, UserId,
+};
+
 // Re-exports - Config
 pub use config::Config;
 

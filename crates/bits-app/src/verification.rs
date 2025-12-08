@@ -84,7 +84,7 @@ impl EmailVerificationService {
     pub async fn create_code(
         &self,
         db: &PgPool,
-        email_address_id: i64,
+        email_address_id: bits_domain::EmailAddressId,
     ) -> Result<String, VerificationError> {
         let code = Self::generate_code();
         let code_hash = self.hash_code(&code);
@@ -112,7 +112,7 @@ impl EmailVerificationService {
                 last_sent_at = now(),
                 send_count = 1,
                 attempt_count = 0",
-            email_address_id,
+            email_address_id.get(),
             code_hash,
             expires_at_time
         )
@@ -126,7 +126,7 @@ impl EmailVerificationService {
     pub async fn verify_code(
         &self,
         db: &PgPool,
-        email_address_id: i64,
+        email_address_id: bits_domain::EmailAddressId,
         code: &str,
     ) -> Result<(), VerificationError> {
         // Get active code record
@@ -134,7 +134,7 @@ impl EmailVerificationService {
             "select code_hash, expires_at, attempt_count
              from email_verification_codes
              where email_address_id = $1 and verified_at is null",
-            email_address_id
+            email_address_id.get()
         )
         .fetch_optional(db)
         .await?
@@ -158,7 +158,7 @@ impl EmailVerificationService {
                 "update email_verification_codes
                  set attempt_count = attempt_count + 1
                  where email_address_id = $1",
-                email_address_id
+                email_address_id.get()
             )
             .execute(db)
             .await?;
@@ -173,7 +173,7 @@ impl EmailVerificationService {
             "update email_verification_codes
              set verified_at = now()
              where email_address_id = $1",
-            email_address_id
+            email_address_id.get()
         )
         .execute(&mut *tx)
         .await?;
@@ -182,7 +182,7 @@ impl EmailVerificationService {
             "insert into email_verifications (email_address_id)
              values ($1)
              on conflict do nothing",
-            email_address_id
+            email_address_id.get()
         )
         .execute(&mut *tx)
         .await?;
@@ -196,7 +196,7 @@ impl EmailVerificationService {
     pub async fn check_resend_limits(
         &self,
         db: &PgPool,
-        email_address_id: i64,
+        email_address_id: bits_domain::EmailAddressId,
         ip: Option<IpAddr>,
     ) -> Result<(), RateLimitError> {
         // Check cooldown based on last_sent_at
@@ -205,7 +205,7 @@ impl EmailVerificationService {
              from email_verification_codes
              where email_address_id = $1
                and verified_at is null",
-            email_address_id
+            email_address_id.get()
         )
         .fetch_optional(db)
         .await?;
@@ -232,7 +232,7 @@ impl EmailVerificationService {
              from email_verification_resend_log
              where email_address_id = $1
                and created_at > $2",
-            email_address_id,
+            email_address_id.get(),
             one_hour_ago_time
         )
         .fetch_one(db)
@@ -269,7 +269,7 @@ impl EmailVerificationService {
     pub async fn log_resend(
         &self,
         db: &PgPool,
-        email_address_id: i64,
+        email_address_id: bits_domain::EmailAddressId,
         ip: Option<IpAddr>,
     ) -> Result<(), VerificationError> {
         let mut tx = db.begin().await?;
@@ -280,7 +280,7 @@ impl EmailVerificationService {
             "insert into email_verification_resend_log
              (email_address_id, ip_address)
              values ($1, $2)",
-            email_address_id,
+            email_address_id.get(),
             ip_network as _
         )
         .execute(&mut *tx)
@@ -293,7 +293,7 @@ impl EmailVerificationService {
                  send_count = send_count + 1
              where email_address_id = $1
                and verified_at is null",
-            email_address_id
+            email_address_id.get()
         )
         .execute(&mut *tx)
         .await?;
@@ -307,14 +307,14 @@ impl EmailVerificationService {
     pub async fn next_resend_at(
         &self,
         db: &PgPool,
-        email_address_id: i64,
+        email_address_id: bits_domain::EmailAddressId,
     ) -> Result<Option<Timestamp>, VerificationError> {
         let last_sent = sqlx::query_scalar!(
             "select last_sent_at
              from email_verification_codes
              where email_address_id = $1
                and verified_at is null",
-            email_address_id
+            email_address_id.get()
         )
         .fetch_optional(db)
         .await?;

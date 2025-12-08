@@ -11,7 +11,9 @@ path = "src/lib.rs"
 name = "bits-colo"
 
 [features]
-server = ["bits-app/server", "bits-app/colo"]
+default = []
+server = ["bits-app/server", "colo"]
+colo = ["bits-app/colo"]
 
 [dependencies]
 bits-domain.workspace = true

@@ -1,6 +1,6 @@
 #+title:    Complete Email Verification Enforcement
 #+date:     2025-12-05
-#+status:   doing
+#+status:   done
 #+property: header-args :dir ../..
 
 * Context
@@ -120,13 +120,13 @@ See ~auth: AuthSession~ usage in existing endpoints like:
 
 * Acceptance Criteria
 
-- [ ] Identify all endpoints that require verification
-- [ ] Replace ~auth: AuthSession~ with ~verified: RequireVerified~ on protected endpoints
-- [ ] Keep ~auth: AuthSession~ on auth/verification endpoints
-- [ ] Add integration test for unverified user accessing protected endpoint
-- [ ] Add integration test for verified user accessing protected endpoint
-- [ ] Document which endpoints require verification and why
-- [ ] Client-side handles 403 EmailNotVerified by redirecting to ~/verify-email~
+- [X] Identify all endpoints that require verification
+- [X] Replace ~auth: AuthSession~ with ~verified: Verified~ on protected endpoints
+- [X] Keep ~auth: AuthSession~ on auth/verification endpoints
+- [X] Add integration test for unverified user accessing protected endpoint
+- [X] Add integration test for verified user accessing protected endpoint
+- [X] Document which endpoints require verification and why
+- [X] Client-side handles 403 EmailNotVerified by redirecting to ~/verify-email~
 
 * Notes
 
