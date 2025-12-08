@@ -108,4 +108,51 @@ mod tests {
         assert!(!verify_token(token, ""));
         assert!(!verify_token("", token));
     }
+
+    #[test]
+    fn verify_token_rejects_wrong_token() {
+        let token1 = "correct_token";
+        let token2 = "wrong_token";
+
+        assert!(!verify_token(token1, token2));
+    }
+
+    #[test]
+    fn verify_token_rejects_empty() {
+        let token = "valid_token";
+
+        assert!(!verify_token(token, ""));
+        assert!(!verify_token("", token));
+        assert!(verify_token("", "")); // Both empty is equal
+    }
+
+    #[test]
+    fn verify_token_timing_safe() {
+        // This test can't prove timing safety, but ensures it runs
+        let token = "a".repeat(44);
+        let wrong = "b".repeat(44);
+
+        assert!(!verify_token(&token, &wrong));
+    }
+
+    #[test]
+    fn is_valid_format_accepts_valid_tokens() {
+        let token = generate_token();
+        assert!(is_valid_format(&token));
+    }
+
+    #[test]
+    fn is_valid_format_rejects_short_tokens() {
+        assert!(!is_valid_format("too_short"));
+    }
+
+    #[test]
+    fn is_valid_format_rejects_long_tokens() {
+        assert!(!is_valid_format(&"a".repeat(100)));
+    }
+
+    #[test]
+    fn is_valid_format_rejects_invalid_base64() {
+        assert!(!is_valid_format(&"!".repeat(44)));
+    }
 }

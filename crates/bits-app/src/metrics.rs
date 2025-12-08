@@ -3,6 +3,69 @@ use std::sync::OnceLock;
 
 static METRICS_HANDLE: OnceLock<PrometheusHandle> = OnceLock::new();
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthOutcome {
+    Success,
+    Failure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+#[strum(serialize_all = "lowercase")]
+pub enum AuthEvent {
+    Login,
+    Logout,
+    Register,
+}
+
+/// Trait for events that can record themselves as metrics
+pub trait RecordableEvent {
+    fn record_outcome(&self, outcome: AuthOutcome);
+}
+
+/// Event type for login attempts
+pub struct LoginAttempt;
+
+impl RecordableEvent for LoginAttempt {
+    fn record_outcome(&self, outcome: AuthOutcome) {
+        record_auth_event(AuthEvent::Login, outcome);
+    }
+}
+
+/// Event type for logout attempts
+pub struct LogoutAttempt;
+
+impl RecordableEvent for LogoutAttempt {
+    fn record_outcome(&self, outcome: AuthOutcome) {
+        record_auth_event(AuthEvent::Logout, outcome);
+    }
+}
+
+/// Event type for registration attempts
+pub struct RegisterAttempt;
+
+impl RecordableEvent for RegisterAttempt {
+    fn record_outcome(&self, outcome: AuthOutcome) {
+        record_auth_event(AuthEvent::Register, outcome);
+    }
+}
+
+/// Extension trait for Result that enables automatic metrics tracking
+pub trait RecordMetrics<T, E> {
+    fn record(self, event: impl RecordableEvent) -> Self;
+}
+
+impl<T, E> RecordMetrics<T, E> for Result<T, E> {
+    fn record(self, event: impl RecordableEvent) -> Self {
+        let outcome = if self.is_ok() {
+            AuthOutcome::Success
+        } else {
+            AuthOutcome::Failure
+        };
+        event.record_outcome(outcome);
+        self
+    }
+}
+
 /// Initialize the Prometheus metrics recorder and return a handle for rendering metrics
 pub fn init() -> PrometheusHandle {
     METRICS_HANDLE
@@ -24,9 +87,12 @@ pub fn record_http_request(method: &str, path: &str, status: u16, duration_ms: f
 }
 
 /// Record authentication events
-pub fn record_auth_event(event: &str, success: bool) {
+pub fn record_auth_event(event: AuthEvent, outcome: AuthOutcome) {
     let event = event.to_string();
-    let success_str = success.to_string();
+    let success_str = match outcome {
+        AuthOutcome::Success => "true",
+        AuthOutcome::Failure => "false",
+    };
     metrics::counter!("auth_events_total", "event" => event, "success" => success_str).increment(1);
 }
 

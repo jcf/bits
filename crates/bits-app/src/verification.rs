@@ -320,10 +320,28 @@ impl EmailVerificationService {
         .await?;
 
         Ok(last_sent.and_then(|ts| {
-            let timestamp = Timestamp::from_second(ts.unix_timestamp()).ok()?;
-            timestamp
-                .checked_add(Span::new().seconds(self.config.resend_cooldown_secs))
-                .ok()
+            let timestamp = match Timestamp::from_second(ts.unix_timestamp()) {
+                Ok(t) => t,
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        timestamp = ts.unix_timestamp(),
+                        "Failed to convert timestamp"
+                    );
+                    return None;
+                }
+            };
+            match timestamp.checked_add(Span::new().seconds(self.config.resend_cooldown_secs)) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        cooldown = self.config.resend_cooldown_secs,
+                        "Failed to add cooldown span"
+                    );
+                    None
+                }
+            }
         }))
     }
 }
@@ -356,4 +374,85 @@ pub enum RateLimitError {
 
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_service() -> EmailVerificationService {
+        let secret = b"test-secret-key-32-bytes-long!!!";
+        EmailVerificationService::new(EmailVerificationConfig::default(), secret.to_vec())
+    }
+
+    #[test]
+    fn hash_code_produces_deterministic_output() {
+        let service = test_service();
+        let code = "123456";
+
+        let hash1 = service.hash_code(code);
+        let hash2 = service.hash_code(code);
+
+        assert_eq!(hash1, hash2, "Same code should produce same hash");
+    }
+
+    #[test]
+    fn hash_code_different_for_different_codes() {
+        let service = test_service();
+
+        let hash1 = service.hash_code("123456");
+        let hash2 = service.hash_code("654321");
+
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn verify_code_hash_succeeds_with_correct_code() {
+        let service = test_service();
+        let code = "123456";
+
+        let hash = service.hash_code(code);
+        assert!(service.verify_code_hash(code, &hash));
+    }
+
+    #[test]
+    fn verify_code_hash_fails_with_wrong_code() {
+        let service = test_service();
+        let code = "123456";
+
+        let hash = service.hash_code(code);
+        assert!(!service.verify_code_hash("654321", &hash));
+    }
+
+    #[test]
+    fn verify_code_hash_is_constant_time() {
+        // Can't prove timing safety in tests, but ensures it runs
+        let service = test_service();
+        let code = "123456";
+        let hash = service.hash_code(code);
+
+        // These should take similar time (not detectable in tests)
+        assert!(!service.verify_code_hash("000000", &hash));
+        assert!(!service.verify_code_hash("123450", &hash));
+    }
+
+    #[test]
+    fn different_secrets_produce_different_hashes() {
+        let secret1 = b"secret-one-32-bytes-long!!!!!!!!";
+        let secret2 = b"secret-two-32-bytes-long!!!!!!!!";
+
+        let service1 =
+            EmailVerificationService::new(EmailVerificationConfig::default(), secret1.to_vec());
+        let service2 =
+            EmailVerificationService::new(EmailVerificationConfig::default(), secret2.to_vec());
+
+        let code = "123456";
+        let hash1 = service1.hash_code(code);
+        let hash2 = service2.hash_code(code);
+
+        assert_ne!(
+            hash1, hash2,
+            "Different secrets should produce different hashes"
+        );
+    }
 }

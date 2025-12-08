@@ -40,8 +40,8 @@ async fn unverified_user_cannot_change_password() {
 
     // Login as unverified user
     let mut client = BitsClient::new(ctx.server.url(""));
-    client.fetch_csrf_token().await;
-    client.login(email, password).await;
+    client.fetch_csrf_token().await.unwrap();
+    client.login(email, password).await.unwrap();
 
     // Attempt to change password
     let response = client
@@ -50,7 +50,8 @@ async fn unverified_user_cannot_change_password() {
             "new_password": new_password,
             "confirm_password": new_password
         }))
-        .await;
+        .await
+        .unwrap();
 
     // Should be forbidden
     assert_eq!(
@@ -101,8 +102,8 @@ async fn verified_user_can_change_password() {
 
     // Login
     let mut client = BitsClient::new(ctx.server.url(""));
-    client.fetch_csrf_token().await;
-    client.login(email, old_password).await;
+    client.fetch_csrf_token().await.unwrap();
+    client.login(email, old_password).await.unwrap();
 
     // Change password should succeed
     let response = client
@@ -111,7 +112,8 @@ async fn verified_user_can_change_password() {
             "new_password": new_password,
             "confirm_password": new_password
         }))
-        .await;
+        .await
+        .unwrap();
 
     assert!(
         response.status().is_success(),
@@ -145,8 +147,8 @@ async fn full_flow_signup_blocked_verify_success() {
 
     // Login as unverified user
     let mut client = BitsClient::new(ctx.server.url(""));
-    client.fetch_csrf_token().await;
-    client.login(email, password).await;
+    client.fetch_csrf_token().await.unwrap();
+    client.login(email, password).await.unwrap();
 
     // Attempt password change - should fail
     let response = client
@@ -155,7 +157,8 @@ async fn full_flow_signup_blocked_verify_success() {
             "new_password": new_password,
             "confirm_password": new_password
         }))
-        .await;
+        .await
+        .unwrap();
 
     assert_eq!(
         response.status(),
@@ -185,8 +188,8 @@ async fn full_flow_signup_blocked_verify_success() {
 
     // Re-login to get updated session with verified status
     let mut client2 = BitsClient::new(ctx.server.url(""));
-    client2.fetch_csrf_token().await;
-    client2.login(email, password).await;
+    client2.fetch_csrf_token().await.unwrap();
+    client2.login(email, password).await.unwrap();
 
     // Retry password change - should now succeed
     let response = client2
@@ -195,7 +198,8 @@ async fn full_flow_signup_blocked_verify_success() {
             "new_password": new_password,
             "confirm_password": new_password
         }))
-        .await;
+        .await
+        .unwrap();
 
     assert!(
         response.status().is_success(),

@@ -102,6 +102,9 @@ impl axum_core::extract::FromRef<FullstackContext> for AppState {
 pub fn init_client() {
     use ::http::{HeaderMap, HeaderName, HeaderValue};
 
+    // Initialize Dioxus logger for web platform
+    dioxus::logger::init(tracing::Level::DEBUG).expect("failed to init logger");
+
     let version = option_env!("BITS_VERSION").unwrap_or("dev");
     let header_value = format!("bits/{}", version);
 
@@ -112,21 +115,37 @@ pub fn init_client() {
     );
 
     // Read CSRF token from meta tag
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            if let Some(meta) = document
-                .query_selector("meta[name='csrf-token']")
-                .ok()
-                .flatten()
-            {
-                if let Some(token) = meta.get_attribute("content") {
-                    if !token.is_empty() {
-                        if let Ok(value) = HeaderValue::from_str(&token) {
-                            headers.insert(HeaderName::from_static("csrf-token"), value);
-                        }
+    let window = match web_sys::window() {
+        Some(w) => w,
+        None => {
+            tracing::warn!("web_sys::window() returned None");
+            dioxus_fullstack::set_request_headers(headers);
+            return;
+        }
+    };
+
+    let document = match window.document() {
+        Some(d) => d,
+        None => {
+            tracing::warn!("window.document() returned None");
+            dioxus_fullstack::set_request_headers(headers);
+            return;
+        }
+    };
+
+    match document.query_selector("meta[name='csrf-token']") {
+        Ok(Some(meta)) => {
+            if let Some(token) = meta.get_attribute("content") {
+                if !token.is_empty() {
+                    if let Ok(value) = HeaderValue::from_str(&token) {
+                        headers.insert(HeaderName::from_static("csrf-token"), value);
                     }
                 }
             }
+        }
+        Ok(None) => {} // No CSRF meta tag found - this is fine
+        Err(e) => {
+            tracing::warn!(error = ?e, "Failed to query CSRF token meta tag");
         }
     }
 

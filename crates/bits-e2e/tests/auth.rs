@@ -16,18 +16,18 @@ async fn user_stays_signed_in_across_requests() {
         .expect("Failed to create user");
 
     let mut client = BitsClient::new(ctx.server.url(""));
-    client.fetch_csrf_token().await;
+    client.fetch_csrf_token().await.unwrap();
 
-    client.login(email, password).await;
+    client.login(email, password).await.unwrap();
 
-    let session1 = client.get_session().await;
+    let session1 = client.get_session().await.unwrap();
     assert_eq!(
         session1.as_ref().map(|u| u.id),
         Some(user.id),
         "User should be signed in after login"
     );
 
-    let session2 = client.get_session().await;
+    let session2 = client.get_session().await.unwrap();
     assert_eq!(
         session2.as_ref().map(|u| u.id),
         Some(user.id),
@@ -52,21 +52,21 @@ async fn password_change_invalidates_all_other_sessions() {
         .expect("Failed to create user");
 
     let mut client1 = BitsClient::new(ctx.server.url(""));
-    client1.fetch_csrf_token().await;
-    client1.login(email, old_password).await;
+    client1.fetch_csrf_token().await.unwrap();
+    client1.login(email, old_password).await.unwrap();
 
     let mut client2 = BitsClient::new(ctx.server.url(""));
-    client2.fetch_csrf_token().await;
-    client2.login(email, old_password).await;
+    client2.fetch_csrf_token().await.unwrap();
+    client2.login(email, old_password).await.unwrap();
 
-    let session1 = client1.get_session().await;
+    let session1 = client1.get_session().await.unwrap();
     assert_eq!(
         session1.as_ref().map(|u| u.id),
         Some(user.id),
         "Client 1 should be signed in before password change"
     );
 
-    let session2 = client2.get_session().await;
+    let session2 = client2.get_session().await.unwrap();
     assert_eq!(
         session2.as_ref().map(|u| u.id),
         Some(user.id),
@@ -79,21 +79,22 @@ async fn password_change_invalidates_all_other_sessions() {
             "new_password": new_password,
             "confirm_password": new_password
         }))
-        .await;
+        .await
+        .unwrap();
 
     assert!(
         response.status().is_success(),
         "Password change should succeed"
     );
 
-    let session1_after = client1.get_session().await;
+    let session1_after = client1.get_session().await.unwrap();
     assert_eq!(
         session1_after.as_ref().map(|u| u.id),
         Some(user.id),
         "Client 1 should remain logged in after changing their own password"
     );
 
-    let session2_after = client2.get_session().await;
+    let session2_after = client2.get_session().await.unwrap();
     assert_eq!(
         session2_after, None,
         "Client 2 session should be invalidated when user changes password on client 1"

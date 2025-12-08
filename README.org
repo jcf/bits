@@ -98,7 +98,7 @@ fi
 #+end_src
 
 #+results:
-: ❌ https://foo.bits.page.test (200)
+: ✅ https://foo.bits.page.test
 
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
@@ -142,6 +142,7 @@ Available recipes:
 
     [docs]
     decide +title                   # Create a new decision record
+    execute *args                   # Execute a prompt in a new Claude Code session
     prompt +title                   # Create a new prompt
 
     [infra]
@@ -159,6 +160,12 @@ Available recipes:
     fix                             # Fix errors within Bits
     fmt                             # Format project files
     lint                            # Run lints
+
+    [secrets]
+    secret-decrypt file             # Decrypt a secret
+    secret-edit file                # Edit a secret file
+    secret-encrypt path             # Encrypt stdin to a file
+    secret-rekey                    # Rekey all secrets with recipients in secrets/secrets.nix
 
     [serve]
     colo                            # Run Dioxus in co-located mode
@@ -202,27 +209,27 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  HTML                      2           22           22            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      2          429          246          101           82
+ Just                      2          589          355          120          114
  MDX                       1           56            0           39           17
- Nix                       8          779          463          222           94
- Org                      14         2507         2203            6          298
- SQL                       9          313          258           23           32
- TOML                     15          383          330            2           51
+ Nix                       9         1161          754          230          177
+ Org                      14         2502         2216            4          282
+ SQL                       9          321          261           26           34
+ TOML                     15          396          343            2           51
  TypeScript                3           36           30            1            5
  YAML                      3         5046         3963            0         1083
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1          144            0           97           47
- |- Rust                   1          173          124           27           22
- (Total)                              317          124          124           69
+ Markdown                  1          176            0          116           60
+ |- Rust                   1          200          141           34           25
+ (Total)                              376          141          150           85
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     78        13370        11140          773         1457
- |- Markdown              23          217            0          202           15
- (Total)                            13587        11140          975         1472
+ Rust                     87        14628        12149          837         1642
+ |- Markdown              32          325            4          285           36
+ (Total)                            14953        12153         1122         1678
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   202        25697        20564         1642         3491
+ Total                   212        27680        22023         1843         3814
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-50e01c1-dirty @ 2025/12/05 15:36
+5215799-dirty @ 2025/12/08 13:07
 #+end_example
 
 * Tasks
@@ -293,7 +300,6 @@ SQL
 We maintain version-controlled prompt docs that describe sessions with language
 models where we plan, generate, and review functionality.
 
-
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
 fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
   title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
@@ -303,31 +309,28 @@ fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
 done
 #+end_src
 
-#+begin_src sh :results output verbatim
-rg '^#\+status:' .claude/prompts/ </dev/null
-#+end_src
-
 #+results:
-#+begin_example
-.claude/prompts/20251204140400-production-deployment.org:#+status:   todo
-.claude/prompts/20251206140000-refactor-bits-client.org:#+status:   todo
-.claude/prompts/20251204140000-infrastructure-foundation.org:#+status:   todo
-.claude/prompts/20251204140100-type-system-refactoring.org:#+status:   doing
-.claude/prompts/20251205120511-handle-validation-improvements.org:#+status:   done
-.claude/prompts/20251205174624-add-critical-unit-tests.org:#+status:   todo
-.claude/prompts/20251205174626-improve-error-handling.org:#+status:   todo
-.claude/prompts/20251206153200-add-garde-validation-library.org:#+status:   done
-.claude/prompts/20251205174618-eliminate-boolean-parameters.org:#+status:   todo
-.claude/prompts/20251204140300-landing-page-ui.org:#+status:   todo
-.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org:#+status:   done
-.claude/prompts/20251205133111-nixos-deployment-cleanup.org:#+status:   done
-.claude/prompts/20251205174622-remove-debug-statements.org:#+status:   todo
-.claude/prompts/20251204140200-features-and-organization.org:#+status:   todo
-.claude/prompts/20251205161500-complete-email-verification-enforcement.org:#+status:   doing
-.claude/prompts/20251205174620-introduce-domain-newtypes.org:#+status:   todo
-.claude/prompts/20251204182609-packer-nixos-image-for-hetzner.org:#+status:   todo
-.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org:#+status:   todo
-#+end_example
+| Status  | Date         | Title                                   |
+|---------+--------------+-----------------------------------------|
+| =TODO=  | =2025-12-04= | [[file:.claude/prompts/20251204140000-infrastructure-foundation.org][Infrastructure Foundation]]               |
+| =DONE=  | =2025-12-04= | [[file:.claude/prompts/20251204140100-type-system-refactoring.org][Type System Refactoring]]                 |
+| =DONE=  | =2025-12-04= | [[file:.claude/prompts/20251204140200-features-and-organization.org][Features and Organization]]               |
+| =DONE=  | =2025-12-04= | [[file:.claude/prompts/20251204140300-landing-page-ui.org][Landing Page UI]]                         |
+| =TODO=  | =2025-12-04= | [[file:.claude/prompts/20251204140400-production-deployment.org][Production Deployment]]                   |
+| =TODO=  | =2025-12-04= | [[file:.claude/prompts/20251204182609-packer-nixos-image-for-hetzner.org][Packer NixOS Image for Hetzner]]          |
+| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205120511-handle-validation-improvements.org][Handle Validation Improvements]]          |
+| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205133111-nixos-deployment-cleanup.org][NixOS deployment cleanup]]                |
+| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org][Rate Limit Application Endpoints]]        |
+| =DOING= | =2025-12-05= | [[file:.claude/prompts/20251205161500-complete-email-verification-enforcement.org][Complete Email Verification Enforcement]] |
+| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org][Replace Argon2 for Verification Codes]]   |
+| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174618-eliminate-boolean-parameters.org][Eliminate Boolean Parameters]]            |
+| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174620-introduce-domain-newtypes.org][Introduce Domain Newtypes]]               |
+| =DONE=  | =2025-12-05= | [[file:.claude/prompts/20251205174622-remove-debug-statements.org][Remove Debug Statements]]                 |
+| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174624-add-critical-unit-tests.org][Add Critical Unit Tests]]                 |
+| =TODO=  | =2025-12-05= | [[file:.claude/prompts/20251205174626-improve-error-handling.org][Improve Error Handling]]                  |
+| =DONE=  | =2025-12-06= | [[file:.claude/prompts/20251206140000-refactor-bits-client.org][Refactor BitsClient]]                     |
+| =DONE=  | =2025-12-06= | [[file:.claude/prompts/20251206153200-add-garde-validation-library.org][Add Garde validation library]]            |
+| =DONE=  | =2025-12-08= | [[file:.claude/prompts/20251208121140-interactive-prompt-execution-with-fzf.org][Interactive prompt execution with fzf]]   |
 
 * TODOs
 #+begin_src sh :results output verbatim :exports results

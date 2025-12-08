@@ -45,7 +45,6 @@ Identify which endpoints require verification and use ~RequireVerified~ extracto
 
 **** Definitely Protected
 - ~/api/passwords~ (POST) - Change password
-- ~/api/handles/:handle~ (GET) - Check subdomain availability
 - Any future tenant/creator endpoints
 
 **** Explicitly Allow Without Verification
@@ -57,6 +56,9 @@ Identify which endpoints require verification and use ~RequireVerified~ extracto
 - ~/api/realm~ (GET) - Get current realm
 - ~/healthz~ (GET) - Health check
 - ~/metrics~ (GET) - Metrics
+
+**** Public/Demo Endpoints (Intentionally Unprotected)
+- ~/api/handles/:handle~ (GET) - Check subdomain availability (allows users to explore before signup)
 
 *** Pattern to Follow
 

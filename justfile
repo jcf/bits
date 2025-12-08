@@ -106,10 +106,22 @@ prompt +title:
 
 # Execute a prompt in a new Claude Code session
 [group('docs')]
-execute name="":
+execute *args:
     #!/usr/bin/env zsh
     setopt NULL_GLOB
     set -e
+
+    # Check for --all flag and extract query
+    show_all=false
+    query_args="{{ args }}"
+
+    if [[ "$query_args" == *"--all"* ]]; then
+        show_all=true
+        query_args="${query_args//--all/}"
+        # Clean up extra whitespace
+        query_args="${query_args## }"
+        query_args="${query_args%% }"
+    fi
 
     get_status_indicator() {
         local prompt_status="$1"
@@ -130,8 +142,8 @@ execute name="":
         prompt_status=$(grep '^#+status:' "$file" | sed 's/#+status: *//' | xargs)
         [[ -z "$prompt_status" ]] && prompt_status="todo"
 
-        # Skip completed prompts
-        [[ "$prompt_status" == "done" ]] && continue
+        # Skip completed prompts unless --all is passed
+        [[ "$prompt_status" == "done" && "$show_all" == "false" ]] && continue
 
         # Extract date from filename (YYYYMMDDHHMMSS format)
         timestamp="${basename:0:14}"
@@ -152,15 +164,23 @@ execute name="":
         exit 1
     fi
 
-    selected=$(printf "%b" "$prompt_list" | fzf \
-        --query="{{ name }}" \
-        --height=40% \
-        --reverse \
-        --with-nth=1,2,3 \
-        --delimiter='  ' \
-        --prompt="Select prompt: " \
-        --preview='cat .claude/prompts/{-1}.org' \
-        --preview-window=right:60%:wrap)
+    # Build fzf arguments array
+    fzf_args=(
+        --height=40%
+        --reverse
+        --with-nth=1,2,3
+        --delimiter='  '
+        --prompt="Select prompt: "
+        --preview='cat .claude/prompts/{-1}.org'
+        --preview-window=right:60%:wrap
+    )
+
+    # Add query if provided
+    if [[ -n "$query_args" ]]; then
+        fzf_args+=(--query="$query_args")
+    fi
+
+    selected=$(printf "%b" "$prompt_list" | fzf "${fzf_args[@]}")
 
     prompt_slug=$(echo "$selected" | awk -F'  ' '{print $NF}')
     prompt_file=".claude/prompts/${prompt_slug}.org"

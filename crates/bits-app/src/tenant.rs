@@ -341,7 +341,7 @@ pub enum Realm {
 }
 
 #[cfg(feature = "server")]
-async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Option<Tenant> {
+async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Result<Option<Tenant>, sqlx::Error> {
     sqlx::query_as!(
         Tenant,
         "select
@@ -355,8 +355,6 @@ async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Option<Tenant> {
     )
     .fetch_optional(pool)
     .await
-    .ok()
-    .flatten()
 }
 
 #[cfg(feature = "server")]
@@ -367,40 +365,64 @@ pub async fn resolve_realm(
 ) -> Realm {
     let normalized_host = crate::http::normalize_host(scheme, host);
 
+    // Check colo-specific routing (platform domain and subdomains)
     #[cfg(feature = "colo")]
-    {
-        let platform_domain = &state.config.platform_domain;
-        if normalized_host == *platform_domain {
-            return Realm::Platform {
-                domain: platform_domain.clone(),
-            };
-        }
+    if let Some(realm) = resolve_colo_realm(state, &normalized_host).await {
+        return realm;
+    }
 
-        if normalized_host.ends_with(&format!(".{}", platform_domain)) {
-            let subdomain = normalized_host
-                .strip_suffix(&format!(".{}", platform_domain))
-                .unwrap();
-
-            let handle = Handle::from_trusted(subdomain.to_string());
-
-            // Check if demo (no DB hit!)
-            if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
-                return Realm::Demo(handle);
-            }
-
-            // Check database for real tenants
-            if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
-                return Realm::Creator(tenant);
-            }
-            return Realm::NotFound;
+    // Check for custom domain tenant (both colo and solo)
+    match load_tenant_by_domain(&state.db, &normalized_host).await {
+        Ok(Some(tenant)) => return Realm::Creator(tenant),
+        Ok(None) => {}
+        Err(e) => {
+            tracing::error!(
+                domain = %normalized_host,
+                error = %e,
+                "Failed to load tenant from database"
+            );
         }
     }
 
-    if let Some(tenant) = load_tenant_by_domain(&state.db, &normalized_host).await {
-        return Realm::Creator(tenant);
-    }
-
+    // Default realm when no tenant found
     Realm::NotFound
+}
+
+/// Resolve realm for colo mode (platform domain and subdomains)
+#[cfg(all(feature = "server", feature = "colo"))]
+async fn resolve_colo_realm(state: &crate::AppState, normalized_host: &str) -> Option<Realm> {
+    let platform_domain = &state.config.platform_domain;
+
+    // Exact match: apex domain
+    if normalized_host == *platform_domain {
+        return Some(Realm::Platform {
+            domain: platform_domain.clone(),
+        });
+    }
+
+    // Must be a subdomain of platform domain, otherwise None
+    let subdomain = normalized_host.strip_suffix(&format!(".{}", platform_domain))?;
+    let handle = Handle::from_trusted(subdomain.to_string());
+
+    // Check if demo (no DB hit!)
+    if crate::demos::SUBDOMAINS.contains(&handle.as_str()) {
+        return Some(Realm::Demo(handle));
+    }
+
+    // Check database for real tenants
+    match load_tenant_by_domain(&state.db, normalized_host).await {
+        Ok(Some(tenant)) => return Some(Realm::Creator(tenant)),
+        Ok(None) => {}
+        Err(e) => {
+            tracing::error!(
+                domain = %normalized_host,
+                error = %e,
+                "Failed to load tenant from database"
+            );
+        }
+    }
+
+    Some(Realm::NotFound)
 }
 
 #[cfg(feature = "server")]
@@ -571,5 +593,52 @@ mod tests {
         assert!(is_reserved("ADMIN"));
         assert!(is_reserved("Admin"));
         assert!(!is_reserved("alice"));
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    // Strategy to generate valid handle strings (no consecutive hyphens, no trailing hyphen)
+    fn valid_handle_string() -> impl Strategy<Value = String> {
+        prop::collection::vec(
+            prop_oneof![
+                3 => "[a-z0-9]".prop_map(|s: String| s),
+                1 => Just("-".to_string()),
+            ],
+            3..=32,
+        )
+        .prop_map(|parts| parts.join(""))
+        .prop_filter("must start with letter", |s| {
+            s.chars()
+                .next()
+                .map(|c| c.is_ascii_lowercase())
+                .unwrap_or(false)
+        })
+        .prop_filter("must end with letter or digit", |s| !s.ends_with('-'))
+        .prop_filter("no consecutive hyphens", |s| !s.contains("--"))
+    }
+
+    proptest! {
+        #[test]
+        fn handle_roundtrips_through_display(s in valid_handle_string()) {
+            if let Ok(handle) = Handle::new(&s) {
+                assert_eq!(handle.to_string(), s.to_lowercase());
+            }
+        }
+
+        #[test]
+        fn handle_rejects_invalid_lengths(s in "[a-z][a-z0-9]{0,1}") {
+            assert!(Handle::new(s).is_err());
+        }
+
+        #[test]
+        fn handle_normalizes_case(s in "[A-Z][a-zA-Z0-9]{2,30}") {
+            if let Ok(handle) = Handle::new(&s) {
+                assert_eq!(handle.as_str(), s.to_lowercase());
+            }
+        }
     }
 }

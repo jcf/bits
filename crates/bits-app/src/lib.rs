@@ -48,7 +48,7 @@ pub use auth::{
 };
 
 #[cfg(feature = "server")]
-pub use auth::RequireVerified;
+pub use auth::{Authenticated, Verified};
 
 // Re-exports - Config
 pub use config::Config;

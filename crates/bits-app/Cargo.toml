@@ -20,6 +20,7 @@ icu = "2.0"
 phf = { version = "0.11", features = ["macros"] }
 serde.workspace = true
 thiserror = "2"
+tracing.workspace = true
 unic-langid = "0.9"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -60,6 +61,7 @@ rand.workspace = true
 real = { version = "0.1", features = ["axum"] }
 sha2 = "0.10"
 sqlx.workspace = true
+strum = { version = "0.26", features = ["derive"] }
 subtle.workspace = true
 time = "0.3"
 tokio.workspace = true
@@ -70,4 +72,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 urlencoding.workspace = true
 
 [dev-dependencies]
+proptest = "1"
 rstest = "0.26"
