@@ -85,6 +85,7 @@ in {
 
     # Development
     fd
+    fzf
     gnuplot
     just
     tokei

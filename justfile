@@ -99,39 +99,75 @@ prompt +title:
     cat > "$filename" <<EOF
     #+title:    {{ title }}
     #+date:     $(date +%Y-%m-%d)
+    #+status:   todo
     #+property: header-args :dir ../..
     EOF
     echo "💭 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
 
 # Execute a prompt in a new Claude Code session
 [group('docs')]
-execute name:
+execute name="":
     #!/usr/bin/env zsh
     setopt NULL_GLOB
     set -e
 
-    # Find the prompt file (NULL_GLOB prevents error on no match)
-    matches=(.claude/prompts/*{{ name }}*.org(N))
+    get_status_indicator() {
+        local prompt_status="$1"
+        case "$prompt_status" in
+            done) echo "[✓]" ;;
+            doing) echo "[~]" ;;
+            todo) echo "[ ]" ;;
+            *) echo "[ ]" ;;
+        esac
+    }
 
-    if (( ${#matches[@]} == 0 )); then
-        echo >&2 "No prompt found matching '{{ name }}'"
-        echo >&2
-        echo >&2 "Available prompts:"
-        echo >&2
-        ls -1 .claude/prompts/*.org | xargs -n1 basename
-        echo >&2
+    prompt_list=""
+    for file in .claude/prompts/*.org(N); do
+        [[ ! -f "$file" ]] && continue
+
+        basename=$(basename "$file" .org)
+        title=$(grep '^#+title:' "$file" | sed 's/#+title: *//' | xargs)
+        prompt_status=$(grep '^#+status:' "$file" | sed 's/#+status: *//' | xargs)
+        [[ -z "$prompt_status" ]] && prompt_status="todo"
+
+        # Skip completed prompts
+        [[ "$prompt_status" == "done" ]] && continue
+
+        # Extract date from filename (YYYYMMDDHHMMSS format)
+        timestamp="${basename:0:14}"
+        year="${timestamp:0:4}"
+        month="${timestamp:4:2}"
+        day="${timestamp:6:2}"
+        hour="${timestamp:8:2}"
+        min="${timestamp:10:2}"
+        sec="${timestamp:12:2}"
+        date_formatted="${year}/${month}/${day} ${hour}:${min}:${sec}"
+
+        indicator=$(get_status_indicator "$prompt_status")
+        prompt_list+="${indicator}  ${date_formatted}  ${title}  ${basename}\n"
+    done
+
+    if [[ -z "$prompt_list" ]]; then
+        echo >&2 "No prompts found in .claude/prompts/"
         exit 1
     fi
 
-    # Use the most recent match if multiple
-    prompt_file="${matches[-1]}"
+    selected=$(printf "%b" "$prompt_list" | fzf \
+        --query="{{ name }}" \
+        --height=40% \
+        --reverse \
+        --with-nth=1,2,3 \
+        --delimiter='  ' \
+        --prompt="Select prompt: " \
+        --preview='cat .claude/prompts/{-1}.org' \
+        --preview-window=right:60%:wrap)
 
-    # Extract title from the org file
+    prompt_slug=$(echo "$selected" | awk -F'  ' '{print $NF}')
+    prompt_file=".claude/prompts/${prompt_slug}.org"
     title=$(grep '^#+title:' "$prompt_file" | sed 's/#+title: *//')
 
     echo >&2 "{{ BOLD }}Executing {{ YELLOW }}\"${title}\"...{{ NORMAL }}"
 
-    # Build the prompt message
     message="
     # $title
 
@@ -155,7 +191,6 @@ execute name:
 
     Ready to begin?"
 
-    # Start Claude Code with the message
     exec claude "$message"
 
 # ------------------------------------------------------------------------------

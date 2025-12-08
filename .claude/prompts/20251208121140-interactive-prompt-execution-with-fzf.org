@@ -1,0 +1,86 @@
+#+title:    Interactive prompt execution with fzf
+#+date:     2025-12-08
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Overview
+
+Enhance =just execute= to use fzf for interactive prompt selection while maintaining backward compatibility with direct name-based execution.
+
+* Current Behavior
+
+The =execute= recipe requires a prompt name argument:
+
+#+begin_example
+just execute infrastructure  # Must match part of filename
+#+end_example
+
+This searches =.claude/prompts/*.org= files and executes the most recent match.
+
+* Desired Behavior
+
+** No arguments: Interactive selection
+
+#+begin_example
+just execute
+#+end_example
+
+Shows fzf picker with all prompts and their statuses:
+
+#+begin_example
+[✓] 20251205120511-handle-validation - Handle Validation Improvements
+[~] 20251205161500-complete-email-verification - Complete Email Verification
+[ ] 20251204140000-infrastructure-foundation - Infrastructure Foundation
+#+end_example
+
+** With argument: Smart filtering
+
+#+begin_example
+just execute infra
+#+end_example
+
+- Single match → auto-execute immediately
+- Multiple matches → show filtered fzf picker
+- No matches → error with available prompts list
+
+* Implementation Plan
+
+** 1. Add fzf to devenv.nix
+
+Add =fzf= to the packages list in =devenv.nix=.
+
+** 2. Update prompt recipe template
+
+Add =#+status: todo= to the template in the =prompt= recipe (justfile:93-104) so new prompts include status by default.
+
+** 3. Rewrite execute recipe
+
+Replace current implementation with:
+
+1. Build list of all prompts with parsed status and title
+2. Format for fzf: =[status] timestamp-slug - Title=
+3. Call fzf with:
+   - =--query="$name"= (empty string if no arg)
+   - =--select-1= (auto-select if only one match)
+   - =--exit-0= (exit if no matches)
+   - =--preview= to show file contents
+4. Extract timestamp-slug from selection
+5. Execute prompt with Claude Code
+
+** 4. Status indicators
+
+Parse =#+status:= field from org files:
+- =done= → =[✓]=
+- =doing= → =[~]=
+- =todo= → =[ ]=
+- missing → =[ ]=
+
+* Success Criteria
+
+- New prompts include =#+status: todo= by default
+- =just execute= opens fzf picker
+- =just execute 20251204140000-infrastructure= executes directly
+- =just execute infra= auto-executes if single match
+- =just execute xyz= shows filtered picker if multiple matches
+- Status indicators display correctly
+- Preview shows prompt file contents
