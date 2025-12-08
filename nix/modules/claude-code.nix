@@ -6,7 +6,7 @@
       code-reviewer = {
         description = "Expert code review specialist that checks for quality, security, and best practices";
         proactive = true;
-        tools = ["Read" "Grep"];
+        tools = ["Read" "Grep" "TodoWrite"];
         prompt = ''
           When invoked:
 
@@ -38,8 +38,8 @@
 
       architecture-designer = {
         description = "Rust and Dioxus architecture specialist. Designs type-safe APIs, database schemas, and Dioxus fullstack patterns. Use when planning new features or refactoring existing systems.";
-        proactive = false;
-        tools = ["Read" "Write" "Edit" "Grep" "Glob" "WebSearch"];
+        proactive = true;
+        tools = ["Read" "Write" "Edit" "Grep" "Glob" "WebSearch" "Task"];
         prompt = ''
           You are a Rust and Dioxus architecture expert specializing in the Bits platform. When designing systems, focus on:
 
@@ -56,8 +56,8 @@
 
       documentation-writer = {
         description = "Technical documentation expert. Maintains docs, generates API specs, writes changelogs, and creates PR descriptions. Use when code changes affect documentation.";
-        proactive = false;
-        tools = ["Read" "Write" "Edit" "Glob" "Grep" "WebSearch"];
+        proactive = true;
+        tools = ["Read" "Write" "Edit" "Glob" "Grep" "Bash" "WebSearch"];
         prompt = ''
           You are a technical documentation specialist for the Bits platform. Your responsibilities include:
 
@@ -73,8 +73,8 @@
 
       devops-specialist = {
         description = "Nix and Hetzner infrastructure specialist. Manages NixOS deployments, Terraform infrastructure, and blue/green deployments. Use for deployment issues and infrastructure improvements.";
-        proactive = false;
-        tools = ["Read" "Write" "Edit" "Bash" "Grep" "WebSearch"];
+        proactive = true;
+        tools = ["Read" "Write" "Edit" "Bash" "Grep" "WebSearch" "Task"];
         prompt = ''
           You are a Nix and infrastructure automation expert for the Bits platform. Focus on:
 
@@ -93,7 +93,7 @@
       fullstack-developer = {
         description = "Rust and Dioxus fullstack specialist. Implements features across Dioxus UI, server functions, and PostgreSQL. Use when implementing features across the entire stack.";
         proactive = true;
-        tools = ["Read" "Write" "Edit" "Grep" "Glob" "Bash" "WebSearch"];
+        tools = ["Read" "Write" "Edit" "MultiEdit" "Grep" "Glob" "Bash" "WebSearch"];
         prompt = ''
           You are a Rust and Dioxus fullstack development expert for the Bits platform. Your expertise covers:
 
@@ -117,7 +117,7 @@
       quality-assurance = {
         description = "Quality assurance specialist. Writes test automation, audits accessibility, manages dependencies. Use proactively for testing and compliance verification.";
         proactive = true;
-        tools = ["Read" "Write" "Edit" "Bash" "Grep" "WebSearch"];
+        tools = ["Read" "Write" "Edit" "Bash" "Grep" "WebSearch" "Task"];
         prompt = ''
           You are a quality assurance expert for the Bits platform. Your focus areas include:
 
@@ -135,7 +135,7 @@
       refactoring = {
         description = "Rust refactoring specialist. Improves code quality following CLAUDE.md patterns without changing behavior. Use when code needs cleanup or restructuring.";
         proactive = true;
-        tools = ["Read" "Write" "Edit" "Grep" "Glob" "TodoWrite"];
+        tools = ["Read" "Write" "Edit" "MultiEdit" "Grep" "Glob" "TodoWrite"];
         prompt = ''
           You are a Rust refactoring expert for the Bits platform. Your core principles are:
 
