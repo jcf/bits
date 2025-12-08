@@ -1,5 +1,6 @@
 #+title:    Add Garde validation library
 #+date:     2025-12-06
+#+status:   done
 #+property: header-args :dir ../..
 
 * Problem

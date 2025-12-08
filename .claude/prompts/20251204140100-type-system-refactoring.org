@@ -1,5 +1,6 @@
 #+title:    Type System Refactoring
 #+date:     2025-12-04
+#+status:   doing
 #+property: header-args :dir ../..
 
 * Overview

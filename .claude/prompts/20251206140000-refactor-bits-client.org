@@ -1,5 +1,6 @@
 #+title:    Refactor BitsClient
 #+date:     2025-12-06
+#+status:   todo
 #+property: header-args :dir ../..
 
 * Goal

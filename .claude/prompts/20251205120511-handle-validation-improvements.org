@@ -1,5 +1,6 @@
 #+title:    Handle Validation Improvements
 #+date:     2025-12-05
+#+status:   done
 #+property: header-args :dir ../..
 
 * Overview

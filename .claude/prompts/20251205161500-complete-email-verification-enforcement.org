@@ -1,5 +1,6 @@
 #+title:    Complete Email Verification Enforcement
 #+date:     2025-12-05
+#+status:   doing
 #+property: header-args :dir ../..
 
 * Context

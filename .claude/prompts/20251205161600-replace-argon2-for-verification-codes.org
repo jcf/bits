@@ -1,5 +1,6 @@
 #+title:    Replace Argon2 for Verification Codes
 #+date:     2025-12-05
+#+status:   done
 #+property: header-args :dir ../..
 
 * Context
