@@ -13,6 +13,9 @@
 .terraform.lock.hcl
 .terraform.lock.hcl
 .terraformrc
+/.cargo/
+/.claude/agents/
+/.claude/commands/
 /.claude/settings.json
 /.devenv
 /.devenv.flake.nix
@@ -29,4 +32,3 @@ node_modules/
 override.tf
 override.tf.json
 terraform.rc
-/.cargo/
