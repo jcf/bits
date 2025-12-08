@@ -1,6 +1,6 @@
 #+title:    Features and Organization
 #+date:     2025-12-04
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Overview

@@ -1,6 +1,6 @@
 #+title:    Interactive prompt execution with fzf
 #+date:     2025-12-08
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Overview
