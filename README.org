@@ -62,7 +62,7 @@ cat /etc/resolver/test
 : nameserver 10.10.10.254
 
 *** Test
-#+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
+#+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh" :exports results
 urls=(
   https://www.usebits.app.test
   https://bits.page.test
@@ -86,7 +86,7 @@ done
 
 And with a non-existent tenant, we expect a 404 response:
 
-#+begin_src sh :results output verbatim
+#+begin_src sh :results output verbatim :exports results
 url="https://foo.bits.page.test"
 http_code="$(curl --silent --output /dev/null --write-out "%{http_code}" "$url")"
 
