@@ -289,6 +289,46 @@ SQL
 : INSERT 0 1
 : Time: 6.540 ms
 
+* Prompts
+We maintain version-controlled prompt docs that describe sessions with language
+models where we plan, generate, and review functionality.
+
+
+#+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
+fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
+  title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
+  status=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
+  date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
+  echo -e "=$status=\t=$date=\t[[file:$file][$title]]"
+done
+#+end_src
+
+#+begin_src sh :results output verbatim
+rg '^#\+status:' .claude/prompts/ </dev/null
+#+end_src
+
+#+results:
+#+begin_example
+.claude/prompts/20251204140400-production-deployment.org:#+status:   todo
+.claude/prompts/20251206140000-refactor-bits-client.org:#+status:   todo
+.claude/prompts/20251204140000-infrastructure-foundation.org:#+status:   todo
+.claude/prompts/20251204140100-type-system-refactoring.org:#+status:   doing
+.claude/prompts/20251205120511-handle-validation-improvements.org:#+status:   done
+.claude/prompts/20251205174624-add-critical-unit-tests.org:#+status:   todo
+.claude/prompts/20251205174626-improve-error-handling.org:#+status:   todo
+.claude/prompts/20251206153200-add-garde-validation-library.org:#+status:   done
+.claude/prompts/20251205174618-eliminate-boolean-parameters.org:#+status:   todo
+.claude/prompts/20251204140300-landing-page-ui.org:#+status:   todo
+.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org:#+status:   done
+.claude/prompts/20251205133111-nixos-deployment-cleanup.org:#+status:   done
+.claude/prompts/20251205174622-remove-debug-statements.org:#+status:   todo
+.claude/prompts/20251204140200-features-and-organization.org:#+status:   todo
+.claude/prompts/20251205161500-complete-email-verification-enforcement.org:#+status:   doing
+.claude/prompts/20251205174620-introduce-domain-newtypes.org:#+status:   todo
+.claude/prompts/20251204182609-packer-nixos-image-for-hetzner.org:#+status:   todo
+.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org:#+status:   todo
+#+end_example
+
 * TODOs
 #+begin_src sh :results output verbatim :exports results
 rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
@@ -296,6 +336,7 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 
 #+results:
 : crates/bits-app/src/auth.rs:// TODO Use #[patch] when Dioxus next ships
+: crates/bits-app/src/pages/layout.rs:    // TODO Make csrf_token a proper type akin to Option<String>.
 : devenv.nix:    # TODO Create a dedicated Bits Postmark account.
 
 * Troubleshooting
