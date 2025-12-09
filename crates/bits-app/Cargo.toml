@@ -68,7 +68,7 @@ subtle.workspace = true
 time = "0.3"
 tokio.workspace = true
 tower = "0.5"
-tower-http = { version = "0.6", features = ["request-id", "timeout", "limit", "cors", "util", "set-header"] }
+tower-http = { version = "0.6", features = ["request-id", "timeout", "limit", "cors", "util", "set-header", "normalize-path"] }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 urlencoding.workspace = true

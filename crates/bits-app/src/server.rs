@@ -13,6 +13,7 @@ use sqlx::PgPool;
 use std::time::Duration;
 use tower_http::cors::CorsLayer;
 use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
@@ -235,6 +236,7 @@ pub async fn build_router(
     router = router.layer(timeout_layer);
     router = router.layer(propagate_id_layer);
     router = router.layer(request_id_layer);
+    router = router.layer(NormalizePathLayer::trim_trailing_slash());
     router = router.layer(auth_layer);
     router = router.layer(SessionLayer::new(session_store));
     router = router.layer(Extension(state.config.clone()));
