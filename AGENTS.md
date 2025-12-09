@@ -174,7 +174,134 @@ pub struct Config {
 
 ### Testing
 
-Organize integration test utilities in `src/lib.rs` with public modules:
+**ABSOLUTE RULES - NEVER VIOLATE:**
+
+1. **NEVER assert only on status codes** - Status codes are preconditions, not behavior. Tests must verify the actual outcome (redirect destination, response body, database state, etc.).
+2. **NEVER use generic assertions without specifics** - `is_success()`, `is_redirection()`, `is_ok()` only verify that *something* happened, not that the *correct thing* happened.
+3. **ALWAYS verify the complete behavior** - If testing a redirect, verify WHERE. If testing data creation, verify WHAT was created. If testing errors, verify the ERROR TYPE and MESSAGE.
+
+**Test assertion hierarchy:**
+
+1. **Primary assertion** - The actual behavior (redirect location, response body, database record)
+2. **Secondary assertion** - Status code (confirms preconditions are met)
+3. **Tertiary assertions** - Headers, side effects, cleanup
+
+```rust
+// BANNED: Only checks status code
+#[tokio::test]
+async fn authenticated_users_redirected_from_join() {
+    let srv = server::spawn_colo().await;
+    let user = fixtures::create_user(&srv).await;
+    let response = srv.get("/join")
+        .cookie(user.session_cookie)
+        .send()
+        .await;
+
+    assert!(response.status().is_redirection());  // ❌ USELESS - where are they sent?
+}
+
+// REQUIRED: Checks actual behavior first, then status
+#[tokio::test]
+async fn authenticated_users_redirected_from_join() {
+    let srv = server::spawn_colo().await;
+    let user = fixtures::create_user(&srv).await;
+    let response = srv.get("/join")
+        .cookie(user.session_cookie)
+        .send()
+        .await;
+
+    // Primary: Verify actual behavior
+    assert_eq!(
+        response.headers().get("location").unwrap(),
+        "/",
+        "Authenticated users should be redirected to home page"
+    );
+
+    // Secondary: Confirm preconditions (303 See Other for redirect after POST)
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+}
+
+// BANNED: Only checks success status
+#[tokio::test]
+async fn create_tenant() {
+    let srv = server::spawn_colo().await;
+    let response = srv.post("/api/tenants")
+        .json(&CreateTenantParams { slug: "acme", ... })
+        .send()
+        .await;
+
+    assert!(response.status().is_success());  // ❌ Was a tenant actually created?
+}
+
+// REQUIRED: Verify actual data and side effects
+#[tokio::test]
+async fn create_tenant() {
+    let srv = server::spawn_colo().await;
+    let params = CreateTenantParams {
+        slug: "acme",
+        email: "admin@acme.com",
+        name: "Acme Corp",
+    };
+
+    let response = srv.post("/api/tenants")
+        .json(&params)
+        .send()
+        .await;
+
+    // Primary: Verify actual data
+    let tenant: Tenant = response.json().await.unwrap();
+    assert_eq!(tenant.slug, "acme");
+    assert_eq!(tenant.email, "admin@acme.com");
+    assert_eq!(tenant.name, "Acme Corp");
+
+    // Verify side effects: tenant exists in database
+    let db_tenant = sqlx::query_as::<_, Tenant>(
+        "select * from tenants where slug = $1"
+    )
+    .bind("acme")
+    .fetch_one(&srv.db)
+    .await
+    .expect("Tenant should exist in database");
+
+    assert_eq!(db_tenant.id, tenant.id);
+
+    // Secondary: Confirm preconditions (201 Created for resource creation)
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+// BANNED: Generic error checking
+#[tokio::test]
+async fn reject_invalid_email() {
+    let response = srv.post("/api/users")
+        .json(&CreateUserParams { email: "not-an-email", ... })
+        .send()
+        .await;
+
+    assert!(response.status().is_client_error());  // ❌ What kind of error?
+}
+
+// REQUIRED: Verify specific error type and message
+#[tokio::test]
+async fn reject_invalid_email() {
+    let response = srv.post("/api/users")
+        .json(&CreateUserParams { email: "not-an-email", ... })
+        .send()
+        .await;
+
+    // Primary: Verify error details
+    let error: ApiError = response.json().await.unwrap();
+    assert_eq!(error.code, "INVALID_EMAIL");
+    assert!(
+        error.message.contains("valid email address"),
+        "Error message should explain what's wrong"
+    );
+
+    // Secondary: Confirm error status (400 Bad Request for validation errors)
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+```
+
+**Organizing integration test utilities:**
 
 ```rust
 // crates/bits-e2e/src/lib.rs
@@ -192,6 +319,13 @@ async fn test_behavior() {
     // Test logic
 }
 ```
+
+**Rationale:**
+
+- **Tests document behavior** - Future developers learn what the code *does* by reading tests
+- **Status codes are insufficient** - They only tell you *something* happened, not *what*
+- **Catch regressions** - If redirect destination changes accidentally, test catches it
+- **Force clarity** - Writing specific assertions forces you to understand the actual behavior
 
 ### PII (Personally Identifiable Information)
 
