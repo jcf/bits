@@ -4,6 +4,9 @@ use dioxus::prelude::*;
 pub fn Auth() -> Element {
     use crate::auth::{auth, AuthForm, SessionState};
     use crate::components::{AuthFormFields, AuthFormState};
+    use crate::hooks::use_redirect_if_authenticated;
+
+    let _ = use_redirect_if_authenticated();
 
     let mut session = use_context::<Resource<Result<SessionState>>>();
     let mut form_state = use_context::<AuthFormState>();

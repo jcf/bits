@@ -1,4 +1,5 @@
 use bits_e2e::{client::BitsClient, fixtures};
+use reqwest::redirect;
 
 #[tokio::test]
 async fn user_stays_signed_in_across_requests() {
@@ -328,4 +329,112 @@ async fn resend_respects_cooldown() {
         .await;
 
     assert!(result.is_err(), "Resend should be blocked by cooldown");
+}
+
+#[tokio::test]
+async fn authenticated_user_redirected_from_auth_page() {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    ctx.create_verified_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    let mut client = BitsClient::new(ctx.server.url(""));
+    client.fetch_csrf_token().await.unwrap();
+    client.login(email, password).await.unwrap();
+
+    // Create a new client that doesn't follow redirects automatically
+    let no_redirect_client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    let response = no_redirect_client
+        .get(ctx.server.url("/auth"))
+        .send()
+        .await
+        .unwrap();
+
+    assert!(
+        response.status().is_redirection(),
+        "Authenticated user should be redirected from /auth"
+    );
+}
+
+#[tokio::test]
+async fn authenticated_user_redirected_from_join_page() {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let email = "user@example.com";
+    let password = "secure-password";
+
+    ctx.create_verified_user(email, password)
+        .await
+        .expect("Failed to create user");
+
+    let mut client = BitsClient::new(ctx.server.url(""));
+    client.fetch_csrf_token().await.unwrap();
+    client.login(email, password).await.unwrap();
+
+    // Create a new client that doesn't follow redirects automatically
+    let no_redirect_client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    let response = no_redirect_client
+        .get(ctx.server.url("/join"))
+        .send()
+        .await
+        .unwrap();
+
+    assert!(
+        response.status().is_redirection(),
+        "Authenticated user should be redirected from /join"
+    );
+}
+
+#[tokio::test]
+async fn anonymous_user_can_access_auth_page() {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let _client = BitsClient::new(ctx.server.url(""));
+
+    let response = reqwest::get(ctx.server.url("/auth")).await.unwrap();
+
+    assert!(
+        response.status().is_success(),
+        "Anonymous user should be able to access /auth"
+    );
+}
+
+#[tokio::test]
+async fn anonymous_user_can_access_join_page() {
+    let config = fixtures::config().expect("Failed to load config");
+    let ctx = fixtures::setup_solo(config)
+        .await
+        .expect("Failed to setup test");
+
+    let _client = BitsClient::new(ctx.server.url(""));
+
+    let response = reqwest::get(ctx.server.url("/join")).await.unwrap();
+
+    assert!(
+        response.status().is_success(),
+        "Anonymous user should be able to access /join"
+    );
 }

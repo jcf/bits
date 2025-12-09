@@ -11,6 +11,7 @@ pub mod app;
 pub mod auth;
 pub mod components;
 pub mod config;
+pub mod hooks;
 pub mod http;
 pub mod i18n;
 pub mod pages;
