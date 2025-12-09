@@ -101,19 +101,30 @@ async fn ip_based_registration_rate_limit_allows_more_attempts() {
     // Registration allows 20 attempts per 15 minutes (more lenient than login)
     for i in 0..20 {
         let email = format!("user{}@example.com", i);
-        let result = client.join(&email, "password").await;
-        assert!(
-            result.is_ok(),
+        client.join(&email, "password").await.expect(&format!(
             "Attempt {} should succeed (within registration IP limit)",
             i + 1
+        ));
+
+        // Verify user was actually created by checking session exists
+        let session = client.get_session().await.unwrap();
+        assert!(
+            session.is_some(),
+            "User {} should be logged in after registration",
+            i
         );
+
+        client.logout().await.unwrap();
+        client.fetch_csrf_token().await.unwrap();
     }
 
     // 21st attempt should be rate limited
     let result = client.join("user21@example.com", "password").await;
+    let err = result.expect_err("21st registration attempt should be rate limited");
     assert!(
-        result.is_err(),
-        "21st registration attempt should be rate limited"
+        matches!(err, bits_e2e::client::ClientError::StatusCode(status) if status.as_u16() == 429),
+        "Expected 429 rate limit error, got {:?}",
+        err
     );
 }
 
@@ -129,8 +140,17 @@ async fn email_based_registration_rate_limit_prevents_spam() {
     client.fetch_csrf_token().await.unwrap();
 
     // First registration should succeed
-    let result = client.join(email, "password1").await;
-    assert!(result.is_ok(), "First registration should succeed");
+    client
+        .join(email, "password1")
+        .await
+        .expect("First registration should succeed");
+
+    // Verify user was created by checking session
+    let session = client.get_session().await.unwrap();
+    assert!(
+        session.is_some(),
+        "User should be logged in after registration"
+    );
 
     // Second attempt with same email should still be blocked
     // (email limit is 2 per hour for registration)
@@ -158,7 +178,8 @@ async fn successful_login_does_not_trigger_rate_limit() {
     let email = "legitimate@example.com";
     let password = "correct-password";
 
-    ctx.create_verified_user(email, password)
+    let (user, _hash) = ctx
+        .create_verified_user(email, password)
         .await
         .expect("Failed to create user");
 
@@ -168,15 +189,31 @@ async fn successful_login_does_not_trigger_rate_limit() {
     // Successful login should not count toward rate limit
     for _i in 0..3 {
         client.login(email, password).await.unwrap();
+
+        // Verify session was established
+        let session = client.get_session().await.unwrap();
+        assert_eq!(
+            session.as_ref().map(|u| u.id),
+            Some(user.id),
+            "User should be logged in after successful login"
+        );
+
         client.logout().await.unwrap();
         client.fetch_csrf_token().await.unwrap(); // Get fresh CSRF token after logout
     }
 
     // After 3 successful logins, should still be able to login
-    let result = client.login(email, password).await;
-    assert!(
-        result.is_ok(),
-        "Successful logins should not trigger rate limit"
+    client
+        .login(email, password)
+        .await
+        .expect("Successful logins should not trigger rate limit");
+
+    // Verify final login worked
+    let session = client.get_session().await.unwrap();
+    assert_eq!(
+        session.as_ref().map(|u| u.id),
+        Some(user.id),
+        "User should be logged in after successful login"
     );
 }
 

@@ -115,10 +115,10 @@ async fn verified_user_can_change_password() {
         .await
         .unwrap();
 
-    assert!(
-        response.status().is_success(),
-        "Verified user should be able to change password, got status {}",
-        response.status()
+    assert_eq!(
+        response.status(),
+        200,
+        "Verified user should be able to change password"
     );
 }
 
@@ -201,9 +201,5 @@ async fn full_flow_signup_blocked_verify_success() {
         .await
         .unwrap();
 
-    assert!(
-        response.status().is_success(),
-        "Should succeed after verification, got status {}",
-        response.status()
-    );
+    assert_eq!(response.status(), 200, "Should succeed after verification");
 }

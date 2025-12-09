@@ -18,7 +18,6 @@ use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetReques
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::timeout::TimeoutLayer;
 
-#[cfg(feature = "colo")]
 use crate::RealmLayer;
 
 /// Initialize tracing with custom filters for database and session logging
@@ -138,19 +137,6 @@ async fn metrics_handler(
 const MAX_REQUEST_BODY_BYTES: usize = 10 * 1024 * 1024;
 const REQUEST_TIMEOUT_SECONDS: u64 = 30;
 
-fn base_router(app: fn() -> dioxus::prelude::Element) -> axum::Router {
-    let mut router = dioxus::server::router(app);
-    router = router.route("/healthz", axum::routing::get(healthz_handler));
-    router = router.route("/metrics", axum::routing::get(metrics_handler));
-
-    #[cfg(feature = "colo")]
-    {
-        router = router.layer(RealmLayer);
-    }
-
-    router
-}
-
 /// Build a production-ready router with security middleware
 pub async fn build_router(
     state: AppState,
@@ -207,7 +193,10 @@ pub async fn build_router(
         ("x-xss-protection", "1; mode=block"),
     ];
 
-    let mut router = base_router(app);
+    let mut router = dioxus::server::router(app);
+    router = router.route("/healthz", axum::routing::get(healthz_handler));
+    router = router.route("/metrics", axum::routing::get(metrics_handler));
+    router = router.layer(RealmLayer);
 
     // Apply middleware layers in order (outermost to innermost)
     router = router.layer(axum::middleware::from_fn(

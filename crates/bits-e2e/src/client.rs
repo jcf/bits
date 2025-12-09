@@ -33,26 +33,68 @@ pub struct BitsClient {
     csrf_token: Option<String>,
 }
 
-impl BitsClient {
+pub struct BitsClientBuilder {
+    base_url: String,
+    cookie_jar: std::sync::Arc<reqwest::cookie::Jar>,
+    follow_redirects: bool,
+}
+
+impl BitsClientBuilder {
     #[must_use]
     pub fn new(base_url: String) -> Self {
+        Self {
+            base_url,
+            cookie_jar: std::sync::Arc::new(reqwest::cookie::Jar::default()),
+            follow_redirects: true,
+        }
+    }
+
+    pub fn cookie_jar(mut self, jar: std::sync::Arc<reqwest::cookie::Jar>) -> Self {
+        self.cookie_jar = jar;
+        self
+    }
+
+    #[must_use]
+    pub fn follow_redirects(mut self, follow: bool) -> Self {
+        self.follow_redirects = follow;
+        self
+    }
+
+    #[must_use]
+    pub fn build(self) -> BitsClient {
         let mut headers = header::HeaderMap::new();
         headers.insert(
             "requested-with",
             header::HeaderValue::from_static("bits/test"),
         );
 
-        let client = Client::builder()
-            .cookie_store(true)
-            .default_headers(headers)
-            .build()
-            .expect("Failed to build client");
+        let mut builder = Client::builder()
+            .cookie_provider(self.cookie_jar)
+            .default_headers(headers);
 
-        Self {
+        if !self.follow_redirects {
+            builder = builder.redirect(reqwest::redirect::Policy::none());
+        }
+
+        let client = builder.build().expect("Failed to build client");
+
+        BitsClient {
             client,
-            base_url,
+            base_url: self.base_url,
             csrf_token: None,
         }
+    }
+}
+
+impl BitsClient {
+    #[must_use]
+    pub fn new(base_url: String) -> Self {
+        BitsClientBuilder::new(base_url).build()
+    }
+
+    #[must_use]
+    pub fn builder(base_url: String) -> BitsClientBuilder {
+        BitsClientBuilder::new(base_url)
     }
 
     fn url(&self, path: &str) -> String {
@@ -166,5 +208,9 @@ impl BitsClient {
             .await
             .map_err(ClientError::Request)?;
         Ok(response)
+    }
+
+    pub fn get(&self, path: &str) -> reqwest::RequestBuilder {
+        self.client.get(self.url(path))
     }
 }

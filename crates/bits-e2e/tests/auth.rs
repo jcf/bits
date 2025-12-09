@@ -1,5 +1,4 @@
-use bits_e2e::{client::BitsClient, fixtures};
-use reqwest::redirect;
+use bits_e2e::{client::BitsClient, fixtures, request};
 
 #[tokio::test]
 async fn user_stays_signed_in_across_requests() {
@@ -83,10 +82,7 @@ async fn password_change_invalidates_all_other_sessions() {
         .await
         .unwrap();
 
-    assert!(
-        response.status().is_success(),
-        "Password change should succeed"
-    );
+    assert_eq!(response.status(), 200, "Password change should succeed");
 
     let session1_after = client1.get_session().await.unwrap();
     assert_eq!(
@@ -132,13 +128,11 @@ async fn valid_code_verifies_email() {
         .expect("Failed to create verification code");
 
     // Verify the code
-    let result = ctx
-        .state
+    ctx.state
         .email_verification
         .verify_code(&ctx.db_pool, email_address_id, &code)
-        .await;
-
-    assert!(result.is_ok(), "Valid code should verify successfully");
+        .await
+        .expect("Valid code should verify successfully");
 
     // Check that email_verifications record was created
     let is_verified = sqlx::query_scalar::<_, bool>(
@@ -185,7 +179,10 @@ async fn invalid_code_fails_verification() {
         .verify_code(&ctx.db_pool, email_address_id, "000000")
         .await;
 
-    assert!(result.is_err(), "Invalid code should fail verification");
+    match result {
+        Err(bits_app::verification::VerificationError::InvalidCode) => {}
+        other => panic!("Expected InvalidCode error, got {:?}", other),
+    }
 }
 
 #[tokio::test]
@@ -230,7 +227,10 @@ async fn expired_code_fails_verification() {
         .verify_code(&ctx.db_pool, email_address_id, &code)
         .await;
 
-    assert!(result.is_err(), "Expired code should fail verification");
+    match result {
+        Err(bits_app::verification::VerificationError::Expired) => {}
+        other => panic!("Expected Expired error, got {:?}", other),
+    }
 }
 
 #[tokio::test]
@@ -280,10 +280,10 @@ async fn too_many_attempts_blocks_verification() {
         .verify_code(&ctx.db_pool, email_address_id, "111111")
         .await;
 
-    assert!(
-        result.is_err(),
-        "Verification should be blocked after max attempts"
-    );
+    match result {
+        Err(bits_app::verification::VerificationError::TooManyAttempts) => {}
+        other => panic!("Expected TooManyAttempts error, got {:?}", other),
+    }
 }
 
 #[tokio::test]
@@ -328,7 +328,10 @@ async fn resend_respects_cooldown() {
         .check_resend_limits(&ctx.db_pool, email_address_id, None)
         .await;
 
-    assert!(result.is_err(), "Resend should be blocked by cooldown");
+    match result {
+        Err(bits_app::verification::RateLimitError::Cooldown(_)) => {}
+        other => panic!("Expected Cooldown error, got {:?}", other),
+    }
 }
 
 #[tokio::test]
@@ -338,6 +341,17 @@ async fn authenticated_user_redirected_from_auth_page() {
         .await
         .expect("Failed to setup test");
 
+    // Create tenant owner first
+    let hash = bits_domain::PasswordHash::new("hash".to_string());
+    let owner = ctx.create_user("owner@example.com", &hash).await.unwrap();
+
+    // Create tenant with domain matching test server host
+    let host = ctx.server.addr.to_string();
+    ctx.create_tenant_with_domain("Test Tenant", &host, owner.id)
+        .await
+        .expect("Failed to create tenant");
+
+    // Now create the actual test user
     let email = "user@example.com";
     let password = "secure-password";
 
@@ -345,27 +359,34 @@ async fn authenticated_user_redirected_from_auth_page() {
         .await
         .expect("Failed to create user");
 
-    let mut client = BitsClient::new(ctx.server.url(""));
+    let cookie_jar = std::sync::Arc::new(reqwest::cookie::Jar::default());
+
+    let mut client = BitsClient::builder(ctx.server.url(""))
+        .cookie_jar(cookie_jar.clone())
+        .build();
     client.fetch_csrf_token().await.unwrap();
     client.login(email, password).await.unwrap();
 
-    // Create a new client that doesn't follow redirects automatically
-    let no_redirect_client = reqwest::Client::builder()
-        .cookie_store(true)
-        .redirect(redirect::Policy::none())
-        .build()
-        .unwrap();
+    let session = client.get_session().await.unwrap();
+    assert!(session.is_some(), "User should be logged in");
 
-    let response = no_redirect_client
-        .get(ctx.server.url("/auth"))
-        .send()
-        .await
-        .unwrap();
+    // Create a no-redirect client sharing the same cookie jar
+    let no_redirect_client = BitsClient::builder(ctx.server.url(""))
+        .cookie_jar(cookie_jar)
+        .follow_redirects(false)
+        .build();
 
-    assert!(
-        response.status().is_redirection(),
-        "Authenticated user should be redirected from /auth"
+    let response = no_redirect_client.get("/auth").send().await.unwrap();
+
+    assert_eq!(
+        response
+            .headers()
+            .get("location")
+            .and_then(|h| h.to_str().ok()),
+        Some("/"),
+        "Authenticated users should be redirected to home page from /auth"
     );
+    assert_eq!(response.status(), 302);
 }
 
 #[tokio::test]
@@ -375,6 +396,17 @@ async fn authenticated_user_redirected_from_join_page() {
         .await
         .expect("Failed to setup test");
 
+    // Create tenant owner first
+    let hash = bits_domain::PasswordHash::new("hash".to_string());
+    let owner = ctx.create_user("owner@example.com", &hash).await.unwrap();
+
+    // Create tenant with domain matching test server host
+    let host = ctx.server.addr.to_string();
+    ctx.create_tenant_with_domain("Test Tenant", &host, owner.id)
+        .await
+        .expect("Failed to create tenant");
+
+    // Now create the actual test user
     let email = "user@example.com";
     let password = "secure-password";
 
@@ -382,27 +414,34 @@ async fn authenticated_user_redirected_from_join_page() {
         .await
         .expect("Failed to create user");
 
-    let mut client = BitsClient::new(ctx.server.url(""));
+    let cookie_jar = std::sync::Arc::new(reqwest::cookie::Jar::default());
+
+    let mut client = BitsClient::builder(ctx.server.url(""))
+        .cookie_jar(cookie_jar.clone())
+        .build();
     client.fetch_csrf_token().await.unwrap();
     client.login(email, password).await.unwrap();
 
-    // Create a new client that doesn't follow redirects automatically
-    let no_redirect_client = reqwest::Client::builder()
-        .cookie_store(true)
-        .redirect(redirect::Policy::none())
-        .build()
-        .unwrap();
+    let session = client.get_session().await.unwrap();
+    assert!(session.is_some(), "User should be logged in");
 
-    let response = no_redirect_client
-        .get(ctx.server.url("/join"))
-        .send()
-        .await
-        .unwrap();
+    // Create a no-redirect client sharing the same cookie jar
+    let no_redirect_client = BitsClient::builder(ctx.server.url(""))
+        .cookie_jar(cookie_jar)
+        .follow_redirects(false)
+        .build();
 
-    assert!(
-        response.status().is_redirection(),
-        "Authenticated user should be redirected from /join"
+    let response = no_redirect_client.get("/join").send().await.unwrap();
+
+    assert_eq!(
+        response
+            .headers()
+            .get("location")
+            .and_then(|h| h.to_str().ok()),
+        Some("/"),
+        "Authenticated users should be redirected to home page from /join"
     );
+    assert_eq!(response.status(), 302);
 }
 
 #[tokio::test]
@@ -412,12 +451,21 @@ async fn anonymous_user_can_access_auth_page() {
         .await
         .expect("Failed to setup test");
 
-    let _client = BitsClient::new(ctx.server.url(""));
+    // Create a user to own the tenant domain
+    let hash = bits_domain::PasswordHash::new("hash".to_string());
+    let user = ctx.create_user("test@example.com", &hash).await.unwrap();
 
-    let response = reqwest::get(ctx.server.url("/auth")).await.unwrap();
+    // Create tenant with domain matching test server host
+    let host = ctx.server.addr.to_string();
+    ctx.create_tenant_with_domain("Test Tenant", &host, user.id)
+        .await
+        .expect("Failed to create tenant");
 
-    assert!(
-        response.status().is_success(),
+    let response = request::get(&ctx, "/auth").send().await;
+
+    assert_eq!(
+        response.status(),
+        200,
         "Anonymous user should be able to access /auth"
     );
 }
@@ -429,12 +477,21 @@ async fn anonymous_user_can_access_join_page() {
         .await
         .expect("Failed to setup test");
 
-    let _client = BitsClient::new(ctx.server.url(""));
+    // Create a user to own the tenant domain
+    let hash = bits_domain::PasswordHash::new("hash".to_string());
+    let user = ctx.create_user("test@example.com", &hash).await.unwrap();
 
-    let response = reqwest::get(ctx.server.url("/join")).await.unwrap();
+    // Create tenant with domain matching test server host
+    let host = ctx.server.addr.to_string();
+    ctx.create_tenant_with_domain("Test Tenant", &host, user.id)
+        .await
+        .expect("Failed to create tenant");
 
-    assert!(
-        response.status().is_success(),
+    let response = request::get(&ctx, "/join").send().await;
+
+    assert_eq!(
+        response.status(),
+        200,
         "Anonymous user should be able to access /join"
     );
 }

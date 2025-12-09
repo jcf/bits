@@ -120,7 +120,9 @@ pub async fn get_session() -> Result<SessionState> {
 
 #[get("/api/realm", realm: crate::Realm)]
 pub async fn get_realm() -> Result<crate::Realm> {
+    tracing::debug!("get_realm called with realm: {:?}", realm);
     if matches!(realm, crate::Realm::NotFound) {
+        tracing::warn!("Realm is NotFound, setting 404 status");
         dioxus::fullstack::FullstackContext::commit_http_status(
             dioxus::fullstack::StatusCode::NOT_FOUND,
             None,
