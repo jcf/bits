@@ -144,6 +144,23 @@ impl TestContext {
 
         Ok((tenant, tenant_domain))
     }
+
+    pub async fn mark_tenant_as_fallback(&self, tenant_id: bits_domain::TenantId) -> Result<()> {
+        // Clear any existing fallback
+        sqlx::query!("update tenants set is_fallback = false")
+            .execute(&self.db_pool)
+            .await?;
+
+        // Mark specified tenant as fallback
+        sqlx::query!(
+            "update tenants set is_fallback = true where id = $1",
+            tenant_id.get()
+        )
+        .execute(&self.db_pool)
+        .await?;
+
+        Ok(())
+    }
 }
 
 // Note: We don't auto-cleanup test databases in Drop to avoid panics during shutdown
@@ -204,12 +221,18 @@ pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext>
     let (server, state) = crate::server::spawn_solo(test_config).await?;
     let client = reqwest::Client::new();
 
-    Ok(TestContext {
+    let ctx = TestContext {
         server,
         db_pool: state.db.clone(),
         client,
         state,
-    })
+    };
+
+    // Create a default tenant and mark it as fallback for solo mode
+    let tenant = ctx.create_tenant("Default Tenant").await?;
+    ctx.mark_tenant_as_fallback(tenant.id).await?;
+
+    Ok(ctx)
 }
 
 pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext> {

@@ -6,7 +6,6 @@ edition.workspace = true
 
 [features]
 server = ["dioxus/server"]
-colo = []
 
 [dependencies]
 bits-domain.workspace = true

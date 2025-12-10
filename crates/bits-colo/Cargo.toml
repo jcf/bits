@@ -12,8 +12,7 @@ name = "bits-colo"
 
 [features]
 default = []
-server = ["bits-app/server", "colo"]
-colo = ["bits-app/colo"]
+server = ["bits-app/server"]
 
 [dependencies]
 bits-domain.workspace = true

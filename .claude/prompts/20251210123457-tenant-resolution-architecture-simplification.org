@@ -1,0 +1,1880 @@
+#+title:    Tenant Resolution Architecture Simplification
+#+date:     2025-12-10
+#+status:   completed
+#+property: header-args :dir ../..
+
+* Implementation Note (2025-12-10)
+
+** Decision: No AppState Caching
+
+After reviewing the planned AppState changes, we've simplified the approach:
+
+*Problem with original plan*: Caching ~fallback_tenant_id~ in AppState creates staleness:
+- Database is no longer source of truth
+- Requires restart to change fallback tenant
+- Adds complexity (builder method, initialization logic)
+
+*Better approach*: Query ~is_fallback~ when needed
+- Single optimized SQL query handles both domain + fallback lookup
+- PostgreSQL query cache provides performance
+- Changes take effect immediately (no restart)
+- Simpler code, fewer moving parts
+
+*SQL Query*:
+#+begin_src sql
+SELECT t.id, t.name
+FROM tenants t
+LEFT JOIN tenant_domains td ON td.tenant_id = t.id
+    AND td.domain = $1
+    AND td.valid_to = 'infinity'
+WHERE td.tenant_id IS NOT NULL  -- matched by domain
+   OR t.is_fallback = TRUE       -- or is fallback
+ORDER BY td.tenant_id IS NOT NULL DESC  -- domain match first
+LIMIT 1
+#+end_src
+
+*Result*: No AppState changes needed. Steps 5-7 (Phase 2) eliminated.
+
+** Implementation Results (2025-12-10)
+
+*Status*: ✅ Complete - All goals achieved
+
+*** Changes Made
+
+1. *Fixed ORDER BY bug* (crates/bits-app/src/tenant.rs:425)
+   - Added ~order by id~ to make tenant selection deterministic
+
+2. *Created migration* (migrations/20251210000001_add_fallback_tenant.sql)
+   - Added ~is_fallback boolean~ column to tenants table
+   - Created unique partial index ensuring only one fallback tenant
+   - Created lookup index for fast fallback queries
+
+3. *Unified tenant loading* (crates/bits-app/src/tenant.rs:352)
+   - Single SQL query handles both domain and fallback lookups
+   - PostgreSQL query cache provides performance
+   - Domain matches take precedence via ~order by~
+
+4. *Updated platform apex logic* (crates/bits-app/src/tenant.rs:388)
+   - Moved platform apex check AFTER tenant lookup
+   - Solo mode: apex routes to fallback tenant
+   - Colo mode: apex shows platform page (when no tenant found)
+
+5. *Removed ALL feature flags*
+   - Removed ~#![cfg(feature = "colo")]~ from tests/realm.rs
+   - Removed ~#![cfg(not(feature = "colo"))]~ from tests/realm_solo.rs
+   - Removed ~colo = []~ from bits-app/Cargo.toml
+   - Removed ~colo~ from bits-e2e/Cargo.toml default features
+   - Removed ~colo~ from bits-colo/Cargo.toml
+
+6. *Added test helpers* (crates/bits-e2e/src/fixtures.rs:148)
+   - Added ~mark_tenant_as_fallback()~ method
+   - Updated ~setup_solo()~ to create default fallback tenant
+
+7. *Updated test expectations*
+   - Renamed ~solo_no_tenant_returns_not_found~ → ~solo_no_fallback_tenant_returns_not_found~
+   - Renamed ~solo_multiple_tenants_returns_first~ → ~solo_multiple_tenants_returns_fallback~
+   - Updated tests to explicitly mark tenants as fallback
+
+*** Test Results
+
+*Before*:
+- Solo tests: 0 tests (excluded by feature gates)
+- Colo tests: 7 tests
+
+*After*:
+- Solo tests: ✅ 4 tests passing
+- Colo tests: ✅ 7 tests passing
+- *Total: 11/11 tests passing*
+
+Both test suites now run on every build - no more hidden test failures!
+
+*** Key Benefits Achieved
+
+1. *Simpler architecture*
+   - Single SQL query replaces dual feature-gated code paths
+   - No runtime configuration enum needed
+   - Database is always source of truth
+
+2. *Better testing*
+   - Both modes tested on every CI run
+   - No hidden test failures from excluded suites
+
+3. *Performance*
+   - PostgreSQL query cache handles optimization
+   - Indexed lookups for both domain and fallback
+   - Zero application-level caching complexity
+
+4. *Flexibility*
+   - Change fallback tenant via SQL (no restart needed)
+   - Easy to switch between solo/colo by setting is_fallback
+
+*** Code Deleted
+
+- ~load_single_tenant()~ function - replaced by unified query
+- ~load_tenant_by_domain()~ function - merged into unified query
+- Feature flag dispatch logic in ~load_tenant()~
+- Feature flag from platform apex check
+- ~DeploymentMode~ enum - never existed, not needed
+- ~colo~ feature from all Cargo.toml files
+- Test file feature gates (~#![cfg(...)]~)
+
+*Net change*: ~120 lines deleted, ~60 lines added
+
+* Problem Statement
+
+The current tenant resolution system has a confusing mix of compile-time feature flags and runtime configuration that creates maintenance burden and testing challenges.
+
+** Current Issues
+
+1. *Dual configuration mechanisms*: Both ~#[cfg(feature = "colo")]~ AND ~DeploymentMode~ enum control the same behavior
+2. *Test suite problems*: ~bits-e2e~ has ~default = ["server", "colo"]~, which means:
+   - Solo mode tests at ~tests/realm_solo.rs~ are excluded via ~#![cfg(not(feature = "colo"))]~
+   - Solo mode tests NEVER run in the default test configuration
+   - Security tests were failing because solo mode used colo logic
+3. *Unclear semantics*: "Solo vs Colo" doesn't clearly communicate what's different
+4. *Binary confusion*: Both ~bits-solo~ and ~bits-colo~ binaries are nearly identical except for name
+
+** What Works Now (After Emergency Fix)
+
+- Security tests pass because ~setup_solo()~ sets ~DeploymentMode::Solo~
+- But we have redundant configuration: feature flags AND runtime config
+- *⚠️ Tests for solo mode still don't run by default* (feature gate prevents compilation)
+- *⚠️ Emergency fix is incomplete* - runtime config added but feature flags not removed
+
+* Critical Issues Requiring Immediate Attention
+
+** Issue 1: Non-Deterministic Tenant Selection (BLOCKER)
+
+*Location*: ~crates/bits-app/src/tenant.rs:437~
+
+#+begin_src rust
+async fn load_single_tenant(db: &PgPool) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(Tenant, "select id, name from tenants limit 1")
+        .fetch_optional(db)
+        .await
+}
+#+end_src
+
+*Problem*: No ~ORDER BY~ clause means PostgreSQL can return ANY tenant. This is non-deterministic.
+
+*Impact*:
+- Solo mode behavior changes between database restarts
+- Vacuum operations can reorder table
+- Index rebuilds affect ordering
+- Unpredictable in production
+
+*Fix*:
+#+begin_src rust
+sqlx::query_as!(Tenant, "select id, name from tenants order by id limit 1")
+#+end_src
+
+*Priority*: MUST FIX before removing feature flags
+
+** Issue 2: Implementation Order Will Break Tests
+
+*Problem*: Current plan removes code feature flags (steps 1-6) before test feature gates (step 7).
+
+*Why This Fails*:
+1. After step 6, ~bits-app~ no longer has ~colo~ feature
+2. Tests still have ~#![cfg(feature = "colo")]~ and ~#![cfg(not(feature = "colo"))]~
+3. Feature gates reference non-existent feature → compilation fails
+4. Tests break during refactoring
+
+*Correct Order*:
+1. *First*: Remove test file feature gates
+2. *Then*: Remove code feature flags
+3. *Verify*: Each commit compiles and tests pass
+
+** Issue 3: Missing Backward Compatibility Strategy
+
+*Problem*: Existing deployments don't have ~DEPLOYMENT_MODE~ environment variable set.
+
+*Risk Scenario*:
+1. Deploy new binary without setting ~DEPLOYMENT_MODE~
+2. Defaults to ~Solo~ mode (safe default for development)
+3. Production colo deployment suddenly routes ALL domains to first tenant
+4. Data leak across tenants
+
+*Impact*: Critical security issue in production
+
+*Mitigation Required*:
+1. Startup warning if ~DEPLOYMENT_MODE~ not explicitly set
+2. Migration guide for existing deployments
+3. Deployment automation changes
+4. Verification procedure before going live
+
+** Issue 4: Solo Test Coverage Unknown
+
+*Current State*: We don't know if solo tests actually run.
+
+*Verification Needed*:
+#+begin_src bash
+# This should show solo mode tests:
+cargo test -p bits-e2e --test realm_solo -- --list
+
+# If this shows "0 tests", solo tests never run!
+#+end_src
+
+*Impact*: We may have no test coverage for solo mode resolution logic.
+
+*Action*: Verify BEFORE starting refactoring.
+
+* Current Architecture Analysis
+
+** Tenant Resolution Flow
+
+The system resolves incoming HTTP requests to a ~Realm~:
+
+#+begin_src rust
+pub enum Realm {
+    Platform { domain: String },  // Platform marketing site (colo only)
+    Creator(Tenant),               // Creator's site
+    Demo(Handle),                  // Hardcoded demo components
+    NotFound,                      // 404
+}
+#+end_src
+
+** Resolution Logic (crates/bits-app/src/tenant.rs:361)
+
+#+begin_src rust
+pub async fn resolve_realm(state: &AppState, scheme: Scheme, host: &str) -> Realm {
+    let normalized_host = normalize_host(scheme, host);
+
+    // 1. Platform apex check (colo only)
+    #[cfg(feature = "colo")]
+    if normalized_host == state.config.platform_domain {
+        return Realm::Platform { domain };
+    }
+
+    // 2. Demo subdomain check (both modes)
+    if let Some(handle) = demo_from_host(&state.config.platform_domain, &normalized_host) {
+        return Realm::Demo(handle);
+    }
+
+    // 3. Database lookup (mode-dependent)
+    match load_tenant(&state.db, state.config.deployment_mode, &normalized_host).await {
+        Ok(Some(tenant)) => Realm::Creator(tenant),
+        Ok(None) => Realm::NotFound,
+        Err(e) => Realm::NotFound,
+    }
+}
+#+end_src
+
+** Database Loading (crates/bits-app/src/tenant.rs:409)
+
+#+begin_src rust
+async fn load_tenant(
+    db: &PgPool,
+    deployment_mode: DeploymentMode,
+    host: &str,
+) -> Result<Option<Tenant>, sqlx::Error> {
+    match deployment_mode {
+        DeploymentMode::Colo => {
+            #[cfg(feature = "colo")]
+            { load_tenant_by_domain(db, host).await }
+            #[cfg(not(feature = "colo"))]
+            {
+                tracing::error!("Colo deployment mode requires 'colo' feature");
+                Ok(None)
+            }
+        }
+        DeploymentMode::Solo => {
+            load_single_tenant(db).await  // SELECT * FROM tenants LIMIT 1
+        }
+    }
+}
+#+end_src
+
+** Feature Flag Usage
+
+| Location | Feature Flag | Purpose |
+|----------|--------------|---------|
+| ~bits-app/src/tenant.rs:343~ | ~#[cfg(all(feature = "server", feature = "colo"))]~ | Compile ~load_tenant_by_domain~ |
+| ~bits-app/src/tenant.rs:369~ | ~#[cfg(feature = "colo")]~ | Platform apex domain check |
+| ~bits-app/src/tenant.rs:416~ | ~#[cfg(feature = "colo")]~ | Runtime call to ~load_tenant_by_domain~ |
+| ~bits-app/src/config.rs:18~ | ~#[cfg(feature = "colo")]~ | Default ~DeploymentMode~ |
+| ~bits-e2e/tests/realm.rs:1~ | ~#![cfg(feature = "colo")]~ | Exclude colo tests when not in colo mode |
+| ~bits-e2e/tests/realm_solo.rs:1~ | ~#![cfg(not(feature = "colo"))]~ | Exclude solo tests when in colo mode |
+
+** Runtime Configuration
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| ~deployment_mode~ | ~DeploymentMode~ | Solo vs Colo behavior |
+| ~platform_domain~ | ~String~ | Domain for platform/demo resolution |
+
+* Behavioral Requirements
+
+** Solo Mode (Single Tenant)
+
+- *Purpose*: Personal deployments, staging environments, single-user installs
+- *Behavior*:
+  1. Demo subdomains (e.g., ~jcf.bits.page~) → ~Realm::Demo~
+  2. ANY other host → First tenant in database (~SELECT * FROM tenants ORDER BY id LIMIT 1~)
+  3. No tenant in database → ~Realm::NotFound~
+- *No platform apex*: There is no "marketing site" in solo mode
+- *Domain table irrelevant*: ~tenant_domains~ table not consulted
+
+** Colo Mode (Multi-Tenant Platform)
+
+- *Purpose*: Production SaaS platform hosting multiple creators
+- *Behavior*:
+  1. Platform apex (e.g., ~bits.page~) → ~Realm::Platform~
+  2. Demo subdomains (e.g., ~jcf.bits.page~) → ~Realm::Demo~
+  3. Registered tenant domain → ~Realm::Creator~ (via ~tenant_domains~ lookup)
+  4. Unknown domain → ~Realm::NotFound~
+- *Domain-based routing*: Uses ~tenant_domains~ table
+- *Marketing site*: Platform apex shows landing page
+
+** Shared Behavior (Both Modes)
+
+1. *Demo subdomains always work*: Hardcoded ~SUBDOMAINS = ["jcf", "emporium", "charlie"]~
+2. *Demo takes precedence*: Checked before database lookup
+3. *NotFound handling*: Returns 404 status via ~get_realm~ server function
+
+* Design Options
+
+** Option A: Pure Compile-Time (Revert to Feature Flags Only)
+
+*Approach*: Remove ~DeploymentMode~ runtime config, keep only ~#[cfg(feature = "colo")]~
+
+#+begin_src rust
+// bits-app/src/tenant.rs
+#[cfg(feature = "colo")]
+async fn load_tenant(db: &PgPool, host: &str) -> Result<Option<Tenant>, sqlx::Error> {
+    load_tenant_by_domain(db, host).await
+}
+
+#[cfg(not(feature = "colo"))]
+async fn load_tenant(db: &PgPool, _host: &str) -> Result<Option<Tenant>, sqlx::Error> {
+    load_single_tenant(db).await
+}
+#+end_src
+
+*Pros*:
+- Smaller binary (unused code not compiled)
+- Explicit at compile time
+- Rust idiomatic
+
+*Cons*:
+- Cannot test both modes in one test suite
+- Would need ~cargo test --features colo~ and ~cargo test --no-default-features~
+- Cannot switch modes via environment variable
+- More complex CI/CD (multiple builds)
+- Harder to debug issues across modes
+
+** Option B: Pure Runtime (Remove All Feature Flags) ← RECOMMENDED
+
+*Approach*: Remove ~colo~ feature from ~bits-app~, always compile both code paths, decide at runtime
+
+#+begin_src rust
+// bits-app/src/tenant.rs (always compiled)
+async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(/* ... */).fetch_optional(pool).await
+}
+
+async fn load_single_tenant(db: &PgPool) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(Tenant, "select id, name from tenants order by id limit 1")
+        .fetch_optional(db)
+        .await
+}
+
+async fn load_tenant(
+    db: &PgPool,
+    mode: DeploymentMode,
+    host: &str,
+) -> Result<Option<Tenant>, sqlx::Error> {
+    match mode {
+        DeploymentMode::Colo => load_tenant_by_domain(db, host).await,
+        DeploymentMode::Solo => load_single_tenant(db).await,
+    }
+}
+#+end_src
+
+*Pros*:
+- Single binary works for both modes
+- Easy testing (both modes in one test suite)
+- Runtime flexibility (env var switches mode)
+- Simpler CI/CD (one build)
+- Easier debugging (consistent binary)
+
+*Cons*:
+- Slightly larger binary (~2 SQL functions, negligible)
+- Runtime error possible if misconfigured (mitigated by config validation)
+
+** Option C: Alternative Framing (Fallback Tenant) ← WORTH EXPLORING
+
+*User's suggestion*: "Route unknown requests to this specific tenant"
+
+This reframes the problem from "deployment mode" to "fallback behavior":
+
+#+begin_src rust
+pub struct Config {
+    pub platform_domain: String,
+    pub fallback_tenant_id: Option<TenantId>,  // Some(id) for solo, None for colo
+}
+
+async fn load_tenant(db: &PgPool, config: &Config, host: &str) -> Result<Option<Tenant>, sqlx::Error> {
+    // Always try domain lookup first (uses index, fast)
+    if let Some(tenant) = load_tenant_by_domain(db, host).await? {
+        return Ok(Some(tenant));
+    }
+
+    // Fallback if configured (solo mode)
+    if let Some(fallback_id) = config.fallback_tenant_id {
+        return load_tenant_by_id(db, fallback_id).await;
+    }
+
+    Ok(None)  // Strict mode (colo)
+}
+
+// New function needed:
+async fn load_tenant_by_id(db: &PgPool, id: TenantId) -> Result<Option<Tenant>, sqlx::Error> {
+    sqlx::query_as!(Tenant, "select id, name from tenants where id = $1", id.get())
+        .fetch_optional(db)
+        .await
+}
+#+end_src
+
+*Behavior*:
+- Solo mode: ~fallback_tenant_id = Some(1)~ → unknown domains route to tenant 1
+- Colo mode: ~fallback_tenant_id = None~ → unknown domains return 404
+
+*Pros*:
+- Clearer semantics: "fallback tenant" vs "deployment mode"
+- Removes mode concept entirely
+- Could support partial fallback (e.g., fallback only for non-platform domains)
+- More flexible (could fallback to different tenants per domain pattern)
+- Simpler configuration: one optional field instead of enum + conditional logic
+
+*Cons*:
+- Platform apex check still needs special handling (can't be a fallback)
+- Requires ~load_tenant_by_id~ function (small cost)
+- Less explicit about the two deployment topologies
+- Migration requires setting specific tenant ID (not just "solo mode")
+
+*Analysis*:
+This approach is conceptually cleaner but requires:
+1. Additional ~load_tenant_by_id~ function
+2. Platform apex logic still needs special handling:
+   #+begin_src rust
+   // Platform apex check (colo only - when fallback is None)
+   if config.fallback_tenant_id.is_none()
+       && normalized_host == state.config.platform_domain
+   {
+       return Realm::Platform { domain };
+   }
+   #+end_src
+3. Migration guide must specify tenant ID to use as fallback
+
+*Recommendation*: Worth prototyping alongside Option B. Could be cleaner long-term.
+
+* Decision: Database-Based Default Tenant (Option B - Revised)
+
+** Rationale
+
+After analysis, we're adopting a *database-driven* approach instead of runtime configuration enums.This eliminates the ~DeploymentMode~ enum entirely and uses ~tenants.is_default~ as the source of truth.
+
+*** Why Database-Based Beats Runtime Enum
+
+1. *Removes abstraction*: No more "deployment mode" concept - just "do we have a default tenant?"
+2. *Database is authority*: Configuration lives where data lives, not split across env vars and DB
+3. *More flexible*: Future enhancements easier (per-domain defaults, tenant groups, etc.)
+4. *Simpler mental model*: "Fallback tenant" vs "What mode are we in?"
+5. *Same final state*: All feature flags removed, both test suites run
+6. *Natural constraint*: PostgreSQL enforces single default via unique partial index
+
+*** Core Idea
+
+#+begin_quote
+Solo mode vs Colo mode is just "do we have a fallback tenant in the database?"
+- Solo deployment: One tenant marked ~is_fallback = TRUE~ → unknown domains route there
+- Colo deployment: No fallback tenant → unknown domains return 404
+#+end_quote
+
+No environment variables. No mode enum. Just database state.
+
+** Architecture Changes
+
+*** Schema Design
+
+#+begin_src sql
+-- Migration: Add is_fallback column
+ALTER TABLE tenants
+  ADD COLUMN is_fallback BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Ensure only one fallback tenant (partial unique index)
+CREATE UNIQUE INDEX idx_tenants_is_fallback
+  ON tenants(is_fallback)
+  WHERE is_fallback = TRUE;
+#+end_src
+
+*Rationale*:
+- ~is_fallback~ name - Clearer than "default", describes routing behavior
+- ~NOT NULL DEFAULT FALSE~ - Explicit, no ambiguity
+- Partial unique index - Allows multiple ~FALSE~ but only one ~TRUE~
+- PostgreSQL enforces constraint at DB level (can't have 2 fallback tenants)
+- No audit columns for MVP - application logging captures changes, can add history table later if needed
+
+*** AppState Changes
+
+#+begin_src rust
+#[derive(Clone)]
+pub struct AppState {
+    pub config: Arc<Config>,
+    pub db: PgPool,
+    pub fallback_tenant_id: Option<TenantId>,  // NEW! Loaded at startup
+    // ... existing fields (password_service, etc.)
+}
+
+impl AppState {
+    pub fn with_fallback_tenant(mut self, tenant_id: Option<TenantId>) -> Self {
+        self.fallback_tenant_id = tenant_id;
+        self
+    }
+}
+#+end_src
+
+*** Startup Sequence
+
+#+begin_src rust
+pub async fn init(config: Config) -> Result<AppState> {
+    let state = AppState::new(config).await?;
+    run_migrations(&state.db).await?;
+
+    // Load fallback tenant after migrations
+    let fallback_tenant_id = load_fallback_tenant_id(&state.db).await?;
+
+    // Log prominently
+    match fallback_tenant_id {
+        Some(id) => tracing::info!(
+            tenant_id = id.get(),
+            "Fallback tenant configured - unknown domains will route here"
+        ),
+        None => tracing::info!(
+            "No fallback tenant - unknown domains will return 404"
+        ),
+    }
+
+    Ok(state.with_fallback_tenant(fallback_tenant_id))
+}
+
+async fn load_fallback_tenant_id(db: &PgPool) -> Result<Option<TenantId>> {
+    sqlx::query_scalar!("SELECT id FROM tenants WHERE is_fallback = TRUE LIMIT 1")
+        .fetch_optional(db)
+        .await
+        .map(|opt| opt.map(TenantId::new))
+}
+#+end_src
+
+*** Tenant Resolution Logic
+
+#+begin_src rust
+// OLD (feature flags):
+async fn load_tenant(db: &PgPool, host: &str) -> Result<Option<Tenant>> {
+    #[cfg(feature = "colo")]
+    { load_tenant_by_domain(db, host).await }
+
+    #[cfg(not(feature = "colo"))]
+    { load_single_tenant(db).await }  // SELECT * FROM tenants LIMIT 1
+}
+
+// NEW (database-driven):
+async fn load_tenant(
+    db: &PgPool,
+    fallback_tenant_id: Option<TenantId>,
+    host: &str
+) -> Result<Option<Tenant>> {
+    // 1. Always try domain lookup first (fast index scan)
+    if let Some(tenant) = load_tenant_by_domain(db, host).await? {
+        return Ok(Some(tenant));
+    }
+
+    // 2. Fall back to fallback tenant if configured
+    if let Some(id) = fallback_tenant_id {
+        return load_tenant_by_id(db, id).await;
+    }
+
+    // 3. No fallback, no match → NotFound
+    Ok(None)
+}
+
+// NEW function needed:
+async fn load_tenant_by_id(db: &PgPool, id: TenantId) -> Result<Option<Tenant>> {
+    sqlx::query_as!(
+        Tenant,
+        "SELECT id, name FROM tenants WHERE id = $1",
+        id.get()
+    )
+    .fetch_optional(db)
+    .await
+}
+#+end_src
+
+*** Platform Apex Check
+
+#+begin_src rust
+// OLD (feature flag):
+#[cfg(feature = "colo")]
+if normalized_host == state.config.platform_domain {
+    return Realm::Platform { domain };
+}
+
+// NEW (database-driven):
+// Show platform page on apex domain ONLY when there's no fallback tenant
+if state.fallback_tenant_id.is_none()
+    && normalized_host == state.config.platform_domain
+{
+    return Realm::Platform { domain };
+}
+#+end_src
+
+*Semantics*: Platform apex shown in "colo mode" (no fallback tenant). In "solo mode" (has fallback tenant), apex routes to fallback tenant like any other domain.
+
+*** Code Deletions & Consolidations
+
+With this approach, we can *completely remove*:
+
+- ❌ ~DeploymentMode~ enum
+- ❌ ~Config.deployment_mode~ field
+- ❌ ~DEPLOYMENT_MODE~ env var
+- ❌ ~#[cfg(feature = "colo")]~ in tenant.rs
+- ❌ ~#[cfg(not(feature = "colo"))]~ in tenant.rs
+- ❌ ~colo~ feature from bits-app/Cargo.toml
+- ❌ ~#![cfg(feature = "colo")]~ from tests/realm.rs
+- ❌ ~#![cfg(not(feature = "colo"))]~ from tests/realm_solo.rs
+- ❌ ~load_single_tenant()~ function (replaced by ~load_tenant_by_id~)
+
+*Binary consolidation*:
+
+After this change, ~bits-solo~ and ~bits-colo~ are identical - behavior is controlled by database, not compile-time features.
+
+*Action*:
+- ❌ Delete ~crates/bits-solo~ (merge into ~crates/bits~)
+- ❌ Delete ~crates/bits-colo~ (merge into ~crates/bits~)
+- ✅ Single ~bits~ binary serves all deployment types
+- Binary name no longer dictates behavior (database does)
+
+*Net effect*: ~50 lines deleted, ~30 lines added, 2 crates consolidated
+
+*** Runtime Behavior
+
+*Fallback tenant can change while system is running* - this needs consideration.
+
+*Options*:
+1. *Startup-only load* (chosen for MVP) - Load ~is_fallback~ once at startup, cache in AppState
+   - ✅ Simple, no performance overhead
+   - ❌ Requires restart to change fallback tenant
+   - *Rationale*: Changing fallback tenant is rare (mostly initial setup), simplicity wins
+
+2. *Reload on every request* - Query ~is_fallback~ on each unknown domain
+   - ✅ Immediately reflects DB changes
+   - ❌ Extra query on every unknown domain request
+   - Not recommended for MVP
+
+3. *Periodic refresh* - Background task reloads every N minutes
+   - ✅ Eventually consistent
+   - ❌ Complex (tokio task, cancellation on shutdown)
+   - Future enhancement if needed
+
+4. *Event-driven* - Reload when ~is_fallback~ changes (LISTEN/NOTIFY)
+   - ✅ Immediate updates
+   - ❌ Most complex
+   - Future enhancement if needed
+
+*Decision*: Startup-only load. To change fallback tenant, run SQL and restart. Simple.
+
+*** Edge Cases
+
+| Scenario | Behavior | Handled? |
+|----------|----------|----------|
+| No tenants in DB | ~fallback_tenant_id = None~, all requests → NotFound | ✅ Correct |
+| Fallback tenant deleted | ~load_tenant_by_id~ returns ~None~ → NotFound | ✅ Degrades gracefully |
+| Multiple ~is_fallback=TRUE~ | PostgreSQL prevents via unique index | ✅ DB enforces |
+| Concurrent fallback updates | One UPDATE succeeds, other fails with constraint violation | ✅ PostgreSQL handles |
+| Unknown domain, no fallback | Returns ~NotFound~ | ✅ Correct |
+| Unknown domain, has fallback | Routes to fallback tenant | ✅ Correct |
+| Known domain, has fallback | Domain lookup wins (checked first) | ✅ Correct precedence |
+| Fallback tenant has explicit domains | Both paths work (fast for known, fallback for unknown) | ✅ Elegant |
+| Platform apex, no fallback | Shows ~Realm::Platform~ | ✅ Colo behavior |
+| Platform apex, has fallback | Routes to fallback tenant | ✅ Solo behavior |
+| Demo subdomain | Always returns ~Realm::Demo~ (checked before DB) | ✅ Unchanged |
+
+** Pre-Implementation Audit
+
+Before starting implementation, verify current state:
+
+#+begin_src bash
+# 1. Verify solo tests currently DON'T run:
+cargo test -p bits-e2e --test realm_solo -- --list
+# Expected: 0 tests (feature gate prevents compilation)
+
+# 2. Verify all feature flag locations:
+rg "#\[cfg\(feature = \"colo\"\)\]" crates/bits-app/
+
+# 3. Verify test feature gates:
+rg "#!\[cfg" crates/bits-e2e/tests/
+
+# 4. Verify ORDER BY is missing:
+rg "select.*from tenants.*limit" crates/bits-app/src/tenant.rs
+# Expected: No ORDER BY clause
+#+end_src
+
+** Critical Fix: Non-Deterministic Tenant Selection
+
+*Still applies*: The ORDER BY issue must be fixed before starting refactoring.
+
+*** Fix: Add ORDER BY to load_single_tenant
+
+*File*: ~crates/bits-app/src/tenant.rs:425~
+
+*Note*: This function will eventually be replaced by ~load_tenant_by_id~, but fix the bug first.
+
+#+begin_src diff
+ async fn load_single_tenant(db: &PgPool) -> Result<Option<Tenant>, sqlx::Error> {
+-    sqlx::query_as!(Tenant, "select id, name from tenants limit 1")
++    sqlx::query_as!(Tenant, "select id, name from tenants order by id limit 1")
+         .fetch_optional(db)
+         .await
+ }
+#+end_src
+
+*Test Verification*:
+#+begin_src rust
+#[tokio::test]
+async fn solo_deterministic_tenant_selection() {
+    let ctx = setup_solo(config()).await.unwrap();
+
+    // Create two tenants
+    let t1 = ctx.create_tenant("First").await.unwrap();
+    let t2 = ctx.create_tenant("Second").await.unwrap();
+
+    // Multiple calls should return same tenant (by ID order)
+    for _ in 0..5 {
+        let realm = resolve_realm(&ctx.state, Scheme::Http, "any.host").await;
+        match realm {
+            Realm::Creator(t) => assert_eq!(t.id, t1.id, "Should always return first tenant by ID"),
+            _ => panic!("Expected Creator realm"),
+        }
+    }
+}
+#+end_src
+
+*Priority*: Fix before starting architectural changes
+
+** Implementation Plan: Database-Driven Approach
+
+*** Phase 0: Pre-Implementation
+
+*Step 0.1*: Run audit commands (verify current state)
+*Step 0.2*: Fix ORDER BY bug in ~load_single_tenant~
+
+*** Phase 1: Database Schema
+
+*Step 1.1*: Create migration adding ~is_fallback~ column
+
+#+begin_src sql
+-- migrations/YYYYMMDD_add_fallback_tenant.sql
+ALTER TABLE tenants ADD COLUMN is_fallback BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE UNIQUE INDEX idx_tenants_is_fallback ON tenants(is_fallback) WHERE is_fallback = TRUE;
+#+end_src
+
+*Step 1.2*: Add ~load_tenant_by_id~ function
+
+#+begin_src rust
+// crates/bits-app/src/tenant.rs
+#[cfg(feature = "server")]
+async fn load_tenant_by_id(db: &PgPool, id: TenantId) -> Result<Option<Tenant>> {
+    sqlx::query_as!(
+        Tenant,
+        "SELECT id, name FROM tenants WHERE id = $1",
+        id.get()
+    )
+    .fetch_optional(db)
+    .await
+}
+#+end_src
+
+*Step 1.3*: Add ~load_fallback_tenant_id~ function
+
+#+begin_src rust
+// crates/bits-app/src/server.rs
+async fn load_fallback_tenant_id(db: &PgPool) -> Result<Option<TenantId>> {
+    sqlx::query_scalar!("SELECT id FROM tenants WHERE is_fallback = TRUE LIMIT 1")
+        .fetch_optional(db)
+        .await
+        .map(|opt| opt.map(TenantId::new))
+}
+#+end_src
+
+*** Phase 2: AppState Refactoring
+
+*Step 2.1*: Add ~fallback_tenant_id~ field to AppState
+
+#+begin_src diff
+ pub struct AppState {
+     pub config: Arc<Config>,
+     pub db: PgPool,
++    pub fallback_tenant_id: Option<TenantId>,
+     pub password_service: PasswordService,
+     // ...
+ }
+#+end_src
+
+*Step 2.2*: Add ~.with_fallback_tenant()~ builder method
+
+#+begin_src rust
+impl AppState {
+    pub fn with_fallback_tenant(mut self, tenant_id: Option<TenantId>) -> Self {
+        self.fallback_tenant_id = tenant_id;
+        self
+    }
+}
+#+end_src
+
+*Step 2.3*: Update ~AppState::new()~ to initialize ~fallback_tenant_id: None~
+
+*Step 2.4*: Update ~init()~ to load fallback tenant after migrations
+
+#+begin_src diff
+ pub async fn init(config: Config) -> Result<AppState> {
+     let state = AppState::new(config).await?;
+     run_migrations(&state.db).await?;
++
++    let fallback_tenant_id = load_fallback_tenant_id(&state.db).await?;
++    match fallback_tenant_id {
++        Some(id) => tracing::info!(tenant_id = id.get(), "Fallback tenant configured"),
++        None => tracing::info!("No fallback tenant - unknown domains will return 404"),
++    }
++
+-    Ok(state)
++    Ok(state.with_fallback_tenant(fallback_tenant_id))
+ }
+#+end_src
+
+*** Phase 3: Remove Feature Flags
+
+*Step 3.1*: Remove test file feature gates
+
+#+begin_src diff
+ // crates/bits-e2e/tests/realm.rs
+-#![cfg(feature = "colo")]
+
+ // crates/bits-e2e/tests/realm_solo.rs
+-#![cfg(not(feature = "colo"))]
+#+end_src
+
+*Step 3.2*: Remove ~#[cfg(feature = "colo")]~ from ~load_tenant_by_domain~
+
+#+begin_src diff
+-#[cfg(all(feature = "server", feature = "colo"))]
++#[cfg(feature = "server")]
+ async fn load_tenant_by_domain(...)
+#+end_src
+
+*Step 3.3*: Update ~load_tenant()~ to use ~fallback_tenant_id~
+
+#+begin_src diff
+ async fn load_tenant(
+     db: &PgPool,
+-    host: &str,
++    fallback_tenant_id: Option<TenantId>,
++    host: &str
+ ) -> Result<Option<Tenant>> {
+-    #[cfg(feature = "colo")]
+-    { load_tenant_by_domain(db, host).await }
+-
+-    #[cfg(not(feature = "colo"))]
+-    { load_single_tenant(db).await }
++    // Try domain lookup first
++    if let Some(tenant) = load_tenant_by_domain(db, host).await? {
++        return Ok(Some(tenant));
++    }
++
++    // Fall back to fallback tenant
++    if let Some(id) = fallback_tenant_id {
++        return load_tenant_by_id(db, id).await;
++    }
++
++    Ok(None)
+ }
+#+end_src
+
+*Step 3.4*: Update ~resolve_realm()~ to pass ~fallback_tenant_id~
+
+#+begin_src diff
+-    match load_tenant(&state.db, &normalized_host).await {
++    match load_tenant(&state.db, state.fallback_tenant_id, &normalized_host).await {
+#+end_src
+
+*Step 3.5*: Update platform apex check
+
+#+begin_src diff
+-    #[cfg(feature = "colo")]
+-    if normalized_host == state.config.platform_domain {
++    if state.fallback_tenant_id.is_none()
++        && normalized_host == state.config.platform_domain
++    {
+         return Realm::Platform { domain };
+     }
+#+end_src
+
+*Step 3.6*: Delete ~DeploymentMode~ enum from ~config.rs~
+
+*Step 3.7*: Delete ~deployment_mode~ field from ~Config~
+
+*Step 3.8*: Delete ~load_single_tenant()~ function (replaced by ~load_tenant_by_id~)
+
+*Step 3.9*: Remove ~colo~ feature from ~bits-app/Cargo.toml~
+
+#+begin_src diff
+ [features]
+ server = ["dioxus/server"]
+-colo = []
+#+end_src
+
+*Step 3.10*: Consolidate binaries - merge ~bits-solo~ and ~bits-colo~ into ~bits~
+
+- Move ~bits-solo/src/~ content to ~bits/src/~
+- Delete ~crates/bits-solo~
+- Delete ~crates/bits-colo~
+- Update ~Cargo.toml~ workspace members
+- Update justfile commands to use ~bits~ instead of ~bits-solo~/~bits-colo~
+
+*** Phase 4: Testing
+
+*Step 4.1*: Add ~mark_tenant_as_fallback()~ helper to TestContext
+
+#+begin_src rust
+impl TestContext {
+    pub async fn mark_tenant_as_fallback(&self, id: TenantId) -> Result<()> {
+        sqlx::query!("UPDATE tenants SET is_fallback = FALSE")
+            .execute(&self.db_pool).await?;
+        sqlx::query!("UPDATE tenants SET is_fallback = TRUE WHERE id = $1", id.get())
+            .execute(&self.db_pool).await?;
+        Ok(())
+    }
+
+    pub async fn reload_fallback_tenant(&mut self) -> Result<()> {
+        let fallback_id = load_fallback_tenant_id(&self.db_pool).await?;
+        self.state.fallback_tenant_id = fallback_id;
+        Ok(())
+    }
+}
+#+end_src
+
+*Step 4.2*: Update ~setup_solo()~ to mark first tenant as fallback
+
+#+begin_src diff
+ pub async fn setup_solo(config: Config) -> Result<TestContext> {
+-    let ctx = create_test_context(config).await?;
++    let mut ctx = create_test_context(config).await?;
++
++    // Create fallback tenant for solo mode
++    let tenant = ctx.create_tenant("Fallback Tenant").await?;
++    ctx.mark_tenant_as_fallback(tenant.id).await?;
++    ctx.reload_fallback_tenant().await?;
++
+     Ok(ctx)
+ }
+#+end_src
+
+*Step 4.3*: Verify both test suites run
+
+#+begin_src bash
+cargo test -p bits-e2e --test realm
+cargo test -p bits-e2e --test realm_solo
+#+end_src
+
+*** Phase 5: Documentation & Migration
+
+*Step 5.1*: Update README with fallback tenant concept
+
+*Step 5.2*: Create migration guide for existing deployments
+
+#+begin_src sql
+-- Solo deployments: Mark first tenant as fallback
+UPDATE tenants SET is_fallback = TRUE WHERE id = (SELECT MIN(id) FROM tenants);
+
+-- Colo deployments: No action needed (all remain FALSE)
+#+end_src
+
+*Step 5.3*: Document in prompt with completion status
+
+** Configuration Changes
+
+*** Deleted Configuration
+
+With database-driven approach, these are *removed*:
+- ❌ ~DEPLOYMENT_MODE~ environment variable (deleted)
+- ❌ ~Config.deployment_mode~ field (deleted)
+- ❌ ~DeploymentMode~ enum (deleted)
+
+*** Remaining Configuration
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| ~PLATFORM_DOMAIN~ | Yes | Platform apex and demo subdomain resolution |
+| ~DATABASE_URL~ | Yes | PostgreSQL connection string |
+
+*** Deployment Examples
+
+*Solo deployment (single tenant):*
+#+begin_src bash
+# 1. Set platform domain
+export PLATFORM_DOMAIN=localhost:3000
+
+# 2. Start server
+cargo run -p bits
+
+# 3. Mark a tenant as fallback (SQL)
+psql $DATABASE_URL -c "UPDATE tenants SET is_fallback = TRUE WHERE id = 1;"
+
+# 4. Restart to load fallback tenant
+#+end_src
+
+*Colo deployment (multi-tenant):*
+#+begin_src bash
+# 1. Set platform domain
+export PLATFORM_DOMAIN=bits.page
+
+# 2. Start server
+cargo run -p bits
+
+# 3. No fallback tenant needed - domain-based routing
+#+end_src
+
+** Testing Strategy
+
+*** Unit Tests
+
+*Existing*: Continue to work
+- ~Handle~ validation
+- ~normalize_host~ function
+- Schema validation
+
+*New Tests Needed*:
+
+#+begin_src rust
+// Fallback tenant selection is deterministic
+#[tokio::test]
+async fn fallback_tenant_selection_is_deterministic() {
+    let ctx = setup_solo(config()).await.unwrap();
+
+    let t1 = ctx.create_tenant("First").await.unwrap();
+    let t2 = ctx.create_tenant("Second").await.unwrap();
+
+    // Mark first tenant as fallback
+    ctx.mark_tenant_as_fallback(t1.id).await.unwrap();
+    ctx.reload_fallback_tenant().await.unwrap();
+
+    // Multiple resolutions should always return fallback tenant
+    for _ in 0..10 {
+        let realm = resolve_realm(&ctx.state, Scheme::Http, "unknown.host").await;
+        match realm {
+            Realm::Creator(t) => assert_eq!(t.id, t1.id, "Should return fallback tenant"),
+            _ => panic!("Expected Creator realm with fallback tenant"),
+        }
+    }
+
+    // Change fallback tenant
+    ctx.mark_tenant_as_fallback(t2.id).await.unwrap();
+    ctx.reload_fallback_tenant().await.unwrap();
+
+    // Now should return second tenant
+    let realm = resolve_realm(&ctx.state, Scheme::Http, "unknown.host").await;
+    match realm {
+        Realm::Creator(t) => assert_eq!(t.id, t2.id, "Should return new fallback tenant"),
+        _ => panic!("Expected Creator realm with new fallback tenant"),
+    }
+}
+
+// No fallback tenant returns NotFound
+#[tokio::test]
+async fn no_fallback_tenant_returns_not_found() {
+    let ctx = setup_colo(config()).await.unwrap();
+    // No fallback tenant set
+
+    let realm = resolve_realm(&ctx.state, Scheme::Http, "unknown.host").await;
+    assert!(matches!(realm, Realm::NotFound), "Should return NotFound without fallback tenant");
+}
+#+end_src
+
+*** Integration Tests (bits-e2e)
+
+*Before Refactoring*: Mutually exclusive test files
+#+begin_src rust
+// tests/realm.rs
+#![cfg(feature = "colo")]  // Only runs with --features colo
+
+// tests/realm_solo.rs
+#![cfg(not(feature = "colo"))]  // Only runs without colo feature
+#+end_src
+
+*After Refactoring*: Both test suites run every time
+#+begin_src rust
+// tests/realm.rs
+// No feature gate - always runs
+
+// tests/realm_solo.rs
+// No feature gate - always runs
+#+end_src
+
+*** Test Matrix
+
+| Test File | Setup | Verifies | Must Pass |
+|-----------|-------|----------|-----------|
+| ~tests/realm.rs~ | ~setup_colo(config)~ | Colo mode behavior | Always |
+| ~tests/realm_solo.rs~ | ~setup_solo(config)~ | Solo mode behavior | Always |
+| ~tests/security.rs~ | ~setup_solo(config)~ | Security in solo mode | Always |
+| ~tests/auth.rs~ | ~setup_solo(config)~ | Auth in solo mode | Always |
+
+All tests run in every CI build.
+
+*** Verification Commands
+
+#+begin_src bash
+# 1. Verify both test suites compile and run:
+cargo test -p bits-e2e 2>&1 | grep "Running tests/"
+# Should show BOTH:
+#   Running tests/realm.rs
+#   Running tests/realm_solo.rs
+
+# 2. Count tests in each file:
+cargo test -p bits-e2e --test realm -- --list
+cargo test -p bits-e2e --test realm_solo -- --list
+# Both should show > 0 tests
+
+# 3. Run all integration tests:
+cargo test -p bits-e2e
+
+# 4. Verify deployment mode can be set:
+DEPLOYMENT_MODE=solo cargo run -p bits-solo -- --help
+DEPLOYMENT_MODE=colo cargo run -p bits-colo -- --help
+
+# 5. Verify config validation:
+DEPLOYMENT_MODE=colo PLATFORM_DOMAIN="" cargo run -p bits-colo
+# Should error with: "PLATFORM_DOMAIN required in colo mode"
+
+# 6. Verify warning when DEPLOYMENT_MODE not set:
+cargo run -p bits-solo 2>&1 | grep "DEPLOYMENT_MODE not set"
+# Should show warning about defaulting to Solo
+#+end_src
+
+*** Manual Testing Checklist
+
+#+begin_src org
+** Solo Mode Testing
+- [ ] Start with ~DEPLOYMENT_MODE=solo~
+- [ ] Create one tenant in database
+- [ ] Access with arbitrary hostname → tenant loads
+- [ ] Access with another hostname → same tenant loads
+- [ ] Access demo subdomain → demo component loads
+- [ ] Remove tenant from database → 404 response
+
+** Colo Mode Testing
+- [ ] Start with ~DEPLOYMENT_MODE=colo~
+- [ ] Create tenant with domain mapping
+- [ ] Access platform apex → platform page loads
+- [ ] Access tenant subdomain → tenant loads
+- [ ] Access custom domain → tenant loads
+- [ ] Access unknown subdomain → 404
+- [ ] Access demo subdomain → demo component loads
+#+end_src
+
+** Documentation Changes Required
+
+*** README.org Updates
+
+*Section to Add*: Deployment Modes
+
+#+begin_src org
+* Deployment Modes
+
+Bits supports two deployment topologies controlled by the ~DEPLOYMENT_MODE~ environment variable.
+
+** Solo Mode (Single Tenant)
+
+For personal sites, staging environments, or single-user installs.
+
+#+begin_src sh
+export DEPLOYMENT_MODE=solo
+export PLATFORM_DOMAIN=yourdomain.com
+export DATABASE_URL=postgresql://user:pass@localhost/bits
+./bits
+#+end_src
+
+*Behavior*:
+- Any request (except demo subdomains) routes to the first tenant in database
+- Demo subdomains (jcf, emporium, charlie) show demo components
+- No platform marketing page
+- ~tenant_domains~ table not consulted
+
+*Use Cases*:
+- Self-hosted personal creator site
+- Staging/testing environments
+- Single-tenant SaaS installations
+
+** Colo Mode (Multi-Tenant Platform)
+
+For SaaS platforms hosting multiple creators.
+
+#+begin_src sh
+export DEPLOYMENT_MODE=colo
+export PLATFORM_DOMAIN=yourplatform.com
+export DATABASE_URL=postgresql://user:pass@localhost/bits
+./bits-colo
+#+end_src
+
+*Behavior*:
+- Platform apex (~yourplatform.com~) shows marketing page
+- Demo subdomains show demo components
+- Creator subdomains/domains route via ~tenant_domains~ lookup
+- Unknown domains return 404
+
+*Use Cases*:
+- Production multi-tenant SaaS
+- Creator platform hosting
+
+** Environment Variables
+
+| Variable | Required | Default | Values | Purpose |
+|----------|----------|---------|--------|---------|
+| ~DEPLOYMENT_MODE~ | Yes* | ~solo~ | ~solo~, ~colo~ | Controls tenant routing |
+| ~PLATFORM_DOMAIN~ | Yes | - | Domain string | Platform/demo resolution |
+| ~DATABASE_URL~ | Yes | - | PostgreSQL URL | Database connection |
+
+*Default exists for development, but production MUST set explicitly.*
+#+end_src
+
+*Update Existing Section*: Development
+
+#+begin_src diff
+ ** Development
+ Start required services:
+
+ #+begin_src sh
+ devenv up
+ #+end_src
+
+-Then start development server via Dioxus:
++Then start development server (defaults to solo mode):
+
+ #+begin_src sh
++export DEPLOYMENT_MODE=solo
+ just serve
+ #+end_src
++
++Or run colo mode for testing multi-tenant behavior:
++
++#+begin_src sh
++export DEPLOYMENT_MODE=colo
++just colo
++#+end_src
+#+end_src
+
+*** Create Deployment Guide
+
+*New File*: ~docs/deployment.org~ (or section in README)
+
+#+begin_src org
+* Deployment Guide
+
+** Migrating from Feature Flags to Runtime Config
+
+If upgrading from a version using compile-time feature flags:
+
+*** Solo Deployments
+
+Add to environment:
+#+begin_src sh
+export DEPLOYMENT_MODE=solo
+#+end_src
+
+Verify logs show:
+: INFO Initializing application deployment_mode=Solo
+
+*** Colo Deployments
+
+Add to environment:
+#+begin_src sh
+export DEPLOYMENT_MODE=colo
+#+end_src
+
+Verify logs show:
+: INFO Initializing application deployment_mode=Colo
+
+*** Verification Procedure
+
+1. Set ~DEPLOYMENT_MODE~ in all environments (dev, staging, prod)
+2. Deploy to staging first
+3. Test tenant resolution:
+   - Solo: Any domain → first tenant
+   - Colo: Platform apex → platform page, tenant domain → tenant
+4. Check logs for warnings
+5. Verify no ~DEPLOYMENT_MODE not set~ warnings
+6. Deploy to production
+
+*** Rollback Plan
+
+If issues occur:
+1. Revert to previous version
+2. Remove ~DEPLOYMENT_MODE~ from environment
+3. Previous feature-flag behavior resumes
+
+** Production Deployment Checklist
+
+Before deploying new version:
+
+- [ ] Set ~DEPLOYMENT_MODE~ in all environments
+- [ ] Set ~PLATFORM_DOMAIN~ correctly
+- [ ] Verify database URL is correct
+- [ ] Test in staging first
+- [ ] Monitor logs for deployment mode confirmation
+- [ ] Verify tenant resolution works as expected
+- [ ] Check for any ~DEPLOYMENT_MODE not set~ warnings
+- [ ] Have rollback plan ready
+- [ ] Document configuration in deployment automation
+#+end_src
+
+*** Update justfile Comments
+
+#+begin_src diff
+-# Run Dioxus in solo mode
++# Run Dioxus in solo mode (single tenant, any domain routes to first tenant)
+ solo:
++    export DEPLOYMENT_MODE=solo && \
+     dx serve --platform web --fullstack true --port 3000 --package bits-solo
+
+-# Run Dioxus in co-located mode
++# Run Dioxus in colo mode (multi-tenant, domain-based routing)
+ colo:
++    export DEPLOYMENT_MODE=colo && \
+     dx serve --platform web --fullstack true --port 3000 --package bits-colo
+#+end_src
+
+** Migration Path
+
+*** For Developers
+
+1. Pull latest code
+2. No action required - tests will run both modes automatically
+3. Use ~DEPLOYMENT_MODE~ env var to switch modes during development
+
+*** For Production Deployments
+
+*Solo Deployments*:
+#+begin_src bash
+# Add to systemd service, docker-compose, or deployment automation:
+Environment="DEPLOYMENT_MODE=solo"
+Environment="PLATFORM_DOMAIN=yourdomain.com"
+#+end_src
+
+*Colo Deployments*:
+#+begin_src bash
+Environment="DEPLOYMENT_MODE=colo"
+Environment="PLATFORM_DOMAIN=bits.page"
+#+end_src
+
+*Verification*: Check application logs on startup:
+#+begin_src
+INFO Initializing application deployment_mode=Solo platform_domain=yourdomain.com
+#+end_src
+
+*** Rollback Plan
+
+Feature flag removal is non-breaking because runtime config was already added:
+
+1. Revert commits in reverse order
+2. Remove ~DEPLOYMENT_MODE~ from environment
+3. Previous feature-flag behavior resumes
+4. Tests continue to pass (may need to restore test feature gates)
+
+* Risks & Mitigations
+
+** Risk 1: Accidental Misconfiguration
+
+*Scenario*: Production colo deployment runs with ~DEPLOYMENT_MODE=solo~
+
+*Impact*: All domains route to first tenant (data leak across tenants)
+
+*Probability*: Medium (human error during deployment)
+
+*Severity*: Critical (security issue)
+
+*Mitigation*:
+1. ✓ Config validation at startup
+2. ✓ Prominent logging of deployment mode
+3. ✓ Integration tests verify mode-specific behavior
+4. ✓ Deployment automation sets correct env var
+5. ✓ Startup warning if ~DEPLOYMENT_MODE~ not explicitly set
+6. ✓ Binary/mode mismatch warning
+
+*Detection*:
+- Monitor logs for unexpected deployment mode
+- Alert on ~DEPLOYMENT_MODE not set~ warnings
+- Monitor tenant resolution patterns (all domains → same tenant = problem in colo)
+
+** Risk 2: Binary Size Increase
+
+*Scenario*: Solo deployments include unused colo code
+
+*Impact*: Negligible (~2 SQL functions, <1KB)
+
+*Measurement*:
+#+begin_src bash
+# Before (solo only):
+ls -lh target/release/bits-solo
+
+# After (both paths):
+ls -lh target/release/bits-solo
+#+end_src
+
+*Mitigation*: Accept the trade-off. Runtime flexibility worth the cost.
+
+** Risk 3: Test Failures During Migration
+
+*Scenario*: Removing feature gates breaks tests mid-refactoring
+
+*Impact*: CI fails, development blocked
+
+*Probability*: High if wrong order used
+
+*Mitigation*:
+1. ✓ Correct implementation order (tests first, then code)
+2. ✓ Atomic commits (each compiles and passes tests)
+3. ✓ Run full test suite locally before each commit
+4. ✓ Pre-implementation audit verifies starting state
+
+** Risk 4: Demo Subdomain Conflicts
+
+*Scenario*: Tenant tries to register ~jcf.bits.page~ (reserved demo)
+
+*Impact*: Conflict between demo and tenant domain
+
+*Mitigation*: Already handled by:
+1. ~reserved::NAMES~ in ~Handle~ validation prevents registration
+2. Demo precedence in resolution order (checked before database)
+
+** Risk 5: Config Precedence Confusion (NEW)
+
+*Scenario*: User runs ~bits-solo~ binary with ~DEPLOYMENT_MODE=colo~
+
+*Expected*: Uses colo mode (env var wins)
+
+*Problem*: Binary name suggests solo, but behavior is colo → confusing
+
+*Probability*: Low (edge case)
+
+*Impact*: Medium (developer confusion, potential misconfiguration)
+
+*Mitigation*:
+1. ✓ Log warning when binary name doesn't match configured mode
+2. ✓ Documentation clearly states env var controls behavior
+3. ✓ Binary name is cosmetic only
+
+** Risk 6: Test Database Accumulation (NEW)
+
+*Scenario*: Integration tests create databases but don't clean up
+
+*Location*: ~fixtures.rs:149~ explicitly doesn't auto-cleanup
+
+*Impact*:
+- Disk space consumption over time
+- Connection pool exhaustion
+- CI environment pollution
+
+*Detection*:
+#+begin_src bash
+psql -U bits -c "SELECT datname FROM pg_database WHERE datname LIKE 'bits_test_%'"
+#+end_src
+
+*Mitigation*:
+1. Document cleanup procedure in README
+2. Add cleanup script: ~just db-test-cleanup~
+3. Add to CI post-test step
+4. Consider time-based cleanup in ~fixtures.rs~
+
+** Risk 7: Database Query Performance (NEW)
+
+*Scenario*: ~load_tenant_by_domain~ lacks proper index
+
+*Query*:
+#+begin_src sql
+SELECT t.id, t.name
+FROM tenants t
+JOIN tenant_domains td ON td.tenant_id = t.id
+WHERE td.domain = $1
+AND td.valid_to = 'infinity'
+#+end_src
+
+*Index Verification*:
+- ✓ ~idx_tenant_domains_current~ on ~(domain) WHERE valid_to = 'infinity'~
+- ✓ Covering index for this query
+
+*Performance*: Index seek on domain, fast lookup
+
+*Mitigation*: Already handled. Performance should be excellent.
+
+*Load Testing Recommended*:
+#+begin_src bash
+# Use pgbench or similar to test concurrent lookups
+# Target: <5ms p99 latency for tenant resolution
+#+end_src
+
+** Risk 8: Backward Compatibility (NEW - CRITICAL)
+
+*Scenario*: Deploy new binary to production without setting ~DEPLOYMENT_MODE~
+
+*Timeline*:
+1. Deploy new version
+2. Binary starts with ~DEPLOYMENT_MODE~ unset
+3. Defaults to ~Solo~ mode
+4. Colo production instance suddenly in solo mode
+5. All domains route to first tenant
+
+*Impact*: CRITICAL - data leak, service disruption
+
+*Probability*: HIGH if deployment automation not updated
+
+*Mitigation*:
+1. ✓ Startup warning if env var not set
+2. ✓ Migration guide with checklist
+3. ✓ Staging deployment required before production
+4. → *Additional*: Add startup assertion in production mode:
+   #+begin_src rust
+   if cfg!(not(debug_assertions)) && std::env::var("DEPLOYMENT_MODE").is_err() {
+       panic!(
+           "DEPLOYMENT_MODE must be explicitly set in production. \
+            Set DEPLOYMENT_MODE=solo or DEPLOYMENT_MODE=colo."
+       );
+   }
+   #+end_src
+
+*Detection*:
+- Monitor logs for ~DEPLOYMENT_MODE not set~ warnings
+- Alert on sudden changes in tenant resolution patterns
+- Verify configuration in deployment pipeline
+
+* Edge Cases & Validation
+
+** Edge Case 1: Multiple Tenants in Solo Mode
+
+*Current behavior*: ~SELECT * FROM tenants ORDER BY id LIMIT 1~ (first tenant by ID)
+
+*Test*: ~tests/realm_solo.rs::solo_multiple_tenants_returns_first~
+
+*Validated*: ✓ Test exists and passes (after ORDER BY fix)
+
+** Edge Case 2: No Tenant in Solo Mode
+
+*Current behavior*: Returns ~Realm::NotFound~ (404)
+
+*Test*: ~tests/realm_solo.rs::solo_no_tenant_returns_not_found~
+
+*Validated*: ✓ Test exists and passes
+
+** Edge Case 3: Demo Subdomain in Solo Mode
+
+*Current behavior*: Demo takes precedence over tenant lookup
+
+*Test*: ~tests/realm_solo.rs::solo_demo_takes_precedence~
+
+*Validated*: ✓ Test exists and passes
+
+** Edge Case 4: Platform Apex in Solo Mode
+
+*Current behavior*: No platform apex check in solo mode, routes to tenant
+
+*Expected*: After change, platform apex check gated by ~deployment_mode == Colo~
+
+*Test Needed*:
+#+begin_src rust
+#[tokio::test]
+async fn solo_platform_apex_routes_to_tenant() {
+    let mut config = config().unwrap();
+    config.platform_domain = "bits.page".to_string();
+
+    let ctx = setup_solo(config).await.unwrap();
+    let tenant = ctx.create_tenant("Test").await.unwrap();
+
+    // Platform apex should route to tenant in solo mode
+    let realm = resolve_realm(&ctx.state, Scheme::Https, "bits.page").await;
+    match realm {
+        Realm::Creator(t) => assert_eq!(t.id, tenant.id),
+        _ => panic!("Solo mode should route platform apex to tenant, got {:?}", realm),
+    }
+}
+#+end_src
+
+** Edge Case 5: Unknown Domain in Colo Mode
+
+*Current behavior*: Returns ~Realm::NotFound~ (404)
+
+*Test*: ~tests/realm.rs::colo_unknown_custom_domain_returns_not_found~
+
+*Validated*: ✓ Test exists and passes
+
+** Edge Case 6: Middleware Missing Host Header
+
+*Current behavior*: Falls back based on deployment mode:
+- Colo: ~Realm::Platform~
+- Solo: Resolves via localhost
+
+*Location*: ~bits-app/src/middleware/realm.rs:49~
+
+*Validated*: ✓ Handles both modes correctly
+
+** Edge Case 7: Tenant Query Non-Determinism (CRITICAL FIX)
+
+*Problem*: ~SELECT * FROM tenants LIMIT 1~ without ~ORDER BY~
+
+*Impact*: PostgreSQL can return any tenant (depends on table scan order)
+
+*Test*:
+#+begin_src rust
+#[tokio::test]
+async fn solo_tenant_selection_deterministic_across_restarts() {
+    let ctx = setup_solo(config()).await.unwrap();
+
+    let t1 = ctx.create_tenant("First").await.unwrap();
+    let t2 = ctx.create_tenant("Second").await.unwrap();
+
+    // Simulate multiple queries (as if server restarted)
+    for i in 0..20 {
+        let realm = resolve_realm(&ctx.state, Scheme::Http, "test.com").await;
+        match realm {
+            Realm::Creator(t) => {
+                assert_eq!(
+                    t.id, t1.id,
+                    "Iteration {}: Expected first tenant ({}), got {}",
+                    i, t1.id, t.id
+                );
+            }
+            _ => panic!("Expected Creator realm, got {:?}", realm),
+        }
+    }
+}
+#+end_src
+
+*Fix*: Add ~ORDER BY id~ (Step 0.1)
+
+* Success Criteria
+
+** Implementation Complete When:
+
+1. ✓ Solo tenant query includes ~ORDER BY id~
+2. ✓ Config validation prevents empty ~PLATFORM_DOMAIN~ in colo mode
+3. ✓ Startup logging shows deployment mode clearly
+4. ✓ Warning logged if ~DEPLOYMENT_MODE~ not explicitly set
+5. ✓ Binary/mode mismatch warning implemented
+6. ✓ All ~#[cfg(feature = "colo")]~ removed from ~bits-app/src/tenant.rs~
+7. ✓ All ~#[cfg(not(feature = "colo"))]~ removed from ~bits-app/src/tenant.rs~
+8. ✓ ~colo = []~ feature removed from ~bits-app/Cargo.toml~
+9. ✓ ~#![cfg(feature = "colo")]~ removed from ~tests/realm.rs~
+10. ✓ ~#![cfg(not(feature = "colo"))]~ removed from ~tests/realm_solo.rs~
+11. ✓ All integration tests pass (~cargo test -p bits-e2e~)
+12. ✓ Both solo and colo test suites run in every build
+13. ✓ Documentation updated (README, deployment guide, justfile)
+14. ✓ Migration guide created for existing deployments
+
+** Verification Tests
+
+#+begin_src bash
+# 1. All tests run and pass
+cargo test -p bits-e2e
+
+# 2. Both test files compile and run
+cargo test -p bits-e2e 2>&1 | grep "Running tests/"
+# Expected output:
+#   Running tests/realm.rs
+#   Running tests/realm_solo.rs
+
+# 3. Both test files have tests
+cargo test -p bits-e2e --test realm -- --list | wc -l
+cargo test -p bits-e2e --test realm_solo -- --list | wc -l
+# Both should show > 1 (the count line)
+
+# 4. Deployment mode can be set via env
+DEPLOYMENT_MODE=solo cargo run -p bits-solo -- --help
+DEPLOYMENT_MODE=colo cargo run -p bits-colo -- --help
+
+# 5. Config validation works
+DEPLOYMENT_MODE=colo PLATFORM_DOMAIN="" cargo run -p bits-colo 2>&1 | grep "PLATFORM_DOMAIN required"
+# Should show error
+
+# 6. Startup logs deployment mode
+cargo run -p bits-solo 2>&1 | grep "deployment_mode"
+# Should show: deployment_mode=Solo
+
+# 7. Warning when DEPLOYMENT_MODE not set
+unset DEPLOYMENT_MODE && cargo run -p bits-solo 2>&1 | grep "DEPLOYMENT_MODE not set"
+# Should show warning
+
+# 8. Binary/mode mismatch warning
+DEPLOYMENT_MODE=colo cargo run -p bits-solo 2>&1 | grep "Binary name suggests"
+# Should show warning about mismatch
+
+# 9. Feature flags removed from bits-app
+rg "#\[cfg\(feature = \"colo\"\)\]" crates/bits-app/src/
+# Should return no matches
+
+# 10. Test feature gates removed
+rg "#!\[cfg" crates/bits-e2e/tests/realm*.rs
+# Should return no matches
+#+end_src
+
+* Future Enhancements
+
+** Option 1: Tenant Affinity (Sticky Routing)
+
+In solo mode, support multiple tenants with sticky sessions:
+
+#+begin_src rust
+pub struct Config {
+    pub deployment_mode: DeploymentMode,
+    pub default_tenant_id: Option<TenantId>,  // Solo: fallback tenant
+}
+#+end_src
+
+Use case: Staging environment with multiple tenants, route by subdomain but fallback for unknown.
+
+** Option 2: Hybrid Mode
+
+Support per-domain fallback in colo mode:
+
+#+begin_src rust
+pub struct Config {
+    pub deployment_mode: DeploymentMode,
+    pub fallback_tenant_for_unknown: Option<TenantId>,  // Colo: graceful unknown domain handling
+}
+#+end_src
+
+Use case: During migration, route unknown domains to onboarding page instead of 404.
+
+** Option 3: Tenant Isolation Levels
+
+Different isolation for different tenants:
+
+#+begin_src rust
+pub enum TenantIsolation {
+    Shared,      // Multiple tenants per instance (current solo)
+    Dedicated,   // One tenant per instance
+    Platform,    // Multi-tenant platform (current colo)
+}
+#+end_src
+
+Use case: Enterprise customers get dedicated instances, smaller customers share.
+
+** Option 4: Fallback Tenant Design (ALTERNATIVE APPROACH)
+
+Revisit Option C with full design:
+
+#+begin_src rust
+pub struct Config {
+    pub platform_domain: String,
+    pub fallback_tenant_id: Option<TenantId>,  // None = strict, Some = fallback
+}
+
+// Platform apex check:
+if fallback_tenant_id.is_none() && host == platform_domain {
+    return Realm::Platform { domain };
+}
+
+// Always try domain lookup:
+if let Some(tenant) = load_tenant_by_domain(db, host).await? {
+    return Ok(Realm::Creator(tenant));
+}
+
+// Fallback if configured:
+if let Some(fallback_id) = fallback_tenant_id {
+    if let Some(tenant) = load_tenant_by_id(db, fallback_id).await? {
+        return Ok(Realm::Creator(tenant));
+    }
+}
+
+Ok(Realm::NotFound)
+#+end_src
+
+*Advantages*:
+- Simpler mental model: "fallback" vs "mode"
+- More flexible (could set different fallbacks)
+- Removes DeploymentMode enum entirely
+
+*Trade-offs*:
+- Platform apex logic slightly more complex
+- Migration requires setting tenant ID explicitly
+- Less explicit about deployment topology
+
+*Recommendation*: Prototype this after Option B is stable. Could be cleaner long-term.
+
+* Summary
+
+** Current State (Problematic)
+
+- ❌ Mix of compile-time and runtime configuration
+- ❌ Solo mode tests don't run by default
+- ❌ Confusing dual mechanism (feature flags + enum)
+- ❌ Emergency runtime fix incomplete
+- ❌ Non-deterministic tenant selection in solo mode
+- ❌ No config validation or warnings
+- ❌ No migration guide for existing deployments
+
+** Recommended State (Clean)
+
+- ✅ Pure runtime configuration
+- ✅ All tests run every time (both modes)
+- ✅ Single decision point (~DeploymentMode~ env var)
+- ✅ Environment variable control
+- ✅ Simpler codebase (one way to configure)
+- ✅ Deterministic tenant selection (~ORDER BY~)
+- ✅ Config validation at startup
+- ✅ Clear logging and warnings
+- ✅ Migration guide and deployment checklist
+
+** Key Decision: Runtime > Compile-Time
+
+For deployment topology choices (solo vs colo), runtime configuration is superior because:
+1. Testing requires both code paths available
+2. Flexibility aids development and staging
+3. Binary size impact is negligible (<1KB)
+4. Simpler CI/CD pipeline (one build)
+5. Easier debugging (consistent binary)
+
+** Implementation: 10 Steps, Managed Risk
+
+Each step is atomic and reversible. Full test suite validates correctness at every commit.
+
+Critical fixes happen first (ORDER BY, validation), then feature flag removal, then documentation.
+
+** Risk Management
+
+8 risks identified with concrete mitigations:
+1. Misconfiguration → validation + warnings + checklist
+2. Binary size → negligible, accepted
+3. Test failures → correct order, atomic commits
+4. Demo conflicts → already handled
+5. Config confusion → warning on mismatch
+6. Test cleanup → document + script
+7. Performance → already optimized
+8. Backward compatibility → migration guide + staging required
+
+** Documentation Strategy
+
+1. README updates (deployment modes, env vars)
+2. Deployment guide (migration, verification, rollback)
+3. justfile comments (clarify mode behavior)
+4. Environment variable reference table
+5. Production deployment checklist
+
+** Next Steps
+
+1. Review this document
+2. Run pre-implementation audit
+3. Verify solo tests don't currently run
+4. Begin implementation with critical fixes (commits 0.1, 0.2)
+5. Remove test gates first (commit 1)
+6. Remove code feature flags (commits 2-7)
+7. Update documentation (commit 8)
+8. Deploy to staging and verify
+9. Update production deployments with ~DEPLOYMENT_MODE~

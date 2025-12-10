@@ -10,9 +10,8 @@ name = "bits-seed"
 path = "src/bin/seed.rs"
 
 [features]
-default = ["server", "colo"]
+default = ["server"]
 server = ["bits-app/server", "bits-solo/server", "bits-colo/server"]
-colo = ["bits-app/colo", "bits-colo/colo"]
 
 [dependencies]
 bits-app.workspace = true

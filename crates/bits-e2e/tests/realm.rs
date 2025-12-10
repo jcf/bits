@@ -1,5 +1,3 @@
-#![cfg(feature = "colo")]
-
 use bits_app::{http::Scheme, tenant::Realm};
 use bits_e2e::{fixtures, request};
 

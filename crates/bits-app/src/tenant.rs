@@ -340,20 +340,30 @@ pub enum Realm {
     NotFound,
 }
 
-#[cfg(all(feature = "server", feature = "colo"))]
-async fn load_tenant_by_domain(pool: &PgPool, domain: &str) -> Result<Option<Tenant>, sqlx::Error> {
+/// Load tenant by domain or fallback tenant
+///
+/// Tries to match by domain first (via tenant_domains table).
+/// If no domain match, returns tenant marked with is_fallback=true.
+/// Domain matches take precedence over fallback via order by.
+///
+/// This single query handles both "colo mode" (domain-based) and
+/// "solo mode" (fallback-based) routing.
+#[cfg(feature = "server")]
+async fn load_tenant(db: &PgPool, domain: &str) -> Result<Option<Tenant>, sqlx::Error> {
     sqlx::query_as!(
         Tenant,
-        "select
-           t.id,
-           t.name
+        "select t.id, t.name
          from tenants t
-         join tenant_domains td on td.tenant_id = t.id
-         where td.domain = $1
-         and td.valid_to = 'infinity'",
+         left join tenant_domains td on td.tenant_id = t.id
+             and td.domain = $1
+             and td.valid_to = 'infinity'
+         where td.tenant_id is not null
+            or t.is_fallback = true
+         order by td.tenant_id is not null desc
+         limit 1",
         domain,
     )
-    .fetch_optional(pool)
+    .fetch_optional(db)
     .await
 }
 
@@ -365,23 +375,24 @@ pub async fn resolve_realm(
 ) -> Realm {
     let normalized_host = crate::http::normalize_host(scheme, host);
 
-    // Colo only: platform apex domain check
-    #[cfg(feature = "colo")]
-    if normalized_host == state.config.platform_domain {
-        return Realm::Platform {
-            domain: state.config.platform_domain.clone(),
-        };
-    }
-
     // Check if this is a demo subdomain
     if let Some(handle) = demo_from_host(&state.config.platform_domain, &normalized_host) {
         return Realm::Demo(handle);
     }
 
-    // Look up tenant in database
+    // Try to load tenant (by domain or fallback)
     match load_tenant(&state.db, &normalized_host).await {
         Ok(Some(tenant)) => Realm::Creator(tenant),
-        Ok(None) => Realm::NotFound,
+        Ok(None) => {
+            // No tenant found - show platform page if this is apex domain
+            if normalized_host == state.config.platform_domain {
+                Realm::Platform {
+                    domain: state.config.platform_domain.clone(),
+                }
+            } else {
+                Realm::NotFound
+            }
+        }
         Err(e) => {
             tracing::error!(
                 host = %host,
@@ -402,29 +413,6 @@ fn demo_from_host(platform_domain: &str, host: &str) -> Option<Handle> {
     crate::demos::SUBDOMAINS
         .contains(&handle.as_str())
         .then_some(handle)
-}
-
-/// Load tenant from database (dispatches to colo or solo mode)
-#[cfg(feature = "server")]
-async fn load_tenant(db: &PgPool, host: &str) -> Result<Option<Tenant>, sqlx::Error> {
-    #[cfg(feature = "colo")]
-    {
-        load_tenant_by_domain(db, host).await
-    }
-
-    #[cfg(not(feature = "colo"))]
-    {
-        let _ = host; // Host unused in solo mode
-        load_single_tenant(db).await
-    }
-}
-
-/// Load single tenant for solo mode
-#[cfg(all(feature = "server", not(feature = "colo")))]
-async fn load_single_tenant(db: &PgPool) -> Result<Option<Tenant>, sqlx::Error> {
-    sqlx::query_as!(Tenant, "select id, name from tenants limit 1")
-        .fetch_optional(db)
-        .await
 }
 
 #[cfg(feature = "server")]
