@@ -224,6 +224,91 @@
       };
     };
 
+    hooks = {
+      format = {
+        enable = true;
+        name = "Format files after edit";
+        hookType = "PostToolUse";
+        matcher = "^(Edit|MultiEdit|Write)$";
+        command = ''
+          json=$(cat)
+          file_path=$(echo "$json" | jq -r '.file_path // empty')
+
+          # Skip if no file path
+          [[ -z "$file_path" ]] && exit 0
+
+          # Skip excluded directories
+          if [[ "$file_path" =~ (^|/)target/ ]] || \
+             [[ "$file_path" =~ (^|/)node_modules/ ]] || \
+             [[ "$file_path" =~ (^|/)\.devenv/ ]] || \
+             [[ "$file_path" =~ (^|/)dist/ ]] || \
+             [[ "$file_path" =~ \.wasm$ ]]; then
+            exit 0
+          fi
+
+          # Skip if file doesn't exist
+          [[ ! -f "$file_path" ]] && exit 0
+
+          # Format the file
+          treefmt --allow-missing-formatter "$file_path" 2>&1 || true
+        '';
+      };
+
+      check = {
+        enable = true;
+        name = "Check Rust compilation";
+        hookType = "PostToolUse";
+        matcher = "^(Edit|MultiEdit|Write)$";
+        command = ''
+          json=$(cat)
+          file_path=$(echo "$json" | jq -r '.file_path // empty')
+
+          # Skip if no file path
+          [[ -z "$file_path" ]] && exit 0
+
+          # Only check .rs files
+          [[ ! "$file_path" =~ \.rs$ ]] && exit 0
+
+          # Only check files in cargo workspace
+          if [[ ! "$file_path" =~ (^|/)crates/ ]] && [[ ! "$file_path" =~ (^|/)src/ ]]; then
+            exit 0
+          fi
+
+          # Run cargo check with timeout
+          timeout 10s cargo check --message-format=json 2>&1 | {
+            errors=""
+            while IFS= read -r line; do
+              if echo "$line" | jq -e 'select(.reason == "compiler-message" and .message.level == "error")' &>/dev/null; then
+                file=$(echo "$line" | jq -r '.message.spans[0].file_name // "unknown"')
+                line_num=$(echo "$line" | jq -r '.message.spans[0].line_start // "?"')
+                msg=$(echo "$line" | jq -r '.message.message // "unknown error"')
+                errors+="$file:$line_num: $msg\n"
+              fi
+            done
+
+            if [[ -n "$errors" ]]; then
+              echo -e "Compilation errors found:\n$errors"
+              exit 1
+            fi
+          } || {
+            exit_code=$?
+            if [[ $exit_code -eq 124 ]]; then
+              echo "Cargo check timed out after 10 seconds"
+              exit 1
+            fi
+            exit $exit_code
+          }
+        '';
+      };
+
+      integrate = {
+        enable = true;
+        name = "Run comprehensive validation";
+        hookType = "Stop";
+        command = "just";
+      };
+    };
+
     commands = {
       # Development
       dev = ''

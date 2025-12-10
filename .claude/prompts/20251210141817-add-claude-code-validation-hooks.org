@@ -1,0 +1,193 @@
+#+title:    Add Claude Code validation hooks
+#+date:     2025-12-10
+#+status:   done
+#+property: header-args :dir ../..
+
+* Goal
+
+Implement Claude Code hooks in =devenv.nix= that automatically validate ALL changes made by Claude, ensuring code quality and preventing incomplete work.
+
+*Core Principle*: Claude must fix what Claude breaks. Humans can wait for Claude; Claude waits for validation. No broken builds, ever.
+
+* Requirements
+
+** Fast Checks (PostToolUse hooks)
+
+Run after each file edit for immediate feedback:
+
+1. *Format Hook*
+   - Trigger :: After =Edit=, =Write=, =MultiEdit= on source files only
+   - Scope :: =src/=, =crates/=, =*.nix=, =*.js=, =*.ts= (exclude =target/=, =node_modules/=, =.devenv/=)
+   - Command :: =treefmt --allow-missing-formatter <file>=
+   - Speed :: ~100ms
+   - Purpose :: Ensure consistent formatting instantly
+   - Behavior :: Modifies file in place (expected behavior)
+
+2. *Syntax Check Hook* (Rust only)
+   - Trigger :: After editing =.rs= files in cargo workspace
+   - Scope :: Only files under =crates/= or =src/= with =Cargo.toml= ancestor
+   - Command :: =cargo check --message-format=json= (10s timeout)
+   - Speed :: ~1-5s (cached), ~30s (cold build)
+   - Purpose :: Catch compilation errors immediately
+   - Error Handling :: Show errors to Claude with file:line context; non-zero exit blocks further work
+
+** Comprehensive Validation (Stop hook)
+
+*MANDATORY* - Runs when Claude finishes responding to ensure we're truly done.
+
+1. *Stop Hook - Project Default*
+   - Command :: =just= (runs =fmt build lint test= per justfile line 7)
+   - Purpose :: Ensure everything is production-ready
+   - Behavior :: *BLOCKS session completion* if =just= fails (non-zero exit)
+   - Rationale :: If =just= passes, we're good to ship
+   - Note :: No opt-out for Claude; humans can bypass if needed
+
+* Risks and Mitigations
+
+** Known Claude Code Hook Bugs
+
+- *Issue* :: Hooks sometimes don't trigger (GitHub #3179, #6305 from July/August 2025)
+- *Issue* :: PreToolUse hooks can't block operations (GitHub #4362)
+- *Mitigation* :: Test thoroughly after implementation; document manual fallback (=just= before commits)
+- *Mitigation* :: Rely on PostToolUse and Stop hooks which have better reliability
+
+** Performance Considerations
+
+- *Risk* :: =cargo check= might timeout on very large changes or cold builds
+- *Mitigation* :: 10s timeout on syntax check; clear error message if timeout occurs
+- *Risk* :: Full =just= suite can take 2-5 minutes on slow machines
+- *Mitigation* :: Acceptable - correctness over speed; Claude waits
+
+** Scope and Filtering
+
+- *Risk* :: Running hooks on generated code (=target/=, =node_modules/=, =.devenv/=)
+- *Mitigation* :: Path filtering in hook scripts - only process source directories
+- *Risk* :: Processing binary files or symlinks
+- *Mitigation* :: Check file type before running formatters/validators
+
+** Error Handling
+
+- *Risk* :: Cryptic error messages that Claude can't interpret
+- *Mitigation* :: Parse cargo JSON output; extract file:line:message for clarity
+- *Mitigation* :: Include full error context in hook output
+- *Risk* :: Hook script failures break workflow completely
+- *Mitigation* :: Each hook has =enable = true= flag for emergency disable
+
+* Implementation
+
+Add hooks to =nix/modules/claude-code.nix= under =claude.code.hooks=:
+
+- 2 PostToolUse hooks (format, syntax-check)
+- 1 Stop hook (comprehensive-validation)
+- All hooks include path filtering and error handling
+
+* Success Criteria
+
+1. Format hook runs after every source file edit and formats the file in place
+2. Format hook skips generated directories (=target/=, =node_modules/=, =.devenv/=)
+3. Syntax check runs after Rust file edits within cargo workspace
+4. Syntax check reports compilation errors with file:line:message format
+5. Stop hook runs =just= when Claude finishes responding
+6. Stop hook *blocks session completion* with non-zero exit if =just= fails
+7. All hooks show clear error messages that guide Claude to fix issues
+8. Hooks can be individually disabled via =enable = false= flag
+9. No hooks run on files outside source directories
+
+* Testing
+
+** Phase 1: Manual Hook Testing
+
+Test hooks in isolation before using with Claude:
+
+#+begin_src sh
+# Test format hook
+echo '{"tool":"Edit","file_path":"crates/bits-app/src/lib.rs"}' | \
+  bash -c '<format-hook-script>'
+
+# Test format hook on excluded path (should skip)
+echo '{"tool":"Edit","file_path":"target/debug/lib.rs"}' | \
+  bash -c '<format-hook-script>'
+
+# Test syntax check on valid Rust file
+echo '{"tool":"Edit","file_path":"crates/bits-app/src/lib.rs"}' | \
+  bash -c '<syntax-check-script>'
+
+# Test stop hook (should run full validation)
+bash -c '<stop-hook-script>'
+
+# Verify stop hook blocks on failure
+# (introduce failing test, then run stop hook)
+#+end_src
+
+** Phase 2: Integration Testing with Claude
+
+1. *Format hook testing*:
+   - Edit a Rust file with formatting issues → should auto-format
+   - Edit a file in =node_modules/= → should skip
+   - Edit a Nix file → should format
+
+2. *Syntax check testing*:
+   - Edit a Rust file with compilation error → should show error with file:line
+   - Edit a Rust file outside workspace → should skip
+   - Edit a valid Rust file → should pass silently
+
+3. *Stop hook testing*:
+   - Complete session with failing tests → should block completion with error
+   - Complete session with failing build → should block completion
+   - Complete session with passing =just= → should complete normally
+   - Verify hook shows full error output when blocking
+
+** Phase 3: Edge Cases
+
+- Empty files
+- Binary files (should skip)
+- Symlinks
+- Files with special characters in path
+- Very large files (>10MB)
+- Timeout scenarios (force slow operation)
+
+* Notes
+
+** Hook Implementation Details
+
+- Follow devenv.sh/integrations/claude-code/ documentation
+- Hooks receive JSON via stdin with =file_path= and =tool= fields
+- Use =jq= to parse JSON input (should be available in environment)
+- Exit code 0 = success, non-zero = failure (blocks Claude on failure)
+- Hook output goes to Claude (stdout/stderr merged)
+- Commands run in existing environment (no =devenv shell= wrapper needed)
+
+** Path Filtering Strategy
+
+Exclude paths matching:
+- =target/= (Rust build artifacts)
+- =node_modules/= (JS dependencies)
+- =.devenv/= (devenv state)
+- =dist/= (build output)
+- =*.wasm= (compiled WebAssembly)
+
+Include paths matching:
+- =src/=, =crates/= (Rust source)
+- =*.nix= (Nix configuration)
+- =*.js=, =*.ts= (JavaScript/TypeScript)
+- =*.md=, =*.org= (Documentation)
+
+** Emergency Disable
+
+If hooks break workflow completely:
+
+#+begin_src nix
+# In nix/modules/claude-code.nix
+claude.code.hooks.format.enable = false;
+claude.code.hooks.syntax-check.enable = false;
+claude.code.hooks.comprehensive-validation.enable = false;
+#+end_src
+
+Then rebuild: =darwin-rebuild switch --flake ~/.config/setup=
+
+** Performance Strategy
+
+- Fast feedback loop: Format (100ms) + syntax check (1-5s)
+- Comprehensive gate: Full validation at session end (2-5 minutes)
+- Timeouts prevent indefinite hangs
+- Claude waits; humans don't
