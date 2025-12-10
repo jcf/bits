@@ -177,7 +177,7 @@ pub struct Config {
 **ABSOLUTE RULES - NEVER VIOLATE:**
 
 1. **NEVER assert only on status codes** - Status codes are preconditions, not behavior. Tests must verify the actual outcome (redirect destination, response body, database state, etc.).
-2. **NEVER use generic assertions without specifics** - `is_success()`, `is_redirection()`, `is_ok()` only verify that *something* happened, not that the *correct thing* happened.
+2. **NEVER use generic assertions without specifics** - `is_success()`, `is_redirection()`, `is_ok()` only verify that _something_ happened, not that the _correct thing_ happened.
 3. **ALWAYS verify the complete behavior** - If testing a redirect, verify WHERE. If testing data creation, verify WHAT was created. If testing errors, verify the ERROR TYPE and MESSAGE.
 
 **Test assertion hierarchy:**
@@ -322,8 +322,8 @@ async fn test_behavior() {
 
 **Rationale:**
 
-- **Tests document behavior** - Future developers learn what the code *does* by reading tests
-- **Status codes are insufficient** - They only tell you *something* happened, not *what*
+- **Tests document behavior** - Future developers learn what the code _does_ by reading tests
+- **Status codes are insufficient** - They only tell you _something_ happened, not _what_
 - **Catch regressions** - If redirect destination changes accidentally, test catches it
 - **Force clarity** - Writing specific assertions forces you to understand the actual behavior
 
