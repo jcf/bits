@@ -4,11 +4,7 @@ unexport PGSERVICEFILE
 
 plan_dir := justfile_directory() / ".terraform-plans"
 
-_default:
-    @just fmt
-    @just build
-    @just lint
-    @just test
+_default: fmt build lint test
 
 # ------------------------------------------------------------------------------
 # Setup
@@ -331,9 +327,7 @@ integrate:
 
 # Run unit and integration tests
 [group('test')]
-test:
-    @just unit
-    @just integrate
+test: unit integrate
 
 # ------------------------------------------------------------------------------
 # Build
@@ -359,8 +353,7 @@ clean:
 
 # Verify and push changes
 [group('workflows')]
-push:
-    @just test
+push: test
     git push
 
 # ------------------------------------------------------------------------------
