@@ -1,6 +1,6 @@
 #+title:    Tenant Resolution Architecture Simplification
 #+date:     2025-12-10
-#+status:   completed
+#+status:   done
 #+property: header-args :dir ../..
 
 * Implementation Note (2025-12-10)
