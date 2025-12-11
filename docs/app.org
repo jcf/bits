@@ -10,14 +10,45 @@ ls -1
 #+end_src
 
 #+results:
+: bits
 : bits-app
 : bits-axum-session-sqlx
-: bits-colo
 : bits-db
 : bits-domain
 : bits-e2e
-: bits-solo
 : bits-tailwind-merge
+
+** =bits=
+The entrypoint for all things Bits.
+
+#+begin_src sh :results output verbatim :dir ../crates/bits
+fd --type f '\.rs$'
+#+end_src
+
+#+results:
+: src/lib.rs
+: src/main.rs
+: src/server.rs
+
+#+begin_src sh :results output verbatim :dir ../crates/bits-app
+tokei
+#+end_src
+
+#+results:
+#+begin_example
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Language              Files        Lines         Code     Comments       Blanks
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FreeMarker                1          107           92            0           15
+ TOML                      1           77           72            0            5
+─────────────────────────────────────────────────────────────────────────────────
+ Rust                     57         6427         5497          184          746
+ |- Markdown              26          256            4          213           39
+ (Total)                             6683         5501          397          785
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Total                    59         6867         5665          397          805
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#+end_example
 
 ** =bits-app=
 The heart of the Bits application where views, models, and connective tissue
@@ -63,6 +94,7 @@ src/demos/emporium.rs
 src/demos/jcf.rs
 src/demos/mod.rs
 src/demos/template.rs
+src/hooks.rs
 src/http.rs
 src/i18n.rs
 src/lib.rs
@@ -97,13 +129,13 @@ tokei
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  FreeMarker                1          107           92            0           15
- TOML                      1           78           73            0            5
+ TOML                      1           77           72            0            5
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     56         6414         5484          184          746
- |- Markdown              25          244            4          205           35
- (Total)                             6658         5488          389          781
+ Rust                     57         6427         5497          184          746
+ |- Markdown              26          256            4          213           39
+ (Total)                             6683         5501          397          785
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    58         6843         5653          389          801
+ Total                    59         6867         5665          397          805
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #+end_example
 
@@ -132,36 +164,6 @@ tokei
 : ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 :  Total                     2          237          209            0           28
 : ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-** =bits-colo=
-Entrypoint for co-located Bits.
-
-#+begin_src sh :results output verbatim :dir ../crates/bits-colo
-fd --type f '\.rs$'
-#+end_src
-
-#+results:
-: src/lib.rs
-: src/main.rs
-: src/server.rs
-
-#+begin_src sh :results output verbatim :dir ../crates/bits-colo
-tokei
-#+end_src
-
-#+results:
-#+begin_example
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Language              Files        Lines         Code     Comments       Blanks
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- CSS                       2         1737         1734            1            2
- HTML                      1           11           11            0            0
- Rust                      3           89           76            0           13
- TOML                      2           54           43            1           10
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                     8         1891         1864            2           25
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#+end_example
 
 ** =bits-db=
 PostgreSQL-specific logic and features. Things like timestamp support that
@@ -266,43 +268,13 @@ tokei
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- TOML                      1           43           39            0            4
+ TOML                      1           42           38            0            4
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     15         2283         1812           92          379
- |- Markdown               2            4            0            4            0
- (Total)                             2287         1812           96          379
+ Rust                     15         2633         2086          114          433
+ |- Markdown               3            6            0            6            0
+ (Total)                             2639         2086          120          433
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    16         2330         1851           96          383
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#+end_example
-
-** =bits-solo=
-Entrypoint for solo Bits.
-
-#+begin_src sh :results output verbatim :dir ../crates/bits-solo
-fd --type f '\.rs$'
-#+end_src
-
-#+results:
-: src/lib.rs
-: src/main.rs
-: src/server.rs
-
-#+begin_src sh :results output verbatim :dir ../crates/bits-solo
-tokei
-#+end_src
-
-#+results:
-#+begin_example
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Language              Files        Lines         Code     Comments       Blanks
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- CSS                       2         1737         1734            1            2
- HTML                      1           11           11            0            0
- Rust                      3           89           76            0           13
- TOML                      2           54           43            1           10
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                     8         1891         1864            2           25
+ Total                    16         2681         2124          120          437
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #+end_example
 
