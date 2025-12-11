@@ -154,9 +154,7 @@ Available recipes:
     secret-rekey                    # Rekey all secrets with recipients in secrets/secrets.nix
 
     [serve]
-    colo                            # Run Dioxus in co-located mode
-    dev                             # Run Dioxus in co-located mode
-    solo                            # Run Dioxus in solo mode
+    dev                             # Run Dioxus development server
     tailwind dir                    # Watch source code for Tailwind classes
     www                             # Run the marketing site
 
@@ -188,34 +186,34 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
  Clojure                   2          559          456           32           71
- CSS                       3           42           38            0            4
+ CSS                       2           23           21            0            2
  Edn                       4           47           47            0            0
  FreeMarker                1          107           92            0           15
  HCL                      40         1193          912          116          165
- HTML                      2           22           22            0            0
+ HTML                      1           11           11            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      2          593          357          121          115
+ Just                      2          576          344          119          113
  MDX                       1           56            0           39           17
- Nix                       9         1167          760          230          177
- Org                      16         2620         2314            4          302
- SQL                       9          321          261           26           34
- TOML                     15          418          363            2           53
+ Nix                       9         1256          828          238          190
+ Org                      16         2633         2330            4          299
+ SQL                      10          339          269           33           37
+ TOML                     13          363          318            1           44
  TypeScript                3           36           30            1            5
- YAML                      3         5046         3963            0         1083
+ YAML                      3         5053         3968            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1          176            0          116           60
- |- Rust                   1          200          141           34           25
- (Total)                              376          141          150           85
+ Markdown                  1          270            0          174           96
+ |- Rust                   1          400          282           64           54
+ (Total)                              670          282          238          150
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     94        15968        13235          879         1854
- |- Markdown              37          405            4          345           56
- (Total)                            16373        13239         1224         1910
+ Rust                     99        16751        13869          904         1978
+ |- Markdown              46          535            4          441           90
+ (Total)                            17286        13873         1345         2068
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   221        29250        23235         1946         4069
+ Total                   223        30482        24021         2167         4294
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1039b0f-dirty @ 2025/12/08 21:32
+a3ef291-dirty @ 2025/12/11 15:33
 #+end_example
 
 * Decision records
@@ -317,7 +315,6 @@ done
 | =TODO= | =2025-12-04= | [[file:.claude/prompts/20251204140000-infrastructure-foundation.org][Infrastructure Foundation]]      |
 | =TODO= | =2025-12-04= | [[file:.claude/prompts/20251204140400-production-deployment.org][Production Deployment]]          |
 | =TODO= | =2025-12-04= | [[file:.claude/prompts/20251204182609-packer-nixos-image-for-hetzner.org][Packer NixOS Image for Hetzner]] |
-| =TODO= | =2025-12-08= | [[file:.claude/prompts/20251208-pii-type-system.org][PII Type System]]                |
 
 ** =DONE=
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
@@ -330,25 +327,28 @@ done
 #+end_src
 
 #+results:
-| Status | Date         | Title                                       |
-|--------+--------------+---------------------------------------------|
-| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140100-type-system-refactoring.org][Type System Refactoring]]                     |
-| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140200-features-and-organization.org][Features and Organization]]                   |
-| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140300-landing-page-ui.org][Landing Page UI]]                             |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205120511-handle-validation-improvements.org][Handle Validation Improvements]]              |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205133111-nixos-deployment-cleanup.org][NixOS deployment cleanup]]                    |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org][Rate Limit Application Endpoints]]            |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205161500-complete-email-verification-enforcement.org][Complete Email Verification Enforcement]]     |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org][Replace Argon2 for Verification Codes]]       |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174618-eliminate-boolean-parameters.org][Eliminate Boolean Parameters]]                |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174620-introduce-domain-newtypes.org][Introduce Domain Newtypes]]                   |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174622-remove-debug-statements.org][Remove Debug Statements]]                     |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174624-add-critical-unit-tests.org][Add Critical Unit Tests]]                     |
-| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174626-improve-error-handling.org][Improve Error Handling]]                      |
-| =DONE= | =2025-12-06= | [[file:.claude/prompts/20251206140000-refactor-bits-client.org][Refactor BitsClient]]                         |
-| =DONE= | =2025-12-06= | [[file:.claude/prompts/20251206153200-add-garde-validation-library.org][Add Garde validation library]]                |
-| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208121140-interactive-prompt-execution-with-fzf.org][Interactive prompt execution with fzf]]       |
-| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208204054-share-auth-form-between-sign-in-and-sign-up.org][Share auth form between sign in and sign up]] |
+| Status | Date         | Title                                         |
+|--------+--------------+-----------------------------------------------|
+| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140100-type-system-refactoring.org][Type System Refactoring]]                       |
+| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140200-features-and-organization.org][Features and Organization]]                     |
+| =DONE= | =2025-12-04= | [[file:.claude/prompts/20251204140300-landing-page-ui.org][Landing Page UI]]                               |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205120511-handle-validation-improvements.org][Handle Validation Improvements]]                |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205133111-nixos-deployment-cleanup.org][NixOS deployment cleanup]]                      |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205160800-rate-limit-authentication-endpoints.org][Rate Limit Application Endpoints]]              |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205161500-complete-email-verification-enforcement.org][Complete Email Verification Enforcement]]       |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205161600-replace-argon2-for-verification-codes.org][Replace Argon2 for Verification Codes]]         |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174618-eliminate-boolean-parameters.org][Eliminate Boolean Parameters]]                  |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174620-introduce-domain-newtypes.org][Introduce Domain Newtypes]]                     |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174622-remove-debug-statements.org][Remove Debug Statements]]                       |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174624-add-critical-unit-tests.org][Add Critical Unit Tests]]                       |
+| =DONE= | =2025-12-05= | [[file:.claude/prompts/20251205174626-improve-error-handling.org][Improve Error Handling]]                        |
+| =DONE= | =2025-12-06= | [[file:.claude/prompts/20251206140000-refactor-bits-client.org][Refactor BitsClient]]                           |
+| =DONE= | =2025-12-06= | [[file:.claude/prompts/20251206153200-add-garde-validation-library.org][Add Garde validation library]]                  |
+| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208-pii-type-system.org][PII Type System]]                               |
+| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208121140-interactive-prompt-execution-with-fzf.org][Interactive prompt execution with fzf]]         |
+| =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208204054-share-auth-form-between-sign-in-and-sign-up.org][Share auth form between sign in and sign up]]   |
+| =DONE= | =2025-12-10= | [[file:.claude/prompts/20251210123457-tenant-resolution-architecture-simplification.org][Tenant Resolution Architecture Simplification]] |
+| =DONE= | =2025-12-10= | [[file:.claude/prompts/20251210141817-add-claude-code-validation-hooks.org][Add Claude Code validation hooks]]              |
 
 * TODOs
 #+begin_src sh :results output verbatim :exports results
@@ -356,8 +356,7 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: crates/bits-app/src/auth.rs:// TODO Use #[patch] when Dioxus next ships
-: crates/bits-app/src/auth_rate_limit/types.rs:// TODO: Replace with comprehensive PII type system
+: crates/bits-app/src/auth/password.rs:// TODO Use #[patch] when Dioxus next ships
 : crates/bits-app/src/config.rs:// TODO Wrap u32 in 'Limit' type.
 : crates/bits-app/src/pages/layout.rs:    // TODO Make csrf_token a proper type akin to Option<String>.
 : crates/bits-app/src/server.rs:// TODO Add health checks to core components within `AppState`.
