@@ -46,4 +46,30 @@ select user_id, email, verified from logins;
 | user_id | email                | verified |
 |---------+----------------------+----------|
 |       1 | james@invetica.co.uk | t        |
-|       2 | a@a.a                | f        |
+
+* Test databases
+** Select databases
+#+name: test-database-names
+#+begin_src sql
+select datname
+from pg_database
+where datname like 'bits_test_%';
+#+end_src
+
+#+results: test-database-names
+| datname                                    |
+|--------------------------------------------|
+| bits_test_de521ad69a5c42f5a88a7b8034659603 |
+
+** Clean up
+#+begin_src sh :results output verbatim :var names=test-database-names
+for name in $names; do
+  echo "Deleting $name..."
+  just psql --dbname=postgres <<< "drop database \"$name\""
+done
+#+end_src
+
+#+results:
+: Deleting bits_test_de521ad69a5c42f5a88a7b8034659603...
+: DROP DATABASE
+: Time: 42.318 ms

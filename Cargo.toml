@@ -1,13 +1,12 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/bits",
     "crates/bits-app",
     "crates/bits-axum-session-sqlx",
-    "crates/bits-colo",
     "crates/bits-db",
     "crates/bits-domain",
     "crates/bits-e2e",
-    "crates/bits-solo",
     "crates/bits-tailwind-merge",
 ]
 
@@ -17,12 +16,11 @@ authors = ["James Conroy-Finn <james@invetica.co.uk>"]
 edition = "2021"
 
 [workspace.dependencies]
-bits-axum-session-sqlx = { path = "crates/bits-axum-session-sqlx" }
-bits-domain = { path = "crates/bits-domain" }
-bits-db = { path = "crates/bits-db" }
+bits = { path = "crates/bits" }
 bits-app = { path = "crates/bits-app" }
-bits-colo = { path = "crates/bits-colo" }
-bits-solo = { path = "crates/bits-solo" }
+bits-axum-session-sqlx = { path = "crates/bits-axum-session-sqlx" }
+bits-db = { path = "crates/bits-db" }
+bits-domain = { path = "crates/bits-domain" }
 bits-tailwind-merge = { path = "crates/bits-tailwind-merge" }
 
 anyhow = "1"

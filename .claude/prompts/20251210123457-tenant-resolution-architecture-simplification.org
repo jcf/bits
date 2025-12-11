@@ -117,8 +117,23 @@ Both test suites now run on every build - no more hidden test failures!
 - ~DeploymentMode~ enum - never existed, not needed
 - ~colo~ feature from all Cargo.toml files
 - Test file feature gates (~#![cfg(...)]~)
+- *Entire ~crates/bits-colo~ directory* - merged into bits
+- ~bits-solo~ renamed to ~bits~ (canonical binary)
 
-*Net change*: ~120 lines deleted, ~60 lines added
+*Net change*: ~150 lines deleted, ~60 lines added, 1 crate consolidated
+
+*** Binary Consolidation
+
+Merged ~bits-solo~ and ~bits-colo~ into single ~bits~ binary:
+
+1. Renamed ~crates/bits-solo~ → ~crates/bits~
+2. Deleted ~crates/bits-colo~ entirely
+3. Updated workspace members in root Cargo.toml
+4. Updated bits-e2e to depend on single ~bits~ crate
+5. Updated justfile commands (~solo~, ~colo~, ~build~)
+6. Both spawn_solo() and spawn_colo() now use ~bits::server::app~
+
+*Result*: One binary, behavior determined by database (~is_fallback~ column)
 
 * Problem Statement
 

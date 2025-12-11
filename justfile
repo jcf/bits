@@ -213,19 +213,10 @@ execute *args:
 # ------------------------------------------------------------------------------
 # Serve
 
-# Run Dioxus in solo mode
+# Run Dioxus development server
 [group('serve')]
-solo:
-    dx serve --platform web --fullstack true --port 3000 --package bits-solo
-
-# Run Dioxus in co-located mode
-[group('serve')]
-colo:
-    dx serve --platform web --fullstack true --port 3000 --package bits-colo
-
-# Run Dioxus in co-located mode
-[group('serve')]
-dev: colo
+dev:
+    dx serve --platform web --fullstack true --port 3000 --package bits
 
 # Watch source code for Tailwind classes
 [group('serve')]
@@ -335,8 +326,7 @@ test: unit integrate
 # Build fullstack web packages
 [group('build')]
 build:
-    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits-solo
-    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits-colo
+    env RUSTFLAGS="-D warnings" dx build --fullstack true --platform web --package bits
 
 # Bundle a release build via dioxus-cli
 [group('build')]

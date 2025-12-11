@@ -281,4 +281,8 @@ in {
       ALTER USER bits CREATEDB;
     '';
   };
+
+  processes.postgres.process-compose = {
+    availability.restart = "on_failure";
+  };
 }

@@ -39,6 +39,7 @@ pub struct TestContext {
     pub db_pool: PgPool,
     pub client: reqwest::Client,
     pub state: bits_app::AppState,
+    test_db_name: String,
 }
 
 impl TestContext {
@@ -163,12 +164,37 @@ impl TestContext {
     }
 }
 
-// Note: We don't auto-cleanup test databases in Drop to avoid panics during shutdown
-// and to allow debugging failed tests. Clean up manually with:
-//   psql -U bits -c "DROP DATABASE bits_test_*" postgres
+impl Drop for TestContext {
+    fn drop(&mut self) {
+        let db_name = self.test_db_name.clone();
+        let base_url = self.state.config.database_url.clone();
 
-async fn create_test_database(base_url: &PgUrl) -> Result<PgUrl> {
+        // Spawn thread with its own runtime since we can't block the test's runtime
+        let handle = std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+
+            rt.block_on(async move {
+                if let Err(e) = cleanup_test_database(&base_url, &db_name).await {
+                    tracing::warn!(
+                        database = %db_name,
+                        error = %e,
+                        "Failed to cleanup test database"
+                    );
+                }
+            })
+        });
+
+        handle.join().ok();
+    }
+}
+
+async fn cleanup_test_database(base_url: &PgUrl, db_name: &str) -> Result<()> {
     use sqlx::postgres::PgPoolOptions;
+
+    tracing::debug!(database = %db_name, "Cleaning up test database");
 
     let postgres_url = base_url.with_database("postgres");
     let admin_pool = PgPoolOptions::new()
@@ -176,23 +202,64 @@ async fn create_test_database(base_url: &PgUrl) -> Result<PgUrl> {
         .connect(postgres_url.as_ref())
         .await?;
 
-    let test_id = uuid::Uuid::new_v4().simple().to_string();
-    let db_name = format!("bits_test_{}", test_id);
+    // Terminate active connections to the test database
+    sqlx::query(
+        "select pg_terminate_backend(pid)
+         from pg_stat_activity
+         where datname = $1 and pid <> pg_backend_pid()",
+    )
+    .bind(db_name)
+    .execute(&admin_pool)
+    .await?;
 
-    sqlx::query(&format!("CREATE DATABASE {}", db_name))
+    // Drop the database using identifier quoting
+    // PostgreSQL doesn't support parameterized identifiers, so we use quote_ident
+    sqlx::query(&format!("drop database if exists {}", quote_ident(db_name)))
         .execute(&admin_pool)
         .await?;
 
-    let test_url = base_url.with_database(&db_name);
+    tracing::debug!(database = %db_name, "Test database dropped");
 
-    // Run migrations on the new database
+    Ok(())
+}
+
+/// Quote a PostgreSQL identifier (database name, table name, etc.)
+/// Prevents SQL injection by escaping quotes and wrapping in double quotes
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
+async fn create_test_database(base_url: &PgUrl) -> Result<(PgUrl, String)> {
+    use sqlx::postgres::PgPoolOptions;
+
+    let test_id = uuid::Uuid::new_v4().simple().to_string();
+    let db_name = format!("bits_test_{}", test_id);
+
+    tracing::debug!(database = %db_name, "Creating test database");
+
+    let postgres_url = base_url.with_database("postgres");
+    let admin_pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect(postgres_url.as_ref())
+        .await?;
+
+    // Create database using identifier quoting
+    sqlx::query(&format!("create database {}", quote_ident(&db_name)))
+        .execute(&admin_pool)
+        .await?;
+
+    tracing::debug!(database = %db_name, "Running migrations");
+
+    let test_url = base_url.with_database(&db_name);
     let test_pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(test_url.as_ref())
         .await?;
     sqlx::migrate!("../../migrations").run(&test_pool).await?;
 
-    Ok(test_url)
+    tracing::debug!(database = %db_name, "Test database ready");
+
+    Ok((test_url, db_name))
 }
 
 pub fn config() -> Result<bits_app::config::Config> {
@@ -215,7 +282,7 @@ pub fn config() -> Result<bits_app::config::Config> {
 }
 
 pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext> {
-    let test_url = create_test_database(&config.database_url).await?;
+    let (test_url, test_db_name) = create_test_database(&config.database_url).await?;
     let test_config = config.clone().with_database_url(test_url.clone());
 
     let (server, state) = crate::server::spawn_solo(test_config).await?;
@@ -226,6 +293,7 @@ pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext>
         db_pool: state.db.clone(),
         client,
         state,
+        test_db_name,
     };
 
     // Create a default tenant and mark it as fallback for solo mode
@@ -236,7 +304,7 @@ pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext>
 }
 
 pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext> {
-    let test_url = create_test_database(&config.database_url).await?;
+    let (test_url, test_db_name) = create_test_database(&config.database_url).await?;
     let test_config = config.clone().with_database_url(test_url.clone());
 
     let (server, state) = crate::server::spawn_colo(test_config).await?;
@@ -247,5 +315,6 @@ pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext>
         db_pool: state.db.clone(),
         client,
         state,
+        test_db_name,
     })
 }

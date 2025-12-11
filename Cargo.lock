@@ -460,6 +460,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bits"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum_session",
+ "axum_session_auth",
+ "axum_session_sqlx",
+ "bits-app",
+ "bits-db",
+ "bits-domain",
+ "clap",
+ "dioxus",
+ "sqlx",
+ "tokio",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
 name = "bits-app"
 version = "0.1.0"
 dependencies = [
@@ -536,26 +556,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bits-colo"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum_session",
- "axum_session_auth",
- "axum_session_sqlx",
- "bits-app",
- "bits-db",
- "bits-domain",
- "clap",
- "dioxus",
- "sqlx",
- "tokio",
- "tower-http",
- "tracing",
-]
-
-[[package]]
 name = "bits-db"
 version = "0.1.0"
 dependencies = [
@@ -585,11 +585,10 @@ dependencies = [
  "anyhow",
  "argon2",
  "axum",
+ "bits",
  "bits-app",
- "bits-colo",
  "bits-db",
  "bits-domain",
- "bits-solo",
  "fake",
  "jiff 0.2.16",
  "jiff-sqlx",
@@ -603,29 +602,10 @@ dependencies = [
  "sqlx",
  "tokio",
  "toml",
+ "tracing",
  "tracing-subscriber",
  "urlencoding",
  "uuid",
-]
-
-[[package]]
-name = "bits-solo"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "axum_session",
- "axum_session_auth",
- "axum_session_sqlx",
- "bits-app",
- "bits-db",
- "bits-domain",
- "clap",
- "dioxus",
- "sqlx",
- "tokio",
- "tower-http",
- "tracing",
 ]
 
 [[package]]

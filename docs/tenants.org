@@ -3,21 +3,7 @@
 #+author:   James Conroy-Finn <james@invetica.co.uk>
 #+property: header-args :dir ..
 
-Within Bits we have two modes of operation guarded by Cargo features.
-
-#+begin_src sh :results output verbatim
-rg \
-  --only-matching \
-  --no-filename \
-  --glob '*.rs' \
-  'feature\s*=\s*"([^"]+)"' \
-  --replace '$1' </dev/null \
-  | sort --unique
-#+end_src
-
-#+results:
-: colo
-: server
+Within Bits we have two modes of operation: colo and solo.
 
 Colo (or co-location) maps host domains to corresponding hosts. For example:
 
