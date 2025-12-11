@@ -4,4 +4,5 @@
 .github/
 /.devenv/
 /.direnv/
+crates/bits/index.html
 pnpm-lock.yaml
