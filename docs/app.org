@@ -11,7 +11,6 @@ ls -1
 
 #+results:
 : bits
-: bits-app
 : bits-axum-session-sqlx
 : bits-db
 : bits-domain
@@ -19,42 +18,10 @@ ls -1
 : bits-tailwind-merge
 
 ** =bits=
-The entrypoint for all things Bits.
-
-#+begin_src sh :results output verbatim :dir ../crates/bits
-fd --type f '\.rs$'
-#+end_src
-
-#+results:
-: src/lib.rs
-: src/main.rs
-: src/server.rs
-
-#+begin_src sh :results output verbatim :dir ../crates/bits-app
-tokei
-#+end_src
-
-#+results:
-#+begin_example
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Language              Files        Lines         Code     Comments       Blanks
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- FreeMarker                1          107           92            0           15
- TOML                      1           77           72            0            5
-─────────────────────────────────────────────────────────────────────────────────
- Rust                     57         6427         5497          184          746
- |- Markdown              26          256            4          213           39
- (Total)                             6683         5501          397          785
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    59         6867         5665          397          805
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#+end_example
-
-** =bits-app=
 The heart of the Bits application where views, models, and connective tissue
 reside.
 
-#+begin_src sh :results output verbatim :dir ../crates/bits-app
+#+begin_src sh :results output verbatim :dir ../crates/bits
 fd --type f '\.rs$'
 #+end_src
 
@@ -88,7 +55,6 @@ src/components/sign_out_button.rs
 src/components/sign_out_link.rs
 src/config.rs
 src/csrf.rs
-src/db.rs
 src/demos/charlie.rs
 src/demos/emporium.rs
 src/demos/jcf.rs
@@ -98,6 +64,7 @@ src/hooks.rs
 src/http.rs
 src/i18n.rs
 src/lib.rs
+src/main.rs
 src/metrics.rs
 src/middleware/auth_rate_limit.rs
 src/middleware/csrf.rs

@@ -1,0 +1,477 @@
+#+title:    Consolidate bits and bits-app crates
+#+date:     2025-12-12
+#+status:   done
+#+property: header-args :dir ../..
+#+updated:  2025-12-12 - Completed consolidation successfully
+
+* Overview
+
+Merge the =bits= and =bits-app= crates into a single =bits= crate. The current split is a vestige from the now-removed colo/solo separation that no longer has architectural value.
+
+*Dependencies*: None - can start immediately
+
+*Priority*: MEDIUM - Simplifies architecture but not urgent
+
+*Estimated time*: 30-45 minutes
+
+* Problem Statement
+
+The workspace currently has two crates with unclear separation:
+
+- =bits= (18 lines of code) - Thin wrapper containing only:
+  - CLI entry point (~main.rs~)
+  - Asset inclusion (~lib.rs~: stylesheet link + App component)
+- =bits-app= (thousands of lines) - All actual application logic
+
+This split originated from colo/solo feature flag separation (commit 3c3d9b5, 2025-12-11) but persists after unification. The =bits= crate adds no architectural value and creates unnecessary indirection.
+
+** Current Structure
+
+#+begin_src
+workspace
+├── crates/bits/
+│   ├── Cargo.toml          # Depends on bits-app
+│   ├── Dioxus.toml         # Dev server config
+│   ├── assets/app.css      # Stylesheet
+│   └── src/
+│       ├── main.rs         # CLI with clap
+│       └── lib.rs          # App component wrapper
+└── crates/bits-app/
+    ├── Cargo.toml
+    └── src/
+        ├── lib.rs
+        ├── app.rs          # Actual App component
+        ├── config.rs
+        ├── server.rs
+        └── [all other modules]
+#+end_src
+
+** Dependency Graph
+
+*Before consolidation*:
+#+begin_example
+bits-e2e → bits → bits-app → bits-domain
+        ↘ bits-app ↗
+#+end_example
+
+*After consolidation*:
+#+begin_example
+bits-e2e → bits → bits-domain
+#+end_example
+
+* Proposed Solution
+
+Rename =crates/bits-app= to =crates/bits=, incorporate the CLI from old =bits/main.rs=, delete the original =bits= crate.
+
+** Migration Steps
+
+1. *Move CLI into bits-app* (~crates/bits-app/src/main.rs~)
+   - Copy ~crates/bits/src/main.rs~ content
+   - Update module paths (remove ~bits_app::~ prefixes, use ~crate::~)
+   - Remove ~bits::App~ reference, use ~crate::App~ from lib.rs
+
+2. *Merge App wrapper into bits-app lib.rs*
+   - Copy asset link from ~crates/bits/src/lib.rs~
+   - Integrate into existing ~bits-app/src/lib.rs~ or ~bits-app/src/app.rs~
+
+3. *Move assets*
+   - Move ~crates/bits/assets/~ → ~crates/bits-app/assets/~
+
+4. *Move Dioxus.toml*
+   - Move ~crates/bits/Dioxus.toml~ → ~crates/bits-app/Dioxus.toml~
+
+5. *Update bits-app Cargo.toml*
+   - Add ~[[bin]]~ section for the ~bits~ binary
+   - Remove ~bits~ from dependencies (self-reference)
+
+6. *Rename directory*
+   - ~mv crates/bits-app crates/bits~
+   - ~rm -rf crates/bits-old~ (original bits crate)
+
+7. *Update workspace Cargo.toml*
+   - Remove ~crates/bits~ member (old one)
+   - Ensure ~crates/bits~ points to renamed directory
+   - Update ~workspace.dependencies~ to remove old ~bits-app~
+
+8. *Update bits-e2e dependencies*
+   - ~Cargo.toml~: Remove ~bits-app~ dependency
+   - Update feature flags: ~server = ["bits/server"]~ (remove ~bits-app/server~)
+   - Update imports in test files (~use bits::*~ instead of ~use bits_app::*~)
+
+9. *Update justfile*
+   - Change ~dev~ recipe crate path reference if needed
+   - Update any other crate-specific commands
+
+10. *Verify compilation*
+    - ~cargo clean~
+    - ~cargo check --all-targets~
+    - ~cargo test~
+    - ~just~
+
+* Risks and Mitigations
+
+** Risk 1: Asset Path Breakage
+
+*Risk*: The ~asset!("assets/app.css")~ macro in lib.rs resolves paths relative to the crate root. Moving from ~bits/assets/~ to ~bits-app/assets/~ could break the reference.
+
+*Likelihood*: LOW - Asset macro should resolve correctly in renamed crate
+*Impact*: MEDIUM - Broken styles, but obvious in dev server
+
+*Mitigation*:
+- Test dev server immediately after asset move
+- If broken, verify ~assets/~ directory is at crate root
+- Check ~Dioxus.toml~ for any explicit asset path configuration
+
+** Risk 2: Feature Flag Propagation
+
+*Risk*: Other crates depend on both ~bits~ and ~bits-app~ with ~server~ feature. Consolidation changes feature dependency paths.
+
+*Likelihood*: MEDIUM - ~bits-e2e/Cargo.toml~ has ~server = ["bits-app/server", "bits/server"]~
+*Impact*: HIGH - Compilation failure across workspace
+
+*Mitigation*:
+- Search workspace for all ~bits-app/~ feature references:
+  #+begin_src bash
+  rg 'bits-app/server' --type toml
+  #+end_src
+- Update each to ~bits/server~
+- Run ~cargo check --all-features~ to verify
+
+** Risk 3: Import Path Churn
+
+*Risk*: Test files (~bits-e2e~) import from ~bits_app::*~. After consolidation, these become ~bits::*~.
+
+*Likelihood*: HIGH - Many test files import from ~bits_app~
+*Impact*: MEDIUM - Compilation errors, but find/replace fixes it
+
+*Mitigation*:
+- Search and replace ~use bits_app::~ → ~use bits::~ in ~crates/bits-e2e/~
+  #+begin_src bash
+  rg 'use bits_app::' crates/bits-e2e/ --type rust
+  #+end_src
+- Use editor find/replace or ~sed~ for bulk update
+- Verify with ~cargo check -p bits-e2e~
+
+** Risk 4: Circular Dependency from main.rs
+
+*Risk*: Moving ~main.rs~ into ~bits-app~ while it depends on ~bits~ crate could create circular dependency.
+
+*Likelihood*: NONE - This is resolved by renaming the crate
+*Impact*: N/A
+
+*Mitigation*:
+- The old ~bits~ crate is deleted, so no circular dependency possible
+- The new ~bits~ crate contains both library and binary
+
+** Risk 5: Lost Git History
+
+*Risk*: Directory rename loses git history for ~bits-app~ files.
+
+*Likelihood*: NONE with ~git mv~ or ~--follow~
+*Impact*: LOW - History preserved with proper git flags
+
+*Mitigation*:
+- Use ~git mv crates/bits-app crates/bits~ OR
+- Use ~git log --follow~ to trace history through renames
+- Git automatically detects renames in most cases
+
+** Risk 6: Dioxus.toml Configuration
+
+*Risk*: ~Dioxus.toml~ has hardcoded paths that break after crate move.
+
+*Likelihood*: LOW - ~Dioxus.toml~ typically uses relative paths
+*Impact*: MEDIUM - Dev server fails to start
+
+*Mitigation*:
+- Review ~Dioxus.toml~ before and after move:
+  #+begin_src bash
+  cat crates/bits/Dioxus.toml
+  #+end_src
+- Test ~just dev~ immediately after consolidation
+- Check for any ~crate_dir~, ~out_dir~, or ~asset_dir~ settings
+
+* Codebase Specifics
+
+** Current bits/src/main.rs Structure
+
+#+begin_src rust
+#[cfg(feature = "server")]
+use clap::{Parser, Subcommand};
+
+#[cfg(feature = "server")]
+#[derive(Debug, Subcommand)]
+enum Commands {
+    Admin,
+    Serve,
+}
+
+#[cfg(feature = "server")]
+#[derive(Debug, Parser)]
+#[command(name = "bits")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+
+    #[command(flatten)]
+    config: bits_app::Config,  // ← Change to crate::Config
+}
+
+#[cfg(feature = "server")]
+fn main() {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::Admin) => {
+            println!("Hello, administrator.");
+        }
+
+        Some(Commands::Serve) | None => {
+            bits_app::init_tracing();              // ← Change to crate::init_tracing()
+            let config = cli.config.clone();
+            dioxus::serve(move || {
+                let config = config.clone();
+                async move {
+                    let state = bits_app::init(config).await?;  // ← Change to crate::init()
+                    bits_app::build_router(state, bits::App).await  // ← Change to crate::App
+                }
+            });
+        }
+    }
+}
+
+#[cfg(not(feature = "server"))]
+fn main() {
+    #[cfg(target_arch = "wasm32")]
+    bits_app::init_client();  // ← Change to crate::init_client()
+    dioxus::launch(bits::App);  // ← Change to crate::App
+}
+#+end_src
+
+*Required changes*:
+- Replace ~bits_app::~ with ~crate::~
+- Replace ~bits::App~ with ~crate::App~
+- No other logic changes needed
+
+** Current bits/src/lib.rs Structure
+
+#+begin_src rust
+#[allow(non_snake_case)]
+pub fn App() -> Element {
+    rsx! {
+        document::Link { rel: "stylesheet", href: asset!("assets/app.css") }
+        bits_app::App {}
+    }
+}
+#+end_src
+
+*Integration strategy*:
+- This is a wrapper around ~bits_app::App~
+- After consolidation, this wrapper is unnecessary
+- Options:
+  1. Move stylesheet link into ~bits-app/src/app.rs~ ~App~ component
+  2. Keep this as the root ~App~ in ~lib.rs~, import actual app from ~app.rs~
+
+*Recommendation*: Option 1 (move stylesheet link into app.rs) to eliminate indirection.
+
+** bits-app Cargo.toml Binary Section
+
+After consolidation, add this to ~crates/bits/Cargo.toml~:
+
+#+begin_src toml
+[[bin]]
+name = "bits"
+path = "src/main.rs"
+#+end_src
+
+And ensure no self-dependency on ~bits-app~.
+
+** bits-e2e Feature Flags
+
+Current ~crates/bits-e2e/Cargo.toml~:
+
+#+begin_src toml
+[features]
+default = ["server"]
+server = ["bits-app/server", "bits/server"]
+
+[dependencies]
+bits.workspace = true
+bits-app.workspace = true
+#+end_src
+
+*After consolidation*:
+
+#+begin_src toml
+[features]
+default = ["server"]
+server = ["bits/server"]
+
+[dependencies]
+bits.workspace = true
+# Remove bits-app
+#+end_src
+
+** Import Patterns in bits-e2e
+
+Search results preview:
+
+#+begin_src bash
+rg 'use bits_app::' crates/bits-e2e/ --type rust | head -10
+#+end_src
+
+Expected matches:
+- ~use bits_app::{server, fixtures};~
+- ~use bits_app::Config;~
+- ~use bits_app::AppState;~
+
+*Bulk replace*:
+#+begin_src bash
+find crates/bits-e2e -name "*.rs" -exec sed -i '' 's/bits_app::/bits::/g' {} +
+#+end_src
+
+Or use editor find/replace for safety.
+
+* Refined Execution Plan (2025-12-12)
+
+After reviewing the codebase, several simplifications are possible:
+
+** Key Insights
+
+1. *No dependency merging needed*: ~bits-app~ already has all required dependencies. The old ~bits~ crate's deps (tower-http, axum, sqlx) exist solely to support its CLI, but ~bits-app~ already has them.
+
+2. *Cleaner rename order*: Delete old ~bits~ first, then rename ~bits-app~ → ~bits~. This avoids temporary ~-old~ directories and makes git history cleaner with ~git mv~.
+
+3. *Stylesheet integration is simple*: ~bits-app/src/app.rs~ already has a ~document::Link~ for favicon. Add stylesheet link there.
+
+4. *Import updates happen after rename*: Update ~bits-e2e~ imports AFTER renaming, when ~bits~ refers to the correct crate.
+
+** Additional Issues Identified
+
+1. *justfile line 294*: ~cargo fix --lib -p bits-app~ needs to change to ~-p bits~
+
+2. *No import changes needed in main.rs*: The moved ~main.rs~ will use:
+   - ~crate::Config~, ~crate::init()~, etc. (already qualified)
+   - ~dioxus::serve()~ (already module-qualified)
+   - No need for additional ~use~ statements
+
+3. *Clippy lints match*: Both ~bits/main.rs~ and ~bits-app/lib.rs~ have identical lint declarations, so no conflicts when merging.
+
+4. *Verification via just*: Cannot run ~just dev~ (interactive), use ~just~ instead (runs fmt, build, lint, test).
+
+** Execution Order
+
+*Phase 1: Make bits-app self-contained*
+1. Copy ~crates/bits/src/main.rs~ → ~crates/bits-app/src/main.rs~
+2. Update ~main.rs~: Replace ~bits_app::~ → ~crate::~, ~bits::App~ → ~crate::App~
+3. Add stylesheet to ~bits-app/src/app.rs~ (after favicon link)
+4. Move ~crates/bits/assets/~ → ~crates/bits-app/assets/~
+5. Move ~crates/bits/Dioxus.toml~ → ~crates/bits-app/Dioxus.toml~
+6. Update ~bits-app/Cargo.toml~: Add ~[[bin]]~ section (copy from old bits)
+7. Verify: ~cargo check -p bits-app --bin bits~
+
+*Phase 2: Remove old bits crate*
+8. Remove ~crates/bits~ from workspace members in root ~Cargo.toml~
+9. Delete ~crates/bits/~ directory entirely
+10. Verify: ~cargo check --workspace~ (should still work with ~bits-app~)
+
+*Phase 3: Rename bits-app to bits*
+11. ~git mv crates/bits-app crates/bits~ (preserves history)
+12. Update root ~Cargo.toml~ workspace members: Add ~crates/bits~
+13. Update root ~Cargo.toml~ workspace.dependencies: Change ~bits-app = { path = "crates/bits-app" }~ to ~bits = { path = "crates/bits" }~, remove old ~bits~ entry
+
+*Phase 4: Update dependents*
+14. Update ~bits-e2e/Cargo.toml~: Remove ~bits-app~ dependency, keep ~bits~
+15. Update ~bits-e2e/Cargo.toml~ features: ~server = ["bits/server"]~ (remove ~bits-app/server~)
+16. Replace ~use bits_app::~ → ~use bits::~ in all ~crates/bits-e2e/tests/*.rs~ files
+17. Update ~justfile~: Line 294 ~cargo fix --lib -p bits-app~ → ~-p bits~
+
+*Phase 5: Final verification*
+18. ~cargo clean~
+19. ~just~ (runs fmt, build, lint, test)
+
+* Original Tasks (Reference)
+
+- [ ] *Phase 1: Preparation*
+  - [ ] Review current ~bits/src/main.rs~ and ~lib.rs~
+  - [ ] Review ~bits/Dioxus.toml~ for hardcoded paths
+  - [ ] Search workspace for ~bits-app/server~ feature references
+  - [ ] Search ~bits-e2e~ for ~use bits_app::~ imports
+
+- [ ] *Phase 2: Move CLI into bits-app*
+  - [ ] Copy ~crates/bits/src/main.rs~ → ~crates/bits-app/src/main.rs~
+  - [ ] Update ~main.rs~ imports: ~bits_app::~ → ~crate::~
+  - [ ] Update ~main.rs~ App reference: ~bits::App~ → ~crate::App~
+  - [ ] Add stylesheet link to ~crates/bits-app/src/app.rs~ ~App~ component
+  - [ ] Delete ~crates/bits/src/lib.rs~ (no longer needed)
+
+- [ ] *Phase 3: Move assets and config*
+  - [ ] Move ~crates/bits/assets/~ → ~crates/bits-app/assets/~
+  - [ ] Move ~crates/bits/Dioxus.toml~ → ~crates/bits-app/Dioxus.toml~
+
+- [ ] *Phase 4: Update bits-app Cargo.toml*
+  - [ ] Add ~[[bin]]~ section for ~bits~ binary
+  - [ ] Remove ~bits~ dependency (if present)
+
+- [ ] *Phase 5: Rename and cleanup*
+  - [ ] Rename ~crates/bits~ → ~crates/bits-old~ (backup)
+  - [ ] Rename ~crates/bits-app~ → ~crates/bits~
+  - [ ] Delete ~crates/bits-old~
+
+- [ ] *Phase 6: Update workspace configuration*
+  - [ ] Update root ~Cargo.toml~ workspace members
+  - [ ] Update root ~Cargo.toml~ workspace.dependencies
+  - [ ] Remove ~bits-app~ from workspace.dependencies
+
+- [ ] *Phase 7: Update bits-e2e*
+  - [ ] Update ~bits-e2e/Cargo.toml~ dependencies
+  - [ ] Update ~bits-e2e/Cargo.toml~ feature flags
+  - [ ] Replace ~use bits_app::~ → ~use bits::~ in all test files
+
+- [ ] *Phase 8: Update justfile*
+  - [ ] Review ~dev~ recipe for crate path references
+  - [ ] Update any other bits-app references
+
+- [ ] *Phase 9: Verification*
+  - [ ] Run ~cargo clean~
+  - [ ] Run ~just~ (runs fmt, build, lint, test)
+
+* Success Criteria
+
+- [ ] ~crates/bits-app~ directory no longer exists
+- [ ] ~crates/bits~ contains both library and binary
+- [ ] ~bits~ binary in ~crates/bits/src/main.rs~ compiles
+- [ ] ~just~ passes (fmt, build, lint, test)
+- [ ] No ~bits-app~ references remain in workspace
+  #+begin_src bash
+  rg 'bits-app' --type toml --type rust
+  #+end_src
+  Should only match historical comments/docs, not active code
+- [ ] Git history preserved (verify with ~git log --follow~)
+
+* Benefits
+
+1. *Simpler mental model*: One crate = one application
+2. *Fewer compilation units*: Slightly faster incremental builds
+3. *Cleaner dependency graph*: Linear instead of diamond
+4. *Less indirection*: ~crate::App~ instead of ~bits_app::App~
+5. *Easier onboarding*: New contributors don't need to understand the split
+6. *Matches conventions*: Most Rust projects have one main crate
+
+* Rollback Plan
+
+If consolidation causes issues:
+
+1. Restore from git: ~git reset --hard HEAD~1~
+2. Or restore renamed directory: ~git mv crates/bits crates/bits-app~
+3. Restore workspace ~Cargo.toml~ from git
+4. Run ~cargo clean && cargo check~
+
+*Recommendation*: Work in a branch and test thoroughly before merging.
+
+#+begin_src bash
+git checkout -b consolidate-crates
+# ... perform consolidation ...
+cargo test
+just dev  # Manual verification
+git commit -m "Consolidate bits-app into bits crate"
+#+end_src

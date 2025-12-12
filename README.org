@@ -166,7 +166,7 @@ Available recipes:
     [test]
     integrate                       # Run integration tests
     test                            # Run unit and integration tests
-    unit                            # Run units tests
+    unit                            # Run unit tests
 
     [workflows]
     push                            # Verify and push changes
@@ -186,19 +186,18 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
  Clojure                   2          559          456           32           71
- CSS                       2           23           21            0            2
+ CSS                       1            4            4            0            0
  Edn                       4           47           47            0            0
  FreeMarker                1          107           92            0           15
  HCL                      40         1193          912          116          165
- HTML                      1           11           11            0            0
  JavaScript                2           51           43            1            7
  JSON                      4           58           58            0            0
- Just                      2          576          344          119          113
+ Just                      2          578          346          119          113
  MDX                       1           56            0           39           17
- Nix                       9         1256          828          238          190
- Org                      16         2633         2330            4          299
+ Nix                       9         1251          824          238          189
+ Org                      16         2634         2331            4          299
  SQL                      10          339          269           33           37
- TOML                     13          363          318            1           44
+ TOML                     12          330          289            1           40
  TypeScript                3           36           30            1            5
  YAML                      3         5053         3968            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
@@ -206,14 +205,14 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  |- Rust                   1          400          282           64           54
  (Total)                              670          282          238          150
 ─────────────────────────────────────────────────────────────────────────────────
- Rust                     99        16751        13869          904         1978
+ Rust                     96        16714        13838          903         1973
  |- Markdown              46          535            4          441           90
- (Total)                            17286        13873         1345         2068
+ (Total)                            17249        13842         1344         2063
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   223        30482        24021         2167         4294
+ Total                   217        30380        23932         2166         4282
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-a3ef291-dirty @ 2025/12/11 15:33
+b2da6d4 @ 2025/12/12 19:30
 #+end_example
 
 * Decision records
@@ -349,6 +348,7 @@ done
 | =DONE= | =2025-12-08= | [[file:.claude/prompts/20251208204054-share-auth-form-between-sign-in-and-sign-up.org][Share auth form between sign in and sign up]]   |
 | =DONE= | =2025-12-10= | [[file:.claude/prompts/20251210123457-tenant-resolution-architecture-simplification.org][Tenant Resolution Architecture Simplification]] |
 | =DONE= | =2025-12-10= | [[file:.claude/prompts/20251210141817-add-claude-code-validation-hooks.org][Add Claude Code validation hooks]]              |
+| =DONE= | =2025-12-12= | [[file:.claude/prompts/20251212184201-consolidate-bits-and-bits-app-crates.org][Consolidate bits and bits-app crates]]          |
 
 * TODOs
 #+begin_src sh :results output verbatim :exports results
@@ -356,10 +356,10 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: crates/bits-app/src/auth/password.rs:// TODO Use #[patch] when Dioxus next ships
-: crates/bits-app/src/config.rs:// TODO Wrap u32 in 'Limit' type.
-: crates/bits-app/src/pages/layout.rs:    // TODO Make csrf_token a proper type akin to Option<String>.
-: crates/bits-app/src/server.rs:// TODO Add health checks to core components within `AppState`.
+: crates/bits/src/auth/password.rs:// TODO Use #[patch] when Dioxus next ships
+: crates/bits/src/config.rs:// TODO Wrap u32 in 'Limit' type.
+: crates/bits/src/pages/layout.rs:    // TODO Make csrf_token a proper type akin to Option<String>.
+: crates/bits/src/server.rs:// TODO Add health checks to core components within `AppState`.
 : devenv.nix:    # TODO Create a dedicated Bits Postmark account.
 
 * Troubleshooting

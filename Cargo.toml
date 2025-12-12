@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "crates/bits",
-    "crates/bits-app",
     "crates/bits-axum-session-sqlx",
     "crates/bits-db",
     "crates/bits-domain",
@@ -17,7 +16,6 @@ edition = "2021"
 
 [workspace.dependencies]
 bits = { path = "crates/bits" }
-bits-app = { path = "crates/bits-app" }
 bits-axum-session-sqlx = { path = "crates/bits-axum-session-sqlx" }
 bits-db = { path = "crates/bits-db" }
 bits-domain = { path = "crates/bits-domain" }

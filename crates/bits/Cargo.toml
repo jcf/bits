@@ -4,31 +4,78 @@ version.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-[lib]
-path = "src/lib.rs"
-
 [[bin]]
 name = "bits"
 path = "src/main.rs"
 
 [features]
-default = []
-server = ["bits-app/server"]
+server = ["dioxus/server"]
 
 [dependencies]
 bits-domain.workspace = true
-bits-app.workspace = true
+bits-tailwind-merge.workspace = true
 clap.workspace = true
 dioxus.workspace = true
+dioxus-html = { version = "0.7", features = ["serialize"] }
+figment = { version = "0.10", features = ["env"] }
+fluent-bundle = "0.15"
+icu = "2.0"
+phf = { version = "0.11", features = ["macros"] }
+serde.workspace = true
+thiserror = "2"
 tracing.workspace = true
-tower-http = { version = "0.6.7", features = ["set-header"] }
+unic-langid = "0.9"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+dioxus-fullstack = "0.7"
+gloo-timers = { version = "0.3", features = ["futures"] }
+http = "1"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["Document", "Element", "HtmlElement", "MouseEvent", "EventTarget", "Window"] }
+wasm-bindgen = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 anyhow.workspace = true
+argon2 = "0.5"
+async-trait = "0.1"
 axum = "0.8"
+axum-core = "0.5"
+axum-governor = "1"
 axum_session.workspace = true
 axum_session_auth.workspace = true
-axum_session_sqlx.workspace = true
+base64.workspace = true
+bits-axum-session-sqlx.workspace = true
 bits-db.workspace = true
+bits-domain = { workspace = true, features = ["sqlx"] }
+bytes = "1"
+cookie = "0.18"
+dashmap = "6"
+garde.workspace = true
+hex = "0.4"
+hkdf = "0.12"
+hmac = "0.12"
+jiff = "0.1"
+http-body-util = "0.1"
+ipnetwork = "0.20"
+lazy-limit = "1"
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.16", default-features = false, features = ["http-listener"] }
+orion = "0.17"
+rand.workspace = true
+real = { version = "0.1", features = ["axum"] }
+secrecy = "0.10"
+sha2 = "0.10"
 sqlx.workspace = true
-tokio = { workspace = true, features = ["full"] }
+strum = { version = "0.26", features = ["derive"] }
+subtle.workspace = true
+time = "0.3"
+tokio.workspace = true
+tower = "0.5"
+tower-http = { version = "0.6", features = ["request-id", "timeout", "limit", "cors", "util", "set-header", "normalize-path"] }
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+urlencoding.workspace = true
+
+[dev-dependencies]
+proptest = "1"
+rstest = "0.26"

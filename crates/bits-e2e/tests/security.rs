@@ -1,4 +1,4 @@
-use bits_app::CspMode;
+use bits::CspMode;
 use bits_e2e::{assertions, fixtures, request};
 use rstest::rstest;
 
@@ -38,7 +38,7 @@ async fn solo_has_security_headers(#[case] mode: CspMode) {
 
     assert_eq!(response.status(), 200);
 
-    let expected_csp = bits_app::http::csp_header(mode);
+    let expected_csp = bits::http::csp_header(mode);
     assertions::assert_headers(
         &response,
         &[

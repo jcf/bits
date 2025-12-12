@@ -178,7 +178,7 @@ impl BitsClient {
         Ok(())
     }
 
-    pub async fn get_session(&self) -> Result<Option<bits_app::User>, ClientError> {
+    pub async fn get_session(&self) -> Result<Option<bits::User>, ClientError> {
         let response = self
             .client
             .get(self.url("/api/session"))
@@ -186,14 +186,14 @@ impl BitsClient {
             .await
             .map_err(ClientError::Request)?;
 
-        let session_state: bits_app::SessionState = response
+        let session_state: bits::SessionState = response
             .json()
             .await
             .map_err(|e| ClientError::ParseError(e.to_string()))?;
 
         match session_state {
-            bits_app::SessionState::Authenticated(user) => Ok(Some(user)),
-            bits_app::SessionState::Anonymous => Ok(None),
+            bits::SessionState::Authenticated(user) => Ok(Some(user)),
+            bits::SessionState::Anonymous => Ok(None),
         }
     }
 

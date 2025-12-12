@@ -170,6 +170,7 @@ pub enum Route {
 pub fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: "data:" }
+        document::Link { rel: "stylesheet", href: asset!("assets/app.css") }
         Router::<Route> {}
     }
 }

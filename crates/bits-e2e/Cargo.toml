@@ -11,11 +11,10 @@ path = "src/bin/seed.rs"
 
 [features]
 default = ["server"]
-server = ["bits-app/server", "bits/server"]
+server = ["bits/server"]
 
 [dependencies]
 bits.workspace = true
-bits-app.workspace = true
 bits-db.workspace = true
 bits-domain = { workspace = true, features = ["sqlx"] }
 anyhow.workspace = true

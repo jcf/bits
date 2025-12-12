@@ -23,7 +23,7 @@ struct Cli {
     command: Option<Commands>,
 
     #[command(flatten)]
-    config: bits_app::Config,
+    config: bits::Config,
 }
 
 #[cfg(feature = "server")]
@@ -36,13 +36,13 @@ fn main() {
         }
 
         Some(Commands::Serve) | None => {
-            bits_app::init_tracing();
+            bits::init_tracing();
             let config = cli.config.clone();
             dioxus::serve(move || {
                 let config = config.clone();
                 async move {
-                    let state = bits_app::init(config).await?;
-                    bits_app::build_router(state, bits::App).await
+                    let state = bits::init(config).await?;
+                    bits::build_router(state, bits::App).await
                 }
             });
         }
@@ -52,6 +52,6 @@ fn main() {
 #[cfg(not(feature = "server"))]
 fn main() {
     #[cfg(target_arch = "wasm32")]
-    bits_app::init_client();
+    bits::init_client();
     dioxus::launch(bits::App);
 }

@@ -38,7 +38,7 @@ pub struct TestContext {
     pub server: TestServer,
     pub db_pool: PgPool,
     pub client: reqwest::Client,
-    pub state: bits_app::AppState,
+    pub state: bits::AppState,
     test_db_name: String,
 }
 
@@ -262,7 +262,7 @@ async fn create_test_database(base_url: &PgUrl) -> Result<(PgUrl, String)> {
     Ok((test_url, db_name))
 }
 
-pub fn config() -> Result<bits_app::config::Config> {
+pub fn config() -> Result<bits::config::Config> {
     use std::env;
 
     let database_url = env::var("DATABASE_URL_TEST")
@@ -271,7 +271,7 @@ pub fn config() -> Result<bits_app::config::Config> {
         .parse()
         .map_err(|e| anyhow::anyhow!("Invalid database URL: {}", e))?;
 
-    let mut config = bits_app::load_config()?
+    let mut config = bits::load_config()?
         .with_database_url(database_url)
         .with_port(0)
         .with_test_argon2_params();
@@ -281,7 +281,7 @@ pub fn config() -> Result<bits_app::config::Config> {
     Ok(config)
 }
 
-pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext> {
+pub async fn setup_solo(config: bits::config::Config) -> Result<TestContext> {
     let (test_url, test_db_name) = create_test_database(&config.database_url).await?;
     let test_config = config.clone().with_database_url(test_url.clone());
 
@@ -303,7 +303,7 @@ pub async fn setup_solo(config: bits_app::config::Config) -> Result<TestContext>
     Ok(ctx)
 }
 
-pub async fn setup_colo(config: bits_app::config::Config) -> Result<TestContext> {
+pub async fn setup_colo(config: bits::config::Config) -> Result<TestContext> {
     let (test_url, test_db_name) = create_test_database(&config.database_url).await?;
     let test_config = config.clone().with_database_url(test_url.clone());
 

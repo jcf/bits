@@ -180,14 +180,14 @@ async fn invalid_code_fails_verification() {
         .await;
 
     match result {
-        Err(bits_app::verification::VerificationError::InvalidCode) => {}
+        Err(bits::verification::VerificationError::InvalidCode) => {}
         other => panic!("Expected InvalidCode error, got {:?}", other),
     }
 }
 
 #[tokio::test]
 async fn expired_code_fails_verification() {
-    use bits_app::verification::{EmailVerificationConfig, EmailVerificationService};
+    use bits::verification::{EmailVerificationConfig, EmailVerificationService};
 
     let config = fixtures::config().expect("Failed to load config");
     let ctx = fixtures::setup_solo(config)
@@ -228,14 +228,14 @@ async fn expired_code_fails_verification() {
         .await;
 
     match result {
-        Err(bits_app::verification::VerificationError::Expired) => {}
+        Err(bits::verification::VerificationError::Expired) => {}
         other => panic!("Expected Expired error, got {:?}", other),
     }
 }
 
 #[tokio::test]
 async fn too_many_attempts_blocks_verification() {
-    use bits_app::verification::{EmailVerificationConfig, EmailVerificationService};
+    use bits::verification::{EmailVerificationConfig, EmailVerificationService};
 
     let config = fixtures::config().expect("Failed to load config");
     let ctx = fixtures::setup_solo(config)
@@ -281,14 +281,14 @@ async fn too_many_attempts_blocks_verification() {
         .await;
 
     match result {
-        Err(bits_app::verification::VerificationError::TooManyAttempts) => {}
+        Err(bits::verification::VerificationError::TooManyAttempts) => {}
         other => panic!("Expected TooManyAttempts error, got {:?}", other),
     }
 }
 
 #[tokio::test]
 async fn resend_respects_cooldown() {
-    use bits_app::verification::{EmailVerificationConfig, EmailVerificationService};
+    use bits::verification::{EmailVerificationConfig, EmailVerificationService};
 
     let config = fixtures::config().expect("Failed to load config");
     let ctx = fixtures::setup_solo(config)
@@ -329,7 +329,7 @@ async fn resend_respects_cooldown() {
         .await;
 
     match result {
-        Err(bits_app::verification::RateLimitError::Cooldown(_)) => {}
+        Err(bits::verification::RateLimitError::Cooldown(_)) => {}
         other => panic!("Expected Cooldown error, got {:?}", other),
     }
 }

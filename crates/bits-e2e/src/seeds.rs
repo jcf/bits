@@ -30,7 +30,7 @@ pub fn load_seeds(path: impl AsRef<Path>) -> Result<Seeds> {
 }
 
 fn hash_password(
-    password_service: &bits_app::password::PasswordService,
+    password_service: &bits::password::PasswordService,
     password: &str,
 ) -> Result<String> {
     use secrecy::ExposeSecret;
@@ -43,7 +43,7 @@ fn hash_password(
 
 async fn seed_user(
     pool: &PgPool,
-    password_service: &bits_app::password::PasswordService,
+    password_service: &bits::password::PasswordService,
     seed: &SeedUser,
 ) -> Result<Option<(User, EmailAddress)>> {
     // Check if email already exists
@@ -146,7 +146,7 @@ async fn seed_tenant(
 
 pub async fn seed_all(
     pool: &PgPool,
-    password_service: &bits_app::password::PasswordService,
+    password_service: &bits::password::PasswordService,
     seeds: &Seeds,
 ) -> Result<SeedData> {
     let mut users = vec![];

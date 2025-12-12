@@ -55,7 +55,7 @@ pub async fn login(client: &Client, base_url: &str, email: &str, password: &str)
         .expect("Login request failed");
 }
 
-pub async fn get_session(client: &Client, base_url: &str) -> Option<bits_app::User> {
+pub async fn get_session(client: &Client, base_url: &str) -> Option<bits::User> {
     let response = client
         .get(format!("{}/api/session", base_url))
         .send()

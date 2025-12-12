@@ -291,7 +291,7 @@ _fmt-dx *_args:
 # Fix errors within Bits
 [group('quality')]
 fix:
-    cargo fix --lib -p bits-app
+    cargo fix --lib -p bits
 
 # Run checks
 [group('quality')]
@@ -306,14 +306,16 @@ lint:
 # ------------------------------------------------------------------------------
 # Test
 
-# Run units tests
+# Run unit tests
 [group('test')]
 unit:
+    @mkdir -p target/debug/deps/public
     env RUSTFLAGS="-D warnings" cargo nextest run --workspace --exclude bits-e2e --features server
 
 # Run integration tests
 [group('test')]
 integrate:
+    @mkdir -p target/debug/deps/public
     env RUSTFLAGS="-D warnings" cargo nextest run --package bits-e2e --no-default-features --features server
 
 # Run unit and integration tests

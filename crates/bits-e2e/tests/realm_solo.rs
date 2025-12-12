@@ -1,4 +1,4 @@
-use bits_app::{http::Scheme, tenant::Realm};
+use bits::{http::Scheme, tenant::Realm};
 use bits_e2e::fixtures;
 
 #[tokio::test]
@@ -27,7 +27,7 @@ async fn solo_any_host_maps_to_tenant() {
 
     // ANY host should resolve to the fallback tenant
     for host in ["example.com", "anything.com", "random.host", "localhost"] {
-        let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Http, host).await;
+        let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Http, host).await;
         match realm {
             Realm::Creator(t) => assert_eq!(
                 t.id, tenant.id,
@@ -62,7 +62,7 @@ async fn solo_demo_takes_precedence() {
         .expect("Failed to create tenant");
 
     // Demo subdomain should return Demo, not tenant
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "jcf.bits.page").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "jcf.bits.page").await;
     assert!(
         matches!(realm, Realm::Demo(_)),
         "Expected Demo realm for demo subdomain, got {:?}",
@@ -70,7 +70,7 @@ async fn solo_demo_takes_precedence() {
     );
 
     // Non-demo subdomain should return tenant
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "other.bits.page").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "other.bits.page").await;
     assert!(
         matches!(realm, Realm::Creator(_)),
         "Expected Creator realm for non-demo subdomain, got {:?}",
@@ -78,8 +78,7 @@ async fn solo_demo_takes_precedence() {
     );
 
     // Random domain should return tenant
-    let realm =
-        bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "custom.example.com").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "custom.example.com").await;
     assert!(
         matches!(realm, Realm::Creator(_)),
         "Expected Creator realm for custom domain, got {:?}",
@@ -100,7 +99,7 @@ async fn solo_no_fallback_tenant_returns_not_found() {
         .expect("Failed to clear fallback");
 
     // No fallback tenant - should return NotFound for unknown hosts
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Http, "any.host").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Http, "any.host").await;
     assert!(
         matches!(realm, Realm::NotFound),
         "Expected NotFound when no fallback tenant exists, got {:?}",
@@ -138,7 +137,7 @@ async fn solo_multiple_tenants_returns_fallback() {
         .expect("Failed to mark tenant as fallback");
 
     // Should always return the fallback tenant
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Http, "any.host").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Http, "any.host").await;
     match realm {
         Realm::Creator(t) => assert_eq!(
             t.id, tenant1.id,

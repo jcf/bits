@@ -1,4 +1,4 @@
-use bits_app::{http::Scheme, tenant::Realm};
+use bits::{http::Scheme, tenant::Realm};
 use bits_e2e::{fixtures, request};
 
 #[tokio::test]
@@ -10,7 +10,7 @@ async fn colo_apex_domain_returns_platform() {
         .await
         .expect("Failed to setup test");
 
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "bits.page").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "bits.page").await;
 
     assert!(
         matches!(realm, Realm::Platform { .. }),
@@ -28,7 +28,7 @@ async fn colo_demo_subdomain_returns_demo() {
         .await
         .expect("Failed to setup test");
 
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "jcf.bits.page").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "jcf.bits.page").await;
 
     assert!(
         matches!(realm, Realm::Demo(_)),
@@ -57,7 +57,7 @@ async fn colo_tenant_subdomain_returns_creator() {
         .await
         .expect("Failed to create tenant");
 
-    let realm = bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "test.bits.page").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "test.bits.page").await;
 
     match realm {
         Realm::Creator(t) => {
@@ -88,8 +88,7 @@ async fn colo_custom_domain_returns_creator() {
         .await
         .expect("Failed to create tenant");
 
-    let realm =
-        bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "custom.example.com").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "custom.example.com").await;
 
     match realm {
         Realm::Creator(t) => {
@@ -110,7 +109,7 @@ async fn colo_unknown_subdomain_returns_not_found() {
         .expect("Failed to setup test");
 
     let realm =
-        bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "nonexistent.bits.page").await;
+        bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "nonexistent.bits.page").await;
 
     assert!(
         matches!(realm, Realm::NotFound),
@@ -128,8 +127,7 @@ async fn colo_unknown_custom_domain_returns_not_found() {
         .await
         .expect("Failed to setup test");
 
-    let realm =
-        bits_app::tenant::resolve_realm(&ctx.state, Scheme::Https, "unknown.example.com").await;
+    let realm = bits::tenant::resolve_realm(&ctx.state, Scheme::Https, "unknown.example.com").await;
 
     assert!(
         matches!(realm, Realm::NotFound),

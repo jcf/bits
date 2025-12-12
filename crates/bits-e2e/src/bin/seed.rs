@@ -3,8 +3,8 @@ use bits_e2e::seeds;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = bits_app::load_config()?;
-    let state = bits_app::AppState::new(config).await?;
+    let config = bits::load_config()?;
+    let state = bits::AppState::new(config).await?;
 
     let seeds_path = std::env::current_dir()?.join("seeds.toml");
     let seeds = seeds::load_seeds(&seeds_path)

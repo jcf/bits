@@ -41,16 +41,16 @@ async fn spawn(router: axum::Router) -> Result<TestServer> {
     Ok(TestServer { addr })
 }
 
-pub async fn spawn_solo(config: bits_app::Config) -> Result<(TestServer, bits_app::AppState)> {
-    let state = bits_app::init(config).await?;
-    let router = bits_app::build_router(state.clone(), bits::App).await?;
+pub async fn spawn_solo(config: bits::Config) -> Result<(TestServer, bits::AppState)> {
+    let state = bits::init(config).await?;
+    let router = bits::build_router(state.clone(), bits::App).await?;
     let server = spawn(router).await?;
     Ok((server, state))
 }
 
-pub async fn spawn_colo(config: bits_app::Config) -> Result<(TestServer, bits_app::AppState)> {
-    let state = bits_app::init(config).await?;
-    let router = bits_app::build_router(state.clone(), bits::App).await?;
+pub async fn spawn_colo(config: bits::Config) -> Result<(TestServer, bits::AppState)> {
+    let state = bits::init(config).await?;
+    let router = bits::build_router(state.clone(), bits::App).await?;
     let server = spawn(router).await?;
     Ok((server, state))
 }
