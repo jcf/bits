@@ -145,52 +145,48 @@ async fn invalidate_other_sessions(
 pub async fn change_password(
     form: dioxus::fullstack::Form<ChangePasswordForm>,
 ) -> Result<(), AuthError> {
-    #[cfg(feature = "server")]
-    {
-        let user = &verified.0;
+    let user = &verified.0;
 
-        if form.0.new_password != form.0.confirm_password {
-            return Err(AuthError::Internal("Passwords do not match".to_string()));
-        }
-
-        // Wrap passwords in domain types
-        let current_password = Password::new(form.0.current_password.clone());
-        let new_password = Password::new(form.0.new_password.clone());
-
-        let login_data = load_login_data(&state.db, &user.email)
-            .await
-            .map_err(|e| AuthError::Internal(format!("Failed to load login data: {}", e)))?;
-        let login_data = login_data.ok_or(AuthError::InvalidCredentials)?;
-
-        state
-            .password_service
-            .verify_password(&current_password, &login_data.password_hash)
-            .map_err(|_| AuthError::InvalidCredentials)?;
-
-        let new_hash = state
-            .password_service
-            .hash_password(&new_password)
-            .map_err(|e| AuthError::Internal(format!("Failed to hash password: {}", e)))?;
-        update_password_hash(&state.db, user.id, &new_hash)
-            .await
-            .map_err(|e| AuthError::Internal(format!("Failed to update password: {}", e)))?;
-
-        let session_id = auth.session.get_session_id();
-        tracing::debug!(
-            user_id = %user.id,
-            session_id = %session_id,
-            "Password changed, invalidating other sessions"
-        );
-
-        invalidate_other_sessions(&state.db, &state.session_store, user.id, &session_id)
-            .await
-            .map_err(|e| {
-                AuthError::Internal(format!("Failed to invalidate other sessions: {}", e))
-            })?;
-
-        // Clear user from auth cache so other sessions can't use cached auth
-        auth.cache_clear_user(user.id);
-        tracing::info!(user_id = %user.id, "Cleared user from auth cache");
+    if form.0.new_password != form.0.confirm_password {
+        return Err(AuthError::Internal("Passwords do not match".to_string()));
     }
+
+    // Wrap passwords in domain types
+    let current_password = Password::new(form.0.current_password.clone());
+    let new_password = Password::new(form.0.new_password.clone());
+
+    let login_data = load_login_data(&state.db, &user.email)
+        .await
+        .map_err(|e| AuthError::Internal(format!("Failed to load login data: {}", e)))?;
+    let login_data = login_data.ok_or(AuthError::InvalidCredentials)?;
+
+    state
+        .password_service
+        .verify_password(&current_password, &login_data.password_hash)
+        .map_err(|_| AuthError::InvalidCredentials)?;
+
+    let new_hash = state
+        .password_service
+        .hash_password(&new_password)
+        .map_err(|e| AuthError::Internal(format!("Failed to hash password: {}", e)))?;
+    update_password_hash(&state.db, user.id, &new_hash)
+        .await
+        .map_err(|e| AuthError::Internal(format!("Failed to update password: {}", e)))?;
+
+    let session_id = auth.session.get_session_id();
+    tracing::debug!(
+        user_id = %user.id,
+        session_id = %session_id,
+        "Password changed, invalidating other sessions"
+    );
+
+    invalidate_other_sessions(&state.db, &state.session_store, user.id, &session_id)
+        .await
+        .map_err(|e| AuthError::Internal(format!("Failed to invalidate other sessions: {}", e)))?;
+
+    // Clear user from auth cache so other sessions can't use cached auth
+    auth.cache_clear_user(user.id);
+    tracing::info!(user_id = %user.id, "Cleared user from auth cache");
+
     Ok(())
 }

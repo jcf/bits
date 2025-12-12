@@ -81,91 +81,80 @@ pub(super) async fn get_email_address_id(
 
 #[post("/api/users", auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<User, AuthError> {
-    #[cfg(feature = "server")]
-    {
-        (async {
-            // Parse and validate email at boundary
-            let email = Email::parse(&form.0.email).map_err(|_| AuthError::InvalidCredentials)?;
+    (async {
+        // Parse and validate email at boundary
+        let email = Email::parse(&form.0.email).map_err(|_| AuthError::InvalidCredentials)?;
 
-            // Wrap password in domain type
-            let password = Password::new(form.0.password.clone());
+        // Wrap password in domain type
+        let password = Password::new(form.0.password.clone());
 
-            let password_hash = state
-                .password_service
-                .hash_password(&password)
-                .map_err(|e| AuthError::Internal(format!("Failed to hash password: {}", e)))?;
+        let password_hash = state
+            .password_service
+            .hash_password(&password)
+            .map_err(|e| AuthError::Internal(format!("Failed to hash password: {}", e)))?;
 
-            match create_user_with_email(&state.db, &email, &password_hash).await {
-                Ok(user_id) => {
-                    // Log user in after successful registration
-                    auth.session.renew();
-                    auth.login_user(user_id);
+        match create_user_with_email(&state.db, &email, &password_hash).await {
+            Ok(user_id) => {
+                // Log user in after successful registration
+                auth.session.renew();
+                auth.login_user(user_id);
 
-                    // Generate verification code for new user
-                    match get_email_address_id(&state.db, user_id).await {
-                        Ok(email_address_id) => {
-                            match state
-                                .email_verification
-                                .create_code(&state.db, email_address_id)
-                                .await
-                            {
-                                Ok(code) => {
-                                    tracing::info!(
-                                        user_id = %user_id,
-                                        email = %email,
-                                        code = %code,
-                                        "User registered, verification code generated"
-                                    );
-                                }
-                                Err(e) => {
-                                    tracing::error!(
-                                        user_id = %user_id,
-                                        email = %email,
-                                        error = %e,
-                                        "Failed to generate verification code"
-                                    );
-                                }
+                // Generate verification code for new user
+                match get_email_address_id(&state.db, user_id).await {
+                    Ok(email_address_id) => {
+                        match state
+                            .email_verification
+                            .create_code(&state.db, email_address_id)
+                            .await
+                        {
+                            Ok(code) => {
+                                tracing::info!(
+                                    user_id = %user_id,
+                                    email = %email,
+                                    code = %code,
+                                    "User registered, verification code generated"
+                                );
                             }
-                        }
-                        Err(e) => {
-                            tracing::error!(
-                                user_id = %user_id,
-                                email = %email,
-                                error = %e,
-                                "Failed to get email address id"
-                            );
-                        }
-                    }
-
-                    Ok(User {
-                        id: user_id,
-                        email,
-                        verified: false,
-                    })
-                }
-                Err(e) => {
-                    if let Some(source) = e.source() {
-                        if let Some(db_err) = source.downcast_ref::<sqlx::Error>() {
-                            if let Some(pg_err) = db_err.as_database_error() {
-                                if pg_err.code().as_deref() == Some("23P01") {
-                                    return Err(AuthError::EmailAlreadyRegistered);
-                                }
+                            Err(e) => {
+                                tracing::error!(
+                                    user_id = %user_id,
+                                    email = %email,
+                                    error = %e,
+                                    "Failed to generate verification code"
+                                );
                             }
                         }
                     }
-                    Err(AuthError::Internal(format!("{:#}", e)))
+                    Err(e) => {
+                        tracing::error!(
+                            user_id = %user_id,
+                            email = %email,
+                            error = %e,
+                            "Failed to get email address id"
+                        );
+                    }
                 }
+
+                Ok(User {
+                    id: user_id,
+                    email,
+                    verified: false,
+                })
+            }
+            Err(e) => {
+                if let Some(source) = e.source() {
+                    if let Some(db_err) = source.downcast_ref::<sqlx::Error>() {
+                        if let Some(pg_err) = db_err.as_database_error() {
+                            if pg_err.code().as_deref() == Some("23P01") {
+                                return Err(AuthError::EmailAlreadyRegistered);
+                            }
+                        }
+                    }
+                }
+                Err(AuthError::Internal(format!("{:#}", e)))
             }
         }
-        .await)
-            .record(RegisterAttempt)
     }
-    #[cfg(not(feature = "server"))]
-    {
-        // Client-side stub (never actually called)
-        let _ = form;
-        let _ = auth;
-        let _ = state;
-        unreachable!("join is server-only")
-    }
+    .await)
+        .record(RegisterAttempt)
 }
