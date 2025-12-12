@@ -289,3 +289,19 @@ tokei
  Total                    14         6373         5091          694          588
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #+end_example
+
+* Server functions
+#+begin_src sh :results output verbatim
+rg -UoP --glob '*.rs' '#\[(get|post|put|patch|delete|head)\([^)]+\)\][\s\S]*?fn\s+(\w+)' -r '$1 $2' </dev/null
+#+end_src
+
+#+results:
+: crates/bits/src/subdomain.rs:get check_subdomain
+: crates/bits/src/auth/password.rs:patch change_password
+: crates/bits/src/auth/registration.rs:post join
+: crates/bits/src/auth/verification.rs:post verify_email_code
+: crates/bits/src/auth/verification.rs:post resend_verification_code
+: crates/bits/src/auth/session.rs:post auth
+: crates/bits/src/auth/session.rs:delete sign_out
+: crates/bits/src/auth/session.rs:get get_session
+: crates/bits/src/auth/session.rs:get get_realm

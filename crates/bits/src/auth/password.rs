@@ -141,10 +141,7 @@ async fn invalidate_other_sessions(
     Ok(())
 }
 
-// TODO Use #[patch] when Dioxus next ships
-//
-// https://github.com/DioxusLabs/dioxus/commit/57e3543c6475b5f6af066774d2152a6dd6351196
-#[post("/api/passwords", verified: Verified, auth: AuthSession, state: Extension<crate::AppState>)]
+#[patch("/api/passwords", verified: Verified, auth: AuthSession, state: Extension<crate::AppState>)]
 pub async fn change_password(
     form: dioxus::fullstack::Form<ChangePasswordForm>,
 ) -> Result<(), AuthError> {

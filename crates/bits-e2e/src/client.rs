@@ -145,6 +145,14 @@ impl BitsClient {
         builder
     }
 
+    fn patch(&self, url: String) -> reqwest::RequestBuilder {
+        let mut builder = self.client.patch(url);
+        if let Some(token) = &self.csrf_token {
+            builder = builder.header("csrf-token", token);
+        }
+        builder
+    }
+
     pub async fn login(&self, email: &str, password: &str) -> Result<(), ClientError> {
         let response = self
             .post_form_data("/api/sessions", &[("email", email), ("password", password)])
@@ -202,7 +210,7 @@ impl BitsClient {
         payload: &T,
     ) -> Result<Response, ClientError> {
         let response = self
-            .post(self.url("/api/passwords"))
+            .patch(self.url("/api/passwords"))
             .form(payload)
             .send()
             .await

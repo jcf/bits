@@ -16,7 +16,7 @@ bits-domain.workspace = true
 bits-tailwind-merge.workspace = true
 clap.workspace = true
 dioxus.workspace = true
-dioxus-html = { version = "0.7", features = ["serialize"] }
+dioxus-html.workspace = true
 figment = { version = "0.10", features = ["env"] }
 fluent-bundle = "0.15"
 icu = "2.0"
@@ -27,7 +27,7 @@ tracing.workspace = true
 unic-langid = "0.9"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-dioxus-fullstack = "0.7"
+dioxus-fullstack.workspace = true
 gloo-timers = { version = "0.3", features = ["futures"] }
 http = "1"
 js-sys = "0.3"

@@ -27,7 +27,9 @@ axum_session_auth = "0.17.0"
 axum_session_sqlx = { version = "0.6.1", features = ["postgres"] }
 base64 = "0.22"
 clap = { version = "4", features = ["derive", "env"] }
-dioxus = { version = "0.7.1", features = ["router", "fullstack"] }
+dioxus = { version = "0.7.2", features = ["router", "fullstack"] }
+dioxus-fullstack = "0.7.2"
+dioxus-html = { version = "0.7.2", features = ["serialize"] }
 fake = { version = "4.4", features = ["derive", "chrono"] }
 garde = { version = "0.22", features = ["derive", "serde", "url", "email-idna", "regex", "unicode"] }
 jiff = "0.2"

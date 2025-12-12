@@ -570,13 +570,13 @@ pub use components::{Button, Header};
 
 ### Server Functions
 
-**CRITICAL: Use `#[post]`/`#[get]` macros, NOT `#[server]`.**
+**CRITICAL: Use HTTP method-specific macros (`#[get]`, `#[post]`, `#[patch]`, `#[delete]`), NOT `#[server]`.**
 
 The `#[server]` macro generates generic endpoints. Use HTTP method-specific macros instead for explicit routing and better type safety.
 
 **Dioxus server functions generate both client stubs and server implementations.**
 
-The `#[post]` and `#[get]` macros create TWO functions:
+The `#[get]`, `#[post]`, `#[patch]`, and `#[delete]` macros create TWO functions:
 
 1. **Client stub** - Called from browser, serializes parameters and makes HTTP request
 2. **Server handler** - Runs on server, deserializes parameters and executes logic
