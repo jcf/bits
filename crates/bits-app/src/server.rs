@@ -32,8 +32,7 @@ pub fn init_tracing() {
                 "axum_session_auth=warn",
                 "axum_session_sqlx=warn",
                 "bits_app=debug",
-                "bits_colo=debug",
-                "bits_solo=debug",
+                "bits=debug",
                 "dioxus_server::server=warn",
                 "sqlx=warn",
             ];

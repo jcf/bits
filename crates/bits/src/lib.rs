@@ -6,5 +6,12 @@
 #![deny(clippy::unneeded_field_pattern)]
 #![deny(clippy::wildcard_enum_match_arm)]
 
-#[cfg(feature = "server")]
-pub mod server;
+use dioxus::prelude::*;
+
+#[allow(non_snake_case)]
+pub fn App() -> Element {
+    rsx! {
+        document::Link { rel: "stylesheet", href: asset!("assets/app.css") }
+        bits_app::App {}
+    }
+}

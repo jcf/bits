@@ -9,9 +9,6 @@
 use clap::{Parser, Subcommand};
 
 #[cfg(feature = "server")]
-mod server;
-
-#[cfg(feature = "server")]
 #[derive(Debug, Subcommand)]
 enum Commands {
     Admin,
@@ -45,7 +42,7 @@ fn main() {
                 let config = config.clone();
                 async move {
                     let state = bits_app::init(config).await?;
-                    bits_app::build_router(state, server::app).await
+                    bits_app::build_router(state, bits::App).await
                 }
             });
         }
@@ -56,16 +53,5 @@ fn main() {
 fn main() {
     #[cfg(target_arch = "wasm32")]
     bits_app::init_client();
-    dioxus::launch(App);
-}
-
-#[cfg(not(feature = "server"))]
-#[allow(non_snake_case)]
-fn App() -> dioxus::prelude::Element {
-    use dioxus::prelude::*;
-
-    rsx! {
-        document::Link { rel: "stylesheet", href: asset!("assets/app.css") }
-        bits_app::App {}
-    }
+    dioxus::launch(bits::App);
 }

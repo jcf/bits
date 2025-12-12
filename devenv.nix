@@ -131,13 +131,8 @@ in {
     process-compose.is_tty = true;
   };
 
-  processes.tailwind-solo = {
-    exec = "just tailwind crates/bits-solo";
-    process-compose.is_tty = true;
-  };
-
-  processes.tailwind-colo = {
-    exec = "just tailwind crates/bits-colo";
+  processes.tailwind = {
+    exec = "just tailwind crates/bits";
     process-compose.is_tty = true;
   };
 
