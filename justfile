@@ -215,7 +215,7 @@ execute *args:
 
 # Run Dioxus development server
 [group('serve')]
-dev:
+serve:
     dx serve --platform web --fullstack true --port 3000 --package bits
 
 # Watch source code for Tailwind classes

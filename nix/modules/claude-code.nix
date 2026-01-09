@@ -314,7 +314,7 @@
       dev = ''
         Run Dioxus development server in co-located mode.
 
-        Usage: just dev
+        Usage: just serve
       '';
 
       solo = ''
