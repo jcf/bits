@@ -55,12 +55,12 @@ impl AppState {
 
         // Initialize email verification service with derived key
         let email_verification = crate::verification::EmailVerificationService::new(
-            crate::verification::EmailVerificationConfig::default(),
+            db.clone(),
             verification_key.to_vec(),
         );
 
         // Initialize auth rate limiting service
-        let auth_rate_limit = crate::auth_rate_limit::AuthRateLimitService::new();
+        let auth_rate_limit = crate::auth_rate_limit::AuthRateLimitService::new(db.clone());
 
         // Initialize metrics
         let metrics_handle = crate::metrics::init();

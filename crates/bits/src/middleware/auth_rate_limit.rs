@@ -91,12 +91,12 @@ pub async fn auth_rate_limit_middleware(
     if is_login {
         state
             .auth_rate_limit
-            .check_login_limits(&state.db, client_ip, &email)
+            .check_login_limits(client_ip, &email)
             .await?;
     } else if is_registration {
         state
             .auth_rate_limit
-            .check_registration_limits(&state.db, client_ip, &email)
+            .check_registration_limits(client_ip, &email)
             .await?;
     }
 
@@ -115,7 +115,7 @@ pub async fn auth_rate_limit_middleware(
     tokio::spawn(async move {
         if let Err(e) = state_clone
             .auth_rate_limit
-            .record_attempt(&state_clone.db, client_ip, &email, &path)
+            .record_attempt(client_ip, &email, &path)
             .await
         {
             tracing::error!(

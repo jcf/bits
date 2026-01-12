@@ -102,11 +102,7 @@ pub async fn join(form: dioxus::fullstack::Form<JoinForm>) -> Result<User, AuthE
                 // Generate verification code for new user
                 match get_email_address_id(&state.db, user_id).await {
                     Ok(email_address_id) => {
-                        match state
-                            .email_verification
-                            .create_code(&state.db, email_address_id)
-                            .await
-                        {
+                        match state.email_verification.create_code(email_address_id).await {
                             Ok(code) => {
                                 tracing::info!(
                                     user_id = %user_id,

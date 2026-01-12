@@ -34,15 +34,17 @@ impl Default for EmailVerificationConfig {
 
 #[derive(Clone)]
 pub struct EmailVerificationService {
+    db: PgPool,
     config: EmailVerificationConfig,
     hmac_secret: Vec<u8>,
 }
 
 impl EmailVerificationService {
     #[must_use]
-    pub fn new(config: EmailVerificationConfig, hmac_secret: Vec<u8>) -> Self {
+    pub fn new(db: PgPool, hmac_secret: Vec<u8>) -> Self {
         Self {
-            config,
+            db,
+            config: EmailVerificationConfig::default(),
             hmac_secret,
         }
     }
@@ -83,7 +85,6 @@ impl EmailVerificationService {
     /// Returns the plaintext code (which should be emailed to the user)
     pub async fn create_code(
         &self,
-        db: &PgPool,
         email_address_id: bits_domain::EmailAddressId,
     ) -> Result<String, VerificationError> {
         let code = Self::generate_code();
@@ -116,7 +117,7 @@ impl EmailVerificationService {
             code_hash,
             expires_at_time
         )
-        .execute(db)
+        .execute(&self.db)
         .await?;
 
         Ok(code)
@@ -125,7 +126,6 @@ impl EmailVerificationService {
     /// Verify a code and mark the email address as verified
     pub async fn verify_code(
         &self,
-        db: &PgPool,
         email_address_id: bits_domain::EmailAddressId,
         code: &str,
     ) -> Result<(), VerificationError> {
@@ -136,7 +136,7 @@ impl EmailVerificationService {
              where email_address_id = $1 and verified_at is null",
             email_address_id.get()
         )
-        .fetch_optional(db)
+        .fetch_optional(&self.db)
         .await?
         .ok_or(VerificationError::InvalidCode)?;
 
@@ -160,14 +160,14 @@ impl EmailVerificationService {
                  where email_address_id = $1",
                 email_address_id.get()
             )
-            .execute(db)
+            .execute(&self.db)
             .await?;
 
             return Err(VerificationError::InvalidCode);
         }
 
         // Mark as verified in transaction
-        let mut tx = db.begin().await?;
+        let mut tx = self.db.begin().await?;
 
         sqlx::query!(
             "update email_verification_codes
@@ -195,7 +195,6 @@ impl EmailVerificationService {
     /// Check if resend is allowed based on rate limits
     pub async fn check_resend_limits(
         &self,
-        db: &PgPool,
         email_address_id: bits_domain::EmailAddressId,
         ip: Option<IpAddr>,
     ) -> Result<(), RateLimitError> {
@@ -207,7 +206,7 @@ impl EmailVerificationService {
                and verified_at is null",
             email_address_id.get()
         )
-        .fetch_optional(db)
+        .fetch_optional(&self.db)
         .await?;
 
         if let Some(last_sent) = last_sent {
@@ -235,7 +234,7 @@ impl EmailVerificationService {
             email_address_id.get(),
             one_hour_ago_time
         )
-        .fetch_one(db)
+        .fetch_one(&self.db)
         .await?;
 
         if email_resends.unwrap_or(0) >= self.config.max_resends_per_hour {
@@ -253,7 +252,7 @@ impl EmailVerificationService {
                 ip_network as _,
                 one_hour_ago_time
             )
-            .fetch_one(db)
+            .fetch_one(&self.db)
             .await?;
 
             // Allow more resends per IP to handle multiple users on same network
@@ -268,11 +267,10 @@ impl EmailVerificationService {
     /// Log a resend attempt and update the code record
     pub async fn log_resend(
         &self,
-        db: &PgPool,
         email_address_id: bits_domain::EmailAddressId,
         ip: Option<IpAddr>,
     ) -> Result<(), VerificationError> {
-        let mut tx = db.begin().await?;
+        let mut tx = self.db.begin().await?;
 
         // Log resend
         let ip_network = ip.map(IpNetwork::from);
@@ -306,7 +304,6 @@ impl EmailVerificationService {
     /// Get the timestamp when the next resend will be allowed
     pub async fn next_resend_at(
         &self,
-        db: &PgPool,
         email_address_id: bits_domain::EmailAddressId,
     ) -> Result<Option<Timestamp>, VerificationError> {
         let last_sent = sqlx::query_scalar!(
@@ -316,7 +313,7 @@ impl EmailVerificationService {
                and verified_at is null",
             email_address_id.get()
         )
-        .fetch_optional(db)
+        .fetch_optional(&self.db)
         .await?;
 
         Ok(last_sent.and_then(|ts| {
@@ -379,14 +376,23 @@ pub enum RateLimitError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sqlx::postgres::PgPoolOptions;
 
     fn test_service() -> EmailVerificationService {
+        // Create a lazy pool that won't connect until actually used.
+        // These tests only exercise hashing logic, not database operations.
+        let pool = PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/unused")
+            .expect("lazy pool creation should not fail");
         let secret = b"test-secret-key-32-bytes-long!!!";
-        EmailVerificationService::new(EmailVerificationConfig::default(), secret.to_vec())
+        EmailVerificationService::new(pool, secret.to_vec())
     }
 
-    #[test]
-    fn hash_code_produces_deterministic_output() {
+    // Tests are async because PgPool creation requires a Tokio runtime,
+    // even though these tests only exercise synchronous hashing logic.
+
+    #[tokio::test]
+    async fn hash_code_produces_deterministic_output() {
         let service = test_service();
         let code = "123456";
 
@@ -396,8 +402,8 @@ mod tests {
         assert_eq!(hash1, hash2, "Same code should produce same hash");
     }
 
-    #[test]
-    fn hash_code_different_for_different_codes() {
+    #[tokio::test]
+    async fn hash_code_different_for_different_codes() {
         let service = test_service();
 
         let hash1 = service.hash_code("123456");
@@ -406,8 +412,8 @@ mod tests {
         assert_ne!(hash1, hash2);
     }
 
-    #[test]
-    fn verify_code_hash_succeeds_with_correct_code() {
+    #[tokio::test]
+    async fn verify_code_hash_succeeds_with_correct_code() {
         let service = test_service();
         let code = "123456";
 
@@ -415,8 +421,8 @@ mod tests {
         assert!(service.verify_code_hash(code, &hash));
     }
 
-    #[test]
-    fn verify_code_hash_fails_with_wrong_code() {
+    #[tokio::test]
+    async fn verify_code_hash_fails_with_wrong_code() {
         let service = test_service();
         let code = "123456";
 
@@ -424,8 +430,8 @@ mod tests {
         assert!(!service.verify_code_hash("654321", &hash));
     }
 
-    #[test]
-    fn verify_code_hash_is_constant_time() {
+    #[tokio::test]
+    async fn verify_code_hash_is_constant_time() {
         // Can't prove timing safety in tests, but ensures it runs
         let service = test_service();
         let code = "123456";
@@ -436,15 +442,16 @@ mod tests {
         assert!(!service.verify_code_hash("123450", &hash));
     }
 
-    #[test]
-    fn different_secrets_produce_different_hashes() {
+    #[tokio::test]
+    async fn different_secrets_produce_different_hashes() {
+        let pool = PgPoolOptions::new()
+            .connect_lazy("postgres://localhost/unused")
+            .expect("lazy pool creation should not fail");
         let secret1 = b"secret-one-32-bytes-long!!!!!!!!";
         let secret2 = b"secret-two-32-bytes-long!!!!!!!!";
 
-        let service1 =
-            EmailVerificationService::new(EmailVerificationConfig::default(), secret1.to_vec());
-        let service2 =
-            EmailVerificationService::new(EmailVerificationConfig::default(), secret2.to_vec());
+        let service1 = EmailVerificationService::new(pool.clone(), secret1.to_vec());
+        let service2 = EmailVerificationService::new(pool, secret2.to_vec());
 
         let code = "123456";
         let hash1 = service1.hash_code(code);

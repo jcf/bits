@@ -46,7 +46,7 @@ pub async fn verify_email_code(
     // Verify the code
     state
         .email_verification
-        .verify_code(&state.db, email_address_id, &form.0.code)
+        .verify_code(email_address_id, &form.0.code)
         .await
         .map_err(|e| match e {
             crate::verification::VerificationError::InvalidCode => {
@@ -96,7 +96,7 @@ pub async fn resend_verification_code(
     // Check rate limits (IP is None for now - Phase 6 will add IP extraction)
     state
         .email_verification
-        .check_resend_limits(&state.db, email_address_id, None)
+        .check_resend_limits(email_address_id, None)
         .await
         .map_err(|e| match e {
             crate::verification::RateLimitError::Cooldown(secs) => AuthError::Internal(format!(
@@ -114,14 +114,14 @@ pub async fn resend_verification_code(
     // Get or create code (same code if still valid)
     let code = state
         .email_verification
-        .create_code(&state.db, email_address_id)
+        .create_code(email_address_id)
         .await
         .map_err(|e| AuthError::Internal(e.to_string()))?;
 
     // Log the resend
     state
         .email_verification
-        .log_resend(&state.db, email_address_id, None)
+        .log_resend(email_address_id, None)
         .await
         .map_err(|e| AuthError::Internal(e.to_string()))?;
 
@@ -135,7 +135,7 @@ pub async fn resend_verification_code(
     // Get next resend time
     let next_resend = state
         .email_verification
-        .next_resend_at(&state.db, email_address_id)
+        .next_resend_at(email_address_id)
         .await
         .map_err(|e| AuthError::Internal(e.to_string()))?
         .unwrap_or_else(Timestamp::now);

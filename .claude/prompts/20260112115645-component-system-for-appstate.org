@@ -1,0 +1,183 @@
+#+title:    Component System for AppState
+#+date:     2026-01-12
+#+status:   done
+#+property: header-args :dir ../..
+
+* Problem
+
+~AppState::new()~ configures services externally and passes ~&state.db~ everywhere:
+
+#+begin_src rust
+// app.rs - AppState derives keys for services
+let hk = Hkdf::<Sha256>::new(None, config.master_key.as_bytes());
+hk.expand(b"email-verification-v1", &mut verification_key)?;
+let email_verification = EmailVerificationService::new(config, verification_key.to_vec());
+
+// auth/verification.rs - db passed to every call
+state.email_verification.verify_code(&state.db, id, &code).await
+#+end_src
+
+Services don't own their dependencies or know how to configure themselves.
+
+* Options Considered
+
+** Sai (Clojure Component equivalent)
+
+| Pros                             | Cons               |
+|----------------------------------+--------------------|
+| Lifecycle management             | Another dependency |
+| Automatic reverse-order shutdown | Last release 2023  |
+| Explicit ~#[injected]~ deps      | Macro-heavy        |
+
+** Shaku (Compile-time DI)
+
+| Pros                    | Cons                 |
+|-------------------------+----------------------|
+| Compile-time guarantees | Less lifecycle focus |
+| Active maintenance      | More boilerplate     |
+
+** Hand-rolled Capability Traits (Recommended)
+
+| Pros                       | Cons                       |
+|----------------------------+----------------------------|
+| Zero dependencies          | Manual lifecycle if needed |
+| Idiomatic Rust             | More explicit wiring       |
+| Services own configuration |                            |
+
+* Recommendation
+
+Use *hand-rolled capability traits*. Services that need database access own a
+cloned ~PgPool~ and configure themselves via ~from_config~.
+
+* Current Service Analysis
+
+| Service                    | Needs DB | Current Pattern     | Action                    |
+|----------------------------+----------+---------------------+---------------------------|
+| ~PasswordService~          | No       | ~new(&config)~      | Already correct           |
+| ~EmailVerificationService~ | Yes      | ~new(config, key)~  | Add ~from_config~, own db |
+| ~AuthRateLimitService~     | Yes      | ~new()~             | Add ~from_config~, own db |
+| ~SessionStore~             | Yes      | Axum infrastructure | Keep as-is                |
+
+* Target Design
+
+#+begin_src rust
+// Services own dependencies, configure themselves
+impl EmailVerificationService {
+    pub fn from_config(config: &Config, db: PgPool) -> Result<Self> {
+        let key = derive_key(&config.master_key, b"email-verification-v1")?;
+        Ok(Self { db, hmac_secret: key, config: Default::default() })
+    }
+
+    // No more &db parameter
+    pub async fn verify_code(&self, id: EmailAddressId, code: &str) -> Result<()> {
+        sqlx::query!(...).fetch_optional(&self.db).await?;
+    }
+}
+
+impl AuthRateLimitService {
+    pub fn from_config(config: &Config, db: PgPool) -> Self {
+        Self {
+            db,
+            login_config: AuthRateLimitConfig::for_login(),
+            registration_config: AuthRateLimitConfig::for_registration(),
+            ip_tracker: IpAttemptTracker::new(),
+        }
+    }
+}
+
+// AppState::new delegates to services
+impl AppState {
+    pub async fn new(config: Config) -> Result<Self> {
+        let db = PgPoolOptions::new().connect(&config.database_url).await?;
+
+        Ok(Self {
+            password_service: PasswordService::new(&config)?,  // unchanged
+            email_verification: EmailVerificationService::from_config(&config, db.clone())?,
+            auth_rate_limit: AuthRateLimitService::from_config(&config, db.clone()),
+            db,  // kept for direct queries (migrations, ad-hoc)
+            // ...
+        })
+    }
+}
+#+end_src
+
+* Implementation Steps
+
+1. ~EmailVerificationService~: Add ~db: PgPool~ field, ~from_config~ constructor, move HKDF inside
+2. ~AuthRateLimitService~: Add ~db: PgPool~ field, ~from_config~ constructor
+3. Update method signatures to remove ~&db~ parameter
+4. Update ~AppState::new~ to use ~from_config~
+5. Update call sites (they simplify: remove ~&state.db~ argument)
+
+* Files to Modify
+
+| File                                            | Change                            |
+|-------------------------------------------------+-----------------------------------|
+| ~crates/bits/src/verification.rs~               | Add db field, from_config, rm &db |
+| ~crates/bits/src/auth_rate_limit/service.rs~    | Add db field, from_config, rm &db |
+| ~crates/bits/src/app.rs~                        | Use from_config, rm HKDF          |
+| ~crates/bits/src/auth/verification.rs~          | Remove &state.db from calls       |
+| ~crates/bits/src/auth/registration.rs~          | Remove &state.db from calls       |
+| ~crates/bits/src/middleware/auth_rate_limit.rs~ | Remove &state.db from calls       |
+
+* Out of Scope
+
+- ~PasswordService~ - already correct (stateless, no db)
+- ~SessionStore~ - Axum infrastructure, not a business service
+- Capability traits (~HasDb~, etc.) - defer until testing requires them
+
+* Implementation Notes (2026-01-12)
+
+After research into production Rust web applications (Lemmy, Conduit, realworld-axum-sqlx),
+the idiomatic pattern is simpler than originally proposed:
+
+** Pattern Used: Simple Constructor Injection
+
+No DI frameworks, no ~from_config~, no capability traits. Services receive
+dependencies via constructor and own them:
+
+#+begin_src rust
+// Service owns db, receives it in constructor
+impl EmailVerificationService {
+    pub fn new(db: PgPool, hmac_secret: Vec<u8>) -> Self {
+        Self { db, config: Default::default(), hmac_secret }
+    }
+}
+
+// AppState::new is the "composition root" - all wiring happens here
+impl AppState {
+    pub async fn new(config: Config) -> Result<Self> {
+        let db = PgPoolOptions::new().connect(&config.database_url).await?;
+        let verification_key = derive_hkdf_key(&config.master_key, b"email-verification-v1");
+
+        Ok(Self {
+            email_verification: EmailVerificationService::new(db.clone(), verification_key),
+            auth_rate_limit: AuthRateLimitService::new(db.clone()),
+            db,
+            // ...
+        })
+    }
+}
+#+end_src
+
+** Key Findings from Research
+
+1. Production Rust apps use flat AppState structs with simple constructors
+2. Services receive dependencies (don't create them) - constructor injection
+3. No lifecycle management needed - Drop handles cleanup
+4. PgPool is cheap to clone (internally Arc'd)
+5. If multiple shared dependencies grow, consolidate into a dependencies struct
+
+** Files Modified
+
+- ~crates/bits/src/verification.rs~ - Added ~db: PgPool~ field, updated constructor
+- ~crates/bits/src/auth_rate_limit/service.rs~ - Added ~db: PgPool~ field
+- ~crates/bits/src/app.rs~ - Pass ~db.clone()~ to service constructors
+- ~crates/bits/src/auth/verification.rs~ - Removed ~&state.db~ from calls
+- ~crates/bits/src/auth/registration.rs~ - Removed ~&state.db~ from calls
+- ~crates/bits/src/middleware/auth_rate_limit.rs~ - Removed ~&state.db~ from calls
+- ~crates/bits-e2e/tests/auth.rs~ - Updated integration tests
+
+** Tests
+
+All 62 unit tests and 47 integration tests pass.

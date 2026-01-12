@@ -123,14 +123,14 @@ async fn valid_code_verifies_email() {
     let code = ctx
         .state
         .email_verification
-        .create_code(&ctx.db_pool, email_address_id)
+        .create_code(email_address_id)
         .await
         .expect("Failed to create verification code");
 
     // Verify the code
     ctx.state
         .email_verification
-        .verify_code(&ctx.db_pool, email_address_id, &code)
+        .verify_code(email_address_id, &code)
         .await
         .expect("Valid code should verify successfully");
 
@@ -168,7 +168,7 @@ async fn invalid_code_fails_verification() {
 
     ctx.state
         .email_verification
-        .create_code(&ctx.db_pool, email_address_id)
+        .create_code(email_address_id)
         .await
         .expect("Failed to create verification code");
 
@@ -176,7 +176,7 @@ async fn invalid_code_fails_verification() {
     let result = ctx
         .state
         .email_verification
-        .verify_code(&ctx.db_pool, email_address_id, "000000")
+        .verify_code(email_address_id, "000000")
         .await;
 
     match result {
@@ -215,17 +215,16 @@ async fn expired_code_fails_verification() {
         max_resends_per_hour: 5,
     };
     let test_secret = b"test-secret-for-verification".to_vec();
-    let service = EmailVerificationService::new(test_config, test_secret);
+    let service =
+        EmailVerificationService::new(ctx.db_pool.clone(), test_secret).with_config(test_config);
 
     let code = service
-        .create_code(&ctx.db_pool, email_address_id)
+        .create_code(email_address_id)
         .await
         .expect("Failed to create verification code");
 
     // Try to verify expired code
-    let result = service
-        .verify_code(&ctx.db_pool, email_address_id, &code)
-        .await;
+    let result = service.verify_code(email_address_id, &code).await;
 
     match result {
         Err(bits::verification::VerificationError::Expired) => {}
@@ -263,22 +262,19 @@ async fn too_many_attempts_blocks_verification() {
         max_resends_per_hour: 5,
     };
     let test_secret = b"test-secret-for-verification".to_vec();
-    let service = EmailVerificationService::new(test_config, test_secret);
+    let service =
+        EmailVerificationService::new(ctx.db_pool.clone(), test_secret).with_config(test_config);
 
     service
-        .create_code(&ctx.db_pool, email_address_id)
+        .create_code(email_address_id)
         .await
         .expect("Failed to create verification code");
 
     // First wrong attempt
-    let _ = service
-        .verify_code(&ctx.db_pool, email_address_id, "000000")
-        .await;
+    let _ = service.verify_code(email_address_id, "000000").await;
 
     // Second attempt should be blocked
-    let result = service
-        .verify_code(&ctx.db_pool, email_address_id, "111111")
-        .await;
+    let result = service.verify_code(email_address_id, "111111").await;
 
     match result {
         Err(bits::verification::VerificationError::TooManyAttempts) => {}
@@ -316,17 +312,16 @@ async fn resend_respects_cooldown() {
         max_resends_per_hour: 5,
     };
     let test_secret = b"test-secret-for-verification".to_vec();
-    let service = EmailVerificationService::new(test_config, test_secret);
+    let service =
+        EmailVerificationService::new(ctx.db_pool.clone(), test_secret).with_config(test_config);
 
     service
-        .create_code(&ctx.db_pool, email_address_id)
+        .create_code(email_address_id)
         .await
         .expect("Failed to create verification code");
 
     // Try to resend immediately
-    let result = service
-        .check_resend_limits(&ctx.db_pool, email_address_id, None)
-        .await;
+    let result = service.check_resend_limits(email_address_id, None).await;
 
     match result {
         Err(bits::verification::RateLimitError::Cooldown(_)) => {}

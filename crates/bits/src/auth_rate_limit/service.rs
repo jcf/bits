@@ -6,6 +6,7 @@ use std::net::IpAddr;
 
 #[derive(Clone)]
 pub struct AuthRateLimitService {
+    db: PgPool,
     login_config: AuthRateLimitConfig,
     registration_config: AuthRateLimitConfig,
     ip_tracker: storage::IpAttemptTracker,
@@ -13,8 +14,9 @@ pub struct AuthRateLimitService {
 
 impl AuthRateLimitService {
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(db: PgPool) -> Self {
         Self {
+            db,
             login_config: AuthRateLimitConfig::for_login(),
             registration_config: AuthRateLimitConfig::for_registration(),
             ip_tracker: storage::IpAttemptTracker::new(),
@@ -23,10 +25,12 @@ impl AuthRateLimitService {
 
     #[must_use]
     pub fn with_configs(
+        db: PgPool,
         login_config: AuthRateLimitConfig,
         registration_config: AuthRateLimitConfig,
     ) -> Self {
         Self {
+            db,
             login_config,
             registration_config,
             ip_tracker: storage::IpAttemptTracker::new(),
@@ -34,23 +38,17 @@ impl AuthRateLimitService {
     }
 
     /// Check rate limits for login endpoint
-    pub async fn check_login_limits(
-        &self,
-        db: &PgPool,
-        ip: IpAddr,
-        email: &str,
-    ) -> Result<(), RateLimitError> {
-        self.check_limits(db, ip, email, &self.login_config).await
+    pub async fn check_login_limits(&self, ip: IpAddr, email: &str) -> Result<(), RateLimitError> {
+        self.check_limits(ip, email, &self.login_config).await
     }
 
     /// Check rate limits for registration endpoint
     pub async fn check_registration_limits(
         &self,
-        db: &PgPool,
         ip: IpAddr,
         email: &str,
     ) -> Result<(), RateLimitError> {
-        self.check_limits(db, ip, email, &self.registration_config)
+        self.check_limits(ip, email, &self.registration_config)
             .await
     }
 
@@ -60,14 +58,13 @@ impl AuthRateLimitService {
     /// Returns email limit errors first (to prevent enumeration via timing).
     async fn check_limits(
         &self,
-        db: &PgPool,
         ip: IpAddr,
         email: &str,
         config: &AuthRateLimitConfig,
     ) -> Result<(), RateLimitError> {
         // Check email-based limits first (database query, slower)
         // This prevents timing attacks that could enumerate valid emails
-        let email_attempts = storage::count_email_attempts(db, email, 1).await?;
+        let email_attempts = storage::count_email_attempts(&self.db, email, 1).await?;
 
         if email_attempts >= config.email_attempts_per_hour as i64 {
             return Err(RateLimitError::EmailLimitExceeded);
@@ -90,7 +87,6 @@ impl AuthRateLimitService {
     /// Updates both in-memory IP tracker and database email record.
     pub async fn record_attempt(
         &self,
-        db: &PgPool,
         ip: IpAddr,
         email: &str,
         endpoint: &str,
@@ -99,7 +95,7 @@ impl AuthRateLimitService {
         self.ip_tracker.record_attempt(ip);
 
         // Record in database
-        storage::record_attempt(db, email, endpoint, Some(ip)).await?;
+        storage::record_attempt(&self.db, email, endpoint, Some(ip)).await?;
 
         Ok(())
     }
@@ -107,11 +103,5 @@ impl AuthRateLimitService {
     /// Clean up old IP tracking data (for maintenance/testing)
     pub fn cleanup_ip_tracker(&self, window_secs: i64) {
         self.ip_tracker.cleanup(window_secs);
-    }
-}
-
-impl Default for AuthRateLimitService {
-    fn default() -> Self {
-        Self::new()
     }
 }
