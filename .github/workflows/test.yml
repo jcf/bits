@@ -1,0 +1,46 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+        # https://github.com/actions/checkout
+      - uses: actions/checkout@v5
+
+        # https://github.com/cachix/install-nix-action/tree/7e5978947b7efba56e96c43fd785691980aca924
+      - uses: cachix/install-nix-action@7e5978947b7efba56e96c43fd785691980aca924
+
+        # https://github.com/cachix/cachix-action/tree/29121a2db12c7ff8b89724a8898ca20d33bb4ea3
+      - uses: cachix/cachix-action@29121a2db12c7ff8b89724a8898ca20d33bb4ea3
+        with:
+          name: devenv
+
+      - run: nix profile add nixpkgs#devenv
+
+      # https://github.com/actions/cache
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: devenv shell
+        run: devenv shell -- echo "Your shell awaits."
+
+      - name: cargo check
+        run: devenv shell -- cargo check
+
+      - name: cargo clippy
+        run: devenv shell -- cargo clippy
+
+      - name: cargo nextest run
+        run: devenv shell -- cargo nextest run
