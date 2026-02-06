@@ -99,14 +99,15 @@
 
 (defn send-sse!
   "Send compressed SSE data over http-kit channel."
-  [ch br-out ba-out event]
-  (let [compressed (brotli/compress-stream ba-out br-out event)]
-    (server/send! ch {:status  200
-                      :headers {"Content-Type"     "text/event-stream"
-                                "Cache-Control"    "no-store"
-                                "Content-Encoding" "br"}
-                      :body    compressed}
-                  false)))
+  [stream event]
+  (let [{:keys [ba-out br-out ch]} stream
+        body                       (brotli/compress-stream ba-out br-out event)
+        response                   {:status  200
+                                    :headers {"Content-Type"     "text/event-stream"
+                                              "Cache-Control"    "no-store"
+                                              "Content-Encoding" "br"}
+                                    :body    body}]
+    (server/send! ch response false)))
 
 (defn page-handler
   "Returns HTML page with view rendered. SSE takes over for updates."
@@ -133,25 +134,29 @@
                              (bound-fn []
                                (with-open [ba-out (brotli/byte-array-out-stream)
                                            br-out (brotli/compress-out-stream ba-out :window-size 18)]
-                                 (loop [last-hash last-id]
-                                   (a/alt!!
-                                     <cancel
-                                     (do
-                                       (a/close! <refresh)
-                                       (a/close! <cancel))
+                                 (let [stream {:request request
+                                               :ba-out  ba-out
+                                               :br-out  br-out
+                                               :ch      ch}]
+                                   (loop [last-hash last-id]
+                                     (a/alt!!
+                                       <cancel
+                                       (do
+                                         (a/close! <refresh)
+                                         (a/close! <cancel))
 
-                                     <refresh
-                                     ([_]
-                                      (some->
-                                       (let [html-str (html/htmx (view-fn request))
-                                             hash     (content-hash html-str)
-                                             changed? (not= hash last-hash)]
-                                         (when changed?
-                                           (send-sse! ch br-out ba-out (morph-event html-str)))
-                                         hash)
-                                       recur))
+                                       <refresh
+                                       ([_]
+                                        (some->
+                                         (let [html-str (html/htmx (view-fn request))
+                                               hash     (content-hash html-str)
+                                               changed? (not= hash last-hash)]
+                                           (when changed?
+                                             (send-sse! stream (morph-event html-str)))
+                                           hash)
+                                         recur))
 
-                                     :priority true)))
+                                       :priority true))))
                                (server/close ch))))
 
                           :on-close
