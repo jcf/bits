@@ -20,6 +20,11 @@ excludes = [
   "resources/public/*.js"
 ]
 
+[formatter.clojure]
+command = "cljfmt"
+options = ["fix"]
+includes = ["*.clj", "*.cljc", "*.cljs", "*.edn"]
+
 [formatter.just]
 command = "just"
 options = ["--unstable", "--fmt", "--justfile"]
