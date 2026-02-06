@@ -20,6 +20,7 @@
   funcool/promesa                          {:mvn/version "11.0.678"}
   hato/hato                                {:mvn/version "1.0.0"}
   hiccup/hiccup                            {:mvn/version "2.0.0"}
+  http-kit/http-kit                        {:mvn/version "2.9.0-beta3"}
   inflections/inflections                  {:mvn/version "0.14.2"}
   io.pedestal/pedestal.error               {:mvn/version "0.8.1"}
   io.pedestal/pedestal.http-kit            {:mvn/version "0.8.1"}
@@ -27,6 +28,7 @@
   io.pedestal/pedestal.log                 {:mvn/version "0.8.1"}
   javax.servlet/javax.servlet-api          {:mvn/version "4.0.1"}
   lambdaisland/uri                         {:mvn/version "1.19.155"}
+  metosin/reitit                           {:mvn/version "0.10.0"}
   org.apache.commons/commons-lang3         {:mvn/version "3.20.0"}
   org.babashka/cli                         {:mvn/version "0.8.67"}
   org.clojure/clojure                      {:mvn/version "1.12.3"}
