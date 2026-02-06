@@ -14,7 +14,11 @@ includes = [
   "*.yaml",
   "*.yml",
 ]
-excludes = ["node_modules/**", "pnpm-lock.yaml"]
+excludes = [
+  "node_modules/**",
+  "pnpm-lock.yaml",
+  "resources/public/*.js"
+]
 
 [formatter.just]
 command = "just"
