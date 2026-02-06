@@ -42,8 +42,10 @@
                           "public/JetBrainsMono-Bold.woff2"
                           "public/JetBrainsMono-Regular.woff2"
                           "public/app.css"}}
-   :service {:http-host "0.0.0.0"
-             :http-port (env-or :port 3000)}})
+   :service {:cookie-name   "bits"
+             :cookie-secret (some-> :cookie-secret (env-or "00000000000000000000000000000000") codecs/hex->bytes)
+             :http-host     "0.0.0.0"
+             :http-port     (env-or :port 3000)}})
 
 ;;; ----------------------------------------------------------------------------
 ;;; System

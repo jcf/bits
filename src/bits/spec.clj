@@ -35,6 +35,7 @@
 (s/def :bits.service/origin string?)
 (s/def :bits.service/server-header string?)
 
+(s/def :bits.next/cookie-secret bytes?)
 (s/def :bits.next/http-host string?)
 (s/def :bits.next/http-port (s/or :zero zero? :pos-int pos-int?))
 
@@ -50,6 +51,7 @@
                    ;; :bits.service/name
                    ;; :bits.service/origin
                    ;; :bits.service/server-header
+                   :bits.next/cookie-secret
                    :bits.next/http-host
                    :bits.next/http-port]
           :opt-un [#_ :bits.service/cookie-name]))
