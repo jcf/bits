@@ -34,3 +34,26 @@ rg "htmx@${version}.min.js" src
 #+results:
 : src/bits/html.clj:      [:script {:src (asset-path "/htmx@2.0.8.min.js")}]]
 : src/bits/app.clj:                          "public/htmx@2.0.8.min.js"}}
+
+* Vendor Idiomorph
+:properties:
+:header-args+: :var version="0.7.4"
+:end:
+#+begin_src sh :eval query
+mkdir -p resources/public
+
+rm -f resources/public/idiomorph@*.min.js
+curl "https://unpkg.com/idiomorph@${version}/dist/idiomorph.min.js" \
+  -o "resources/public/idiomorph@${version}.min.js"
+ls resources/public/idiomorph@*.min.js
+#+end_src
+
+#+results:
+: resources/public/idiomorph@0.7.4.min.js
+
+#+begin_src sh :results output verbatim
+rg "idiomorph@${version}.min.js" src
+#+end_src
+
+#+results:
+: src/bits/next.clj:    [:script {:src "/idiomorph@0.7.4.min.js"}]]
