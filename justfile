@@ -1,6 +1,7 @@
 # Terraform will panic if it encounters `PGSERVICEFILE`.
 unexport PGSERVICEFILE
 
+os := "darwin-aarch64"
 plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
@@ -87,7 +88,7 @@ nrepl *args:
         "{{ BLUE }}{{ BOLD }}==>{{ NORMAL }} {{ BOLD }}Starting nREPL on localhost:9999...{{ NORMAL }}"
 
     exec clojure \
-        -M:dev:test:logging:nrepl \
+        -M:dev:test:logging:nrepl:{{ os }} \
         --report stderr \
         --main bits.nrepl \
         --host localhost \
