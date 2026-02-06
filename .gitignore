@@ -24,6 +24,7 @@
 /.nrepl-history
 /.nrepl-port
 /certs/
+/resources/public/app.css
 /target
 node_modules/
 override.tf
