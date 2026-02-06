@@ -50,6 +50,35 @@
   {:pre [(string? html-str)]}
   (sse-event "morph" (content-hash html-str) html-str))
 
+(defn title-event
+  "Update document.title."
+  [title]
+  {:pre [(string? title)]}
+  (sse-event "title" (content-hash title) title))
+
+(defn redirect-event
+  "Navigate to URL."
+  [url]
+  {:pre [(string? url)]}
+  (sse-event "redirect" (content-hash url) url))
+
+(defn reload-event
+  "Force full page reload."
+  []
+  (sse-event "reload" (content-hash "reload") ""))
+
+(defn push-url-event
+  "Update URL bar without reload (history.pushState)."
+  [url]
+  {:pre [(string? url)]}
+  (sse-event "push-url" (content-hash url) url))
+
+(defn replace-url-event
+  "Replace URL bar without reload (history.replaceState)."
+  [url]
+  {:pre [(string? url)]}
+  (sse-event "replace-url" (content-hash url) url))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Layout
 

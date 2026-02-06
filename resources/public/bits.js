@@ -1,99 +1,84 @@
 (function () {
   "use strict";
 
+  let controller = null;
   let lastEventId = null;
-  let reconnectDelay = 1000;
-  const MAX_RECONNECT_DELAY = 30000;
-
-  // ---------------------------------------------------------------------------
-  // Connection State
-
-  function reportState(state, detail) {
-    console.log(`[bits] ${state}`, detail || "");
-    document.dispatchEvent(
-      new CustomEvent("bits:connection", { detail: { state } }),
-    );
-  }
 
   // ---------------------------------------------------------------------------
   // SSE Connection
 
   function connect() {
-    reportState("connecting");
-    const url = window.location.pathname;
+    controller?.abort();
+    controller = new AbortController();
+
+    const nonce = crypto.randomUUID().slice(0, 8);
+    const search = window.location.search;
+    const url =
+      window.location.pathname +
+      (search ? search + "&nonce=" + nonce : "?nonce=" + nonce);
+
     const headers = { Accept: "text/event-stream" };
     if (lastEventId) headers["Last-Event-ID"] = lastEventId;
 
-    fetch(url, { method: "POST", headers, credentials: "same-origin" })
+    fetch(url, {
+      method: "POST",
+      headers,
+      credentials: "same-origin",
+      signal: controller.signal,
+      cache: "no-store",
+    })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        reportState("connected");
-        reconnectDelay = 1000;
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
 
         function read() {
-          reader.read().then(({ done, value }) => {
-            if (done) {
-              reconnect();
-              return;
-            }
-            buffer += decoder.decode(value, { stream: true });
-            buffer = processEvents(buffer);
-            read();
-          });
+          reader
+            .read()
+            .then(({ done, value }) => {
+              if (done) {
+                console.log("[bits] stream ended");
+                return connect();
+              }
+              buffer += decoder.decode(value, { stream: true });
+              buffer = processEvents(buffer);
+              read();
+            })
+            .catch((err) => {
+              console.log("[bits] stream error:", err.name, err.message);
+              if (err.name !== "AbortError") connect();
+            });
         }
         read();
       })
       .catch((err) => {
-        reportState("error", err.message);
-        reconnect();
+        if (err.name !== "AbortError") setTimeout(connect, 1000);
       });
-  }
-
-  function reconnect() {
-    reportState("reconnecting", `in ${reconnectDelay}ms`);
-    setTimeout(connect, reconnectDelay);
-    reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
   }
 
   // ---------------------------------------------------------------------------
   // SSE Event Parsing
 
   function processEvents(buffer) {
-    const events = [];
     let pos = 0;
-
     while (true) {
       const end = buffer.indexOf("\n\n", pos);
       if (end === -1) break;
-
-      const block = buffer.slice(pos, end);
-      const event = parseEvent(block);
-      if (event) events.push(event);
+      handleEvent(parseEvent(buffer.slice(pos, end)));
       pos = end + 2;
     }
-
-    events.forEach(handleEvent);
     return buffer.slice(pos);
   }
 
   function parseEvent(block) {
-    const event = { type: "message", id: null, data: [] };
-
+    const event = { type: "message", data: [] };
     for (const line of block.split("\n")) {
-      if (line.startsWith("event:")) {
-        event.type = line.slice(6).trim();
-      } else if (line.startsWith("id:")) {
-        event.id = line.slice(3).trim();
-      } else if (line.startsWith("data:")) {
-        event.data.push(line.slice(5).trimStart());
-      }
+      if (line.startsWith("event:")) event.type = line.slice(6).trim();
+      else if (line.startsWith("id:")) event.id = line.slice(3).trim();
+      else if (line.startsWith("data:")) event.data.push(line.slice(5).trimStart());
     }
-
-    if (event.data.length === 0) return null;
     event.data = event.data.join("\n");
     return event;
   }
@@ -101,26 +86,44 @@
   // ---------------------------------------------------------------------------
   // Event Handling
 
-  function handleEvent(event) {
-    if (event.id) lastEventId = event.id;
-
-    if (event.type === "morph") {
+  const handlers = {
+    morph: (data) => {
       const target = document.getElementById("morph");
       if (target && window.Idiomorph) {
-        Idiomorph.morph(target, event.data, { morphStyle: "innerHTML" });
+        Idiomorph.morph(target, data, { morphStyle: "innerHTML" });
       }
-    }
+    },
+    title: (data) => {
+      document.title = data;
+    },
+    redirect: (data) => {
+      window.location.href = data;
+    },
+    reload: () => {
+      window.location.reload();
+    },
+    "push-url": (data) => {
+      history.pushState(null, "", data);
+    },
+    "replace-url": (data) => {
+      history.replaceState(null, "", data);
+    },
+  };
+
+  function handleEvent(event) {
+    if (event.id) lastEventId = event.id;
+    const handler = handlers[event.type];
+    if (handler) handler(event.data);
   }
 
   // ---------------------------------------------------------------------------
   // Action Dispatch
 
   function postAction(action, params) {
-    const body = new URLSearchParams({ action, ...params });
     fetch("/action", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
+      body: new URLSearchParams({ action, ...params }),
       credentials: "same-origin",
     });
   }
@@ -129,8 +132,7 @@
     const el = e.target.closest("[data-action]");
     if (el) {
       e.preventDefault();
-      const form = el.form;
-      const params = form ? Object.fromEntries(new FormData(form)) : {};
+      const params = el.form ? Object.fromEntries(new FormData(el.form)) : {};
       postAction(el.dataset.action, params);
     }
   });
