@@ -24,38 +24,9 @@ You're never locked in.
 *Current state:* Active development. Your funding accelerates delivery.
 
 * Development
-Start required services and spawn a Tailwind watcher via =devenv=:
-
 #+begin_src sh :eval never
 devenv up
 #+end_src
-
-Then one can start an hot-reloading development process via Dioxus like so:
-
-#+begin_src sh :eval never
-just serve
-#+end_src
-
-** Dioxus version
-One needs to ensure Dioxus and =dioxus-cli= remain in sync or one might
-encounter errors inside of =link= tags:
-
-#+begin_src html :eval never
-<link rel="stylesheet" href="/assets/This should be replaced by dx as part of the build process. If you see this error, make sure you are using a matching version of dx and dioxus and you are not stripping symbols from your binary."></link>
-#+end_src
-
-#+begin_src sh :results output table :colnames '("Package" "Version") :exports results
-echo -e "dioxus\t$(grep 'dioxus = ' Cargo.toml | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
-echo -e "dioxus-cli\t$(grep 'version = ' nix/overlays/dioxus-cli.nix | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
-echo -e "wasm-bindgen-cli\t$(grep 'version = ' nix/overlays/wasm-bindgen-cli.nix | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')"
-#+end_src
-
-#+results:
-| Package          | Version |
-|------------------+---------|
-| dioxus           |   0.7.1 |
-| dioxus-cli       |   0.7.1 |
-| wasm-bindgen-cli | 0.2.105 |
 
 ** HTTPS and =*.test= URLs
 *** Setup
