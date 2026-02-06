@@ -35,19 +35,24 @@
 (s/def :bits.service/origin string?)
 (s/def :bits.service/server-header string?)
 
+(s/def :bits.next/http-host string?)
+(s/def :bits.next/http-port (s/or :zero zero? :pos-int pos-int?))
+
 (s/def :bits.service/config
-  (s/keys :req-un [:bits.service/allow-credentials?
-                   :bits.service/allowed-headers
-                   :bits.service/allowed-origins
-                   :bits.service/canonical-host
-                   :bits.service/cookie-secret
-                   :bits.service/http-host
-                   :bits.service/http-port
-                   :bits.service/join?
-                   :bits.service/name
-                   :bits.service/origin
-                   :bits.service/server-header]
-          :opt-un [:bits.service/cookie-name]))
+  (s/keys :req-un [;; :bits.service/allow-credentials?
+                   ;; :bits.service/allowed-headers
+                   ;; :bits.service/allowed-origins
+                   ;; :bits.service/canonical-host
+                   ;; :bits.service/cookie-secret
+                   ;; :bits.service/http-host
+                   ;; :bits.service/http-port
+                   ;; :bits.service/join?
+                   ;; :bits.service/name
+                   ;; :bits.service/origin
+                   ;; :bits.service/server-header
+                   :bits.next/http-host
+                   :bits.next/http-port]
+          :opt-un [#_ :bits.service/cookie-name]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; System

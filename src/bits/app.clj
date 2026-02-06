@@ -9,7 +9,8 @@
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
    [medley.core :as medley]
-   [steffan-westcott.clj-otel.api.trace.span :as span])
+   [steffan-westcott.clj-otel.api.trace.span :as span]
+   [bits.next :as next])
   (:import
    (java.security Security)))
 
@@ -41,26 +42,8 @@
                           "public/JetBrainsMono-Bold.woff2"
                           "public/JetBrainsMono-Regular.woff2"
                           "public/app.css"}}
-   :service {:allow-credentials? true
-             :allowed-headers    #{"Authorization"
-                                   "Content-Type"
-                                   "Accept"
-                                   "Origin"}
-             :allowed-origins    #{"http://localhost:3000"}
-             :canonical-host     (env-or :canonical-host "localhost")
-             :commit-id          (env-or :commit-id "unset")
-             :cookie-name        "s"
-             :cookie-secret      (some-> :cookie-secret (env-or "00000000000000000000000000000000") codecs/hex->bytes)
-             :diff-middleware?   false
-             :enable-analytics?  (or (-> :enable-analytics (env-or "false") parse-boolean) false)
-             :env                (parse-pedestal-env (env :pedestal-env))
-             :http-host          "0.0.0.0"
-             :http-port          (or (some-> (env :port) parse-long) 3000)
-             :join?              false
-             :name               (env-or :service-name "bits")
-             :origin             (env-or :origin "http://localhost:3000")
-             :reload-analytics?  (or (-> :reload-analytics (env-or "false") parse-boolean) false)
-             :server-header      "Bits"}})
+   :service {:http-host "0.0.0.0"
+             :http-port (env-or :port 3000)}})
 
 ;;; ----------------------------------------------------------------------------
 ;;; System
@@ -69,7 +52,7 @@
   [config]
   {:bootstrapper (boot/make-bootstrapper (:bootstrapper config))
    :buster       (assets/make-buster     (:buster config))
-   :service      (service/make-service   (:service config))})
+   :service      (next/make-service      (:service config))})
 
 (def dependencies
   {:service [:bootstrapper :buster]})
