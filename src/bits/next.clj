@@ -238,7 +238,9 @@
                                                      :cookie-name  cookie-name
                                                      :store        cookie-store}]]})))
 
-(defrecord Service [http-host
+(defrecord Service [cookie-name
+                    cookie-secret
+                    http-host
                     http-port
                     refresh-ch
                     refresh-mult
