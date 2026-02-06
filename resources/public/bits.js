@@ -77,7 +77,8 @@
     for (const line of block.split("\n")) {
       if (line.startsWith("event:")) event.type = line.slice(6).trim();
       else if (line.startsWith("id:")) event.id = line.slice(3).trim();
-      else if (line.startsWith("data:")) event.data.push(line.slice(5).trimStart());
+      else if (line.startsWith("data:"))
+        event.data.push(line.slice(5).trimStart());
     }
     event.data = event.data.join("\n");
     return event;
