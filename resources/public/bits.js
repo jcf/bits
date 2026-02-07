@@ -161,6 +161,10 @@
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
+    }).then((response) => {
+      if (response.status === 200) {
+        response.text().then((html) => handlers.morph(html));
+      }
     });
   }
 

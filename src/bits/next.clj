@@ -210,18 +210,31 @@
                              (a/>!! <cancel :stop)
                              (a/untap refresh-mult <refresh))})))))
 
+(defn respond
+  "Return rendered HTML from an action instead of signaling a refresh.
+   Use for validation errors or ephemeral UI feedback that doesn't
+   flow through the database."
+  [content]
+  {::respond content})
+
 (defn action-handler
-  "Dispatches actions by name, signals refresh. Returns 204."
+  "Dispatches actions by name. If action returns (respond hiccup),
+   returns 200 with rendered HTML for client-side morphing.
+   Otherwise signals refresh and returns 204."
   [actions]
   (fn [request]
     (let [refresh-ch  (::refresh-ch request)
           action-name (get-in request [:params "action"])
           action-fn   (get actions action-name)]
       (if action-fn
-        (do
-          (action-fn request)
-          (a/put! refresh-ch :action)
-          {:status 204})
+        (let [result (action-fn request)]
+          (if-let [content (::respond result)]
+            {:status  200
+             :headers {"Content-Type" "text/html; charset=utf-8"}
+             :body    (html/htmx content)}
+            (do
+              (a/put! refresh-ch :action)
+              {:status 204})))
         (do
           (log/warn :msg "Unknown action" :action action-name)
           {:status 400
