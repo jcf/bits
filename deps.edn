@@ -2,6 +2,9 @@
 {:paths ["resources" "src"]
  :deps
  {babashka/process                         {:mvn/version "0.6.25"}
+  io.replikativ/datahike                   {:mvn/version "0.6.1597"}
+  io.replikativ/datahike-jdbc              {:mvn/version "0.3.50"}
+  io.replikativ/hasch                      {:mvn/version "0.3.94"}
   buddy/buddy-core                         {:mvn/version "1.12.0-430"}
   buddy/buddy-hashers                      {:mvn/version "2.0.167"}
   buddy/buddy-sign                         {:mvn/version "3.6.1-359"}
@@ -47,15 +50,15 @@
  :mvn/repos {"nexus-releases" {:url "https://nexus.redplanetlabs.com/repository/maven-public-releases/"}}
 
  :aliases
- {:arch-darwin-aarch64
+ {:darwin-aarch64
   {:extra-deps
    {com.aayushatharva.brotli4j/native-osx-aarch64 {:mvn/version "1.20.0"}}}
 
-  :arch-linux-aarch64
+  :linux-aarch64
   {:extra-deps
    {com.aayushatharva.brotli4j/native-linux-aarch64 {:mvn/version "1.20.0"}}}
 
-  :arch-linux-x86_64
+  :linux-x86_64
   {:extra-deps
    {com.aayushatharva.brotli4j/native-linux-x86_64 {:mvn/version "1.20.0"}}}
 
