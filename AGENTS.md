@@ -1,5 +1,9 @@
 # Bits Project Guidelines
 
+## Git
+
+Do not include `Co-Authored-By` trailers in commit messages.
+
 ## Rust
 
 ### Imports
