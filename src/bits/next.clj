@@ -98,6 +98,24 @@
     (into [:main#morph {:class "min-h-screen"}] content)]])
 
 ;;; ----------------------------------------------------------------------------
+;;; Navigation
+
+(def nav-links
+  [["/"        "Counter"]
+   ["/cursors" "Cursors"]])
+
+(defn nav-header
+  [current-path]
+  [:nav {:class "flex gap-4 p-4 bg-neutral-100 dark:bg-neutral-800"}
+   (for [[path label] nav-links]
+     [:a {:href  path
+          :class (str "text-sm font-medium "
+                      (if (= path current-path)
+                        "text-indigo-600 dark:text-indigo-400"
+                        "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"))}
+      label])])
+
+;;; ----------------------------------------------------------------------------
 ;;; Handlers
 
 (defn send-sse!
@@ -122,69 +140,75 @@
 
 (defn render-handler
   "SSE stream that re-renders view on refresh signals. Brotli compressed.
-   Registers channel in the channels atom for REPL inspection."
-  [view-fn]
-  (fn [request]
-    (let [channels     (::channels request)
-          channel-id   (crypto/random-sid)
-          refresh-mult (::refresh-mult request)
-          <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
-          <cancel      (a/chan)
-          last-id      (get-in request [:headers "last-event-id"])
-          sid          (get-in request [:session :sid])
-          user-id      (get-in request [:session :user-id])]
-      (a/>!! <refresh :init)
-      (server/as-channel request
-                         {:on-open
-                          (fn [ch]
-                            (log/debug :msg "Channel opened" :channel-id channel-id :sid sid)
-                            (Thread/startVirtualThread
-                             (bound-fn []
-                               (with-open [ba-out (brotli/byte-array-out-stream)
-                                           br-out (brotli/compress-out-stream ba-out :window-size 18)]
-                                 (let [stream {:ba-out ba-out
-                                               :br-out br-out
-                                               :ch     ch}
-                                       send!  #(send-sse! stream %)
-                                       close! #(server/close ch)]
-                                   (swap! channels assoc channel-id
-                                          {:close!       close!
-                                           :connected-at (Instant/now)
-                                           :path         (:uri request)
-                                           :remote-addr  (:remote-addr request)
-                                           :send!        send!
-                                           :sid          sid
-                                           :user-id      user-id})
-                                   (try
-                                     (loop [last-hash last-id]
-                                       (a/alt!!
-                                         <cancel
-                                         (do
-                                           (a/close! <refresh)
-                                           (a/close! <cancel))
+   Registers channel in the channels atom for REPL inspection.
+   Options:
+     :on-close - callback fn called with channel-id when connection closes"
+  ([view-fn] (render-handler view-fn {}))
+  ([view-fn {:keys [on-close]}]
+   (fn [request]
+     (let [channels     (::channels request)
+           channel-id   (crypto/random-sid)
+           refresh-mult (::refresh-mult request)
+           <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
+           <cancel      (a/chan)
+           last-id      (get-in request [:headers "last-event-id"])
+           sid          (get-in request [:session :sid])
+           user-id      (get-in request [:session :user-id])
+           request      (assoc request ::channel-id channel-id)]
+       (a/>!! <refresh :init)
+       (server/as-channel request
+                          {:on-open
+                           (fn [ch]
+                             (log/debug :msg "Channel opened" :channel-id channel-id :sid sid)
+                             (Thread/startVirtualThread
+                              (bound-fn []
+                                (with-open [ba-out (brotli/byte-array-out-stream)
+                                            br-out (brotli/compress-out-stream ba-out :window-size 18)]
+                                  (let [stream {:ba-out ba-out
+                                                :br-out br-out
+                                                :ch     ch}
+                                        send!  #(send-sse! stream %)
+                                        close! #(server/close ch)]
+                                    (swap! channels assoc channel-id
+                                           {:close!       close!
+                                            :connected-at (Instant/now)
+                                            :path         (:uri request)
+                                            :remote-addr  (:remote-addr request)
+                                            :send!        send!
+                                            :sid          sid
+                                            :user-id      user-id})
+                                    (send! (sse-event "channel" channel-id channel-id))
+                                    (try
+                                      (loop [last-hash last-id]
+                                        (a/alt!!
+                                          <cancel
+                                          (do
+                                            (a/close! <refresh)
+                                            (a/close! <cancel))
 
-                                         <refresh
-                                         ([_]
-                                          (some->
-                                           (let [html-str (html/htmx (view-fn request))
-                                                 hash     (content-hash html-str)
-                                                 changed? (not= hash last-hash)]
-                                             (when changed?
-                                               (send! (morph-event html-str)))
-                                             hash)
-                                           recur))
+                                          <refresh
+                                          ([_]
+                                           (some->
+                                            (let [html-str (html/htmx (view-fn request))
+                                                  hash     (content-hash html-str)
+                                                  changed? (not= hash last-hash)]
+                                              (when changed?
+                                                (send! (morph-event html-str)))
+                                              hash)
+                                            recur))
 
-                                         :priority true))
-                                     (finally
-                                       (swap! channels dissoc channel-id)))))
-                               (server/close ch))))
+                                          :priority true))
+                                      (finally
+                                        (swap! channels dissoc channel-id)))))
+                                (server/close ch))))
 
-                          :on-close
-                          (fn [_ch _status]
-                            (log/debug :msg "Channel closed" :channel-id channel-id :sid sid)
-                            (swap! channels dissoc channel-id)
-                            (a/>!! <cancel :stop)
-                            (a/untap refresh-mult <refresh))}))))
+                           :on-close
+                           (fn [_ch _status]
+                             (log/debug :msg "Channel closed" :channel-id channel-id :sid sid)
+                             (swap! channels dissoc channel-id)
+                             (when on-close (on-close channel-id))
+                             (a/>!! <cancel :stop)
+                             (a/untap refresh-mult <refresh))})))))
 
 (defn action-handler
   "Dispatches actions by name, signals refresh. Returns 204."
@@ -210,40 +234,106 @@
 
 (defn counter-view
   [_request]
-  [:div {:class "min-h-screen flex flex-col justify-center items-center space-y-2"}
-   [:header
-    [:h1 {:class "text-4xl"}
-     "Count: "
-     [:span {:class "font-bold"} (:count @!state)]]]
-   [:section {:class "flex space-x-2"}
-    [:button
-     {:type        "button",
-      :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-      :data-action "inc"}
-     [:svg
-      {:viewBox     "0 0 20 20",
-       :fill        "currentColor",
-       :data-slot   "icon",
-       :aria-hidden "true",
-       :class       "size-5"}
-      [:path
-       {:d "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"}]]]
-    [:button
-     {:type        "button",
-      :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-      :data-action "dec"}
-     [:svg
-      {:viewBox     "0 0 20 20",
-       :fill        "currentColor",
-       :data-slot   "icon",
-       :aria-hidden "true",
-       :class       "size-5"}
-      [:path
-       {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]]]]])
+  (list
+   (nav-header "/")
+   [:div {:class "min-h-screen flex flex-col justify-center items-center space-y-2"}
+    [:header
+     [:h1 {:class "text-4xl"}
+      "Count: "
+      [:span {:class "font-bold"} (:count @!state)]]]
+    [:section {:class "flex space-x-2"}
+     [:button
+      {:type        "button"
+       :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
+       :data-action "inc"}
+      [:svg
+       {:viewBox     "0 0 20 20"
+        :fill        "currentColor"
+        :data-slot   "icon"
+        :aria-hidden "true"
+        :class       "size-5"}
+       [:path
+        {:d "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"}]]]
+     [:button
+      {:type        "button"
+       :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
+       :data-action "dec"}
+      [:svg
+       {:viewBox     "0 0 20 20"
+        :fill        "currentColor"
+        :data-slot   "icon"
+        :aria-hidden "true"
+        :class       "size-5"}
+       [:path
+        {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]]]]]))
+
+;;; ----------------------------------------------------------------------------
+;;; Demo: Cursors
+
+(defonce !cursors (atom {}))
+
+(defn update-cursor!
+  [channel-id x y]
+  (swap! !cursors assoc channel-id [x y (System/currentTimeMillis)]))
+
+(defn remove-cursor!
+  [channel-id]
+  (swap! !cursors dissoc channel-id))
+
+(def cursor-colors
+  ["bg-red-500"    "bg-blue-500"   "bg-green-500"  "bg-yellow-500"
+   "bg-purple-500" "bg-pink-500"   "bg-indigo-500" "bg-teal-500"
+   "bg-orange-500" "bg-cyan-500"   "bg-lime-500"   "bg-rose-500"])
+
+(defn cursor-color
+  [channel-id]
+  (nth cursor-colors (mod (hash channel-id) (count cursor-colors))))
+
+(defn cursor-styles
+  [cursors]
+  [:style {:id "cursor-positions"}
+   (html/raw
+    (str/join "\n"
+              (for [[channel-id [x y _]] cursors]
+                (format ".cursor[data-channel=\"%s\"] { left: %dpx; top: %dpx; }"
+                        (subs channel-id 0 6) x y))))])
+
+(defn cursor-label
+  [channel-id]
+  (let [short-id (subs channel-id 0 6)
+        color    (cursor-color channel-id)]
+    [:div {:class "cursor" :data-channel short-id}
+     [:span {:class (str "px-1.5 py-0.5 text-xs font-mono rounded text-white " color)}
+      short-id]]))
+
+(defn cursors-view
+  [request]
+  (let [cursors @!cursors]
+    (list
+     (nav-header "/cursors")
+     [:div {:id               "cursor-container"
+            :class            "relative min-h-screen"
+            :data-track-mouse "cursor-move"}
+
+      (cursor-styles cursors)
+
+      (for [[cid _] cursors]
+        (cursor-label cid))
+
+      [:div {:class "flex flex-col justify-center items-center min-h-screen"}
+       [:h1 {:class "text-4xl font-bold dark:text-white"} "Presence Cursors"]
+       [:p {:class "text-neutral-500 mt-4"}
+        (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")]]])))
 
 (def actions
-  {"inc" (fn [_req] (swap! !state update :count inc))
-   "dec" (fn [_req] (swap! !state update :count dec))})
+  {"inc"         (fn [_req] (swap! !state update :count inc))
+   "dec"         (fn [_req] (swap! !state update :count dec))
+   "cursor-move" (fn [request]
+                   (let [channel-id (get-in request [:params "channel"])
+                         x          (parse-long (get-in request [:params "x"] "0"))
+                         y          (parse-long (get-in request [:params "y"] "0"))]
+                     (when (and channel-id x y (< x 10000) (< y 10000))
+                       (update-cursor! channel-id x y))))})
 
 ;;; ----------------------------------------------------------------------------
 ;;; Routes
@@ -252,6 +342,9 @@
   [["/"
     {:get  (page-handler layout counter-view)
      :post (render-handler counter-view)}]
+   ["/cursors"
+    {:get  (page-handler layout cursors-view)
+     :post (render-handler cursors-view {:on-close remove-cursor!})}]
    ["/action"
     {:post (action-handler actions)}]])
 

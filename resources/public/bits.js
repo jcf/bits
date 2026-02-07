@@ -3,6 +3,7 @@
 
   let controller = null;
   let lastEventId = null;
+  let channelId = null;
 
   const log = {
     info: (msg) =>
@@ -115,7 +116,12 @@
       const target = document.getElementById("morph");
       if (target && window.Idiomorph) {
         Idiomorph.morph(target, data, { morphStyle: "innerHTML" });
+        initMouseTracking();
       }
+    },
+    channel: (data) => {
+      channelId = data;
+      log.info("channel " + data.slice(0, 6));
     },
     title: (data) => {
       document.title = data;
@@ -168,7 +174,36 @@
   });
 
   // ---------------------------------------------------------------------------
+  // Declarative Event Tracking
+
+  function initMouseTracking() {
+    document.querySelectorAll("[data-track-mouse]").forEach((el) => {
+      if (el._mouseTracked) return;
+      el._mouseTracked = true;
+
+      const action = el.dataset.trackMouse;
+      let timeout = null;
+
+      el.addEventListener("mousemove", (e) => {
+        if (timeout || !channelId) return;
+        timeout = setTimeout(() => {
+          timeout = null;
+        }, 50);
+        const rect = el.getBoundingClientRect();
+        postAction(action, {
+          channel: channelId,
+          x: Math.round(e.clientX - rect.left),
+          y: Math.round(e.clientY - rect.top),
+        });
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // Init
 
-  document.addEventListener("DOMContentLoaded", connect);
+  document.addEventListener("DOMContentLoaded", () => {
+    connect();
+    initMouseTracking();
+  });
 })();

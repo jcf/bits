@@ -1,2 +1,9 @@
 @import "tailwindcss";
 @source "../src/**/*.clj";
+
+@layer components {
+  .cursor {
+    @apply absolute pointer-events-none z-50;
+    transition: left 50ms ease-out, top 50ms ease-out;
+  }
+}
