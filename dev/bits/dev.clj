@@ -4,10 +4,39 @@
    [bits.next :as next]
    [bits.service :as service]
    [clojure.core.async :as a]
-   [com.stuartsierra.component.repl :refer [set-init system]]
-   [hato.client :as http]))
+   [com.stuartsierra.component :as component]
+   [com.stuartsierra.component.repl :refer [set-init start stop system]]
+   [hato.client :as http]
+   [io.pedestal.log :as log]
+   [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 (set-init (fn [_system] (app/system)))
+
+(defn before-refresh
+  []
+  (try
+    (log/debug :msg "Stopping development system...")
+    (span/with-span! {:name ::stop-system}
+      (stop))
+    (catch Exception exception
+      (log/warn :in ::before-refresh :exception exception))))
+
+(defn after-refresh
+  []
+  (try
+    (log/debug :msg "Starting development system...")
+    (span/with-span! {:name ::start-system}
+      (start))
+    (catch Exception exception
+      (log/warn :in ::after-refresh :exception exception)
+      (when-let [system (-> exception ex-data :system)]
+        (log/debug :in  ::after-refresh
+                   :msg "Stopping broken system...")
+        (component/stop-system system)))))
+
+(set-init
+ (fn [_system]
+   (span/with-span! {:name ::initialize} (app/system))))
 
 (comment
   (com.stuartsierra.component.repl/reset)
@@ -22,5 +51,9 @@
   (send! (next/title-event "Bits"))
 
   (do
+    (reset! bits.next/!cursors {})
+    (next/refresh! (:service system)))
+
+  (do
     (swap! next/!state #(update % :count * 2))
-    (a/put! (:refresh-ch (:service system)) :action)))
+    (next/refresh!)))
