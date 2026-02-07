@@ -2,6 +2,7 @@
   (:require
    [bits.assets :as assets]
    [bits.boot :as boot]
+   [bits.datahike :as datahike]
    [bits.next :as next]
    [bits.next.reaper :as reaper]
    [bits.next.session :as session]
@@ -33,21 +34,23 @@
 
 (defn read-config
   []
-  {:buster        {:resources #{"public/Inter-Bold.woff2"
-                                "public/Inter-Medium.woff2"
-                                "public/Inter-Regular.woff2"
-                                "public/JetBrainsMono-Bold.woff2"
-                                "public/JetBrainsMono-Regular.woff2"
-                                "public/app.css"}}
-   :pool          {:database-url (env-or :database-url "jdbc:postgresql://localhost:5432/bits_dev?user=bits&password=please")}
-   :reaper        {:interval-hours 1}
-   :service       {:cookie-name      "__Host-bits"
-                   :csrf-cookie-name "__Host-bits-csrf"
-                   :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
-                   :http-host        "0.0.0.0"
-                   :http-port        (env-or :port 3000)
-                   :server-name      "bits"}
-   :session-store {:idle-timeout-days 30}})
+  (let [database-url (env-or :database-url "jdbc:postgresql://localhost:5432/bits_dev?user=bits&password=please")]
+    {:buster        {:resources #{"public/Inter-Bold.woff2"
+                                  "public/Inter-Medium.woff2"
+                                  "public/Inter-Regular.woff2"
+                                  "public/JetBrainsMono-Bold.woff2"
+                                  "public/JetBrainsMono-Regular.woff2"
+                                  "public/app.css"}}
+     :datahike      {:store (datahike/jdbc-url->store database-url)}
+     :pool          {:database-url database-url}
+     :reaper        {:interval-hours 1}
+     :service       {:cookie-name      "__Host-bits"
+                     :csrf-cookie-name "__Host-bits-csrf"
+                     :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
+                     :http-host        "0.0.0.0"
+                     :http-port        (env-or :port 3000)
+                     :server-name      "bits"}
+     :session-store {:idle-timeout-days 30}}))
 
 ;;; ----------------------------------------------------------------------------
 ;;; System
@@ -56,6 +59,7 @@
   [config]
   {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
    :buster        (assets/make-buster         (:buster config))
+   :datahike      (datahike/make-database     (:datahike config))
    :migrator      (postgres/make-migrator     (:pool config))
    :pool          (postgres/make-pool         (:pool config))
    :reaper        (reaper/make-reaper         (:reaper config))
@@ -65,7 +69,7 @@
 (def dependencies
   {:pool          [:migrator]
    :reaper        [:pool]
-   :service       [:bootstrapper :buster :pool :session-store]
+   :service       [:bootstrapper :buster :datahike :pool :session-store]
    :session-store [:pool]})
 
 (defn system
