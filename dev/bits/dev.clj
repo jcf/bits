@@ -11,6 +11,9 @@
 
 (comment
   (com.stuartsierra.component.repl/reset)
+  (com.stuartsierra.component.repl/stop)
+
+  (next/stats (:service system))
 
   (def channels (deref (:channels (:service system))))
   (def send! (:send! (-> channels vals first)))

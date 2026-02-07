@@ -317,6 +317,15 @@
     (handler (assoc request ::channels channels))))
 
 ;;; ----------------------------------------------------------------------------
+;;; Stats
+
+(defn stats
+  [service]
+  (let [channels @(:channels service)]
+    {:channels (count channels)
+     :sessions (count (into #{} (map :sid) channels))}))
+
+;;; ----------------------------------------------------------------------------
 ;;; App
 
 (defn make-app
