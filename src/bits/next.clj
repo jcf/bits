@@ -410,6 +410,13 @@
     (handler (assoc request ::channels channels))))
 
 ;;; ----------------------------------------------------------------------------
+;;; Refresh
+
+(defn refresh!
+  [service]
+  (a/put! (:refresh-ch service) :action))
+
+;;; ----------------------------------------------------------------------------
 ;;; Stats
 
 (defn stats
