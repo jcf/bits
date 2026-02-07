@@ -4,10 +4,27 @@
   let controller = null;
   let lastEventId = null;
 
+  const log = {
+    info: (msg) =>
+      console.log("%c[bits]%c " + msg, "color: #0af; font-weight: bold", ""),
+    warn: (msg) =>
+      console.log("%c[bits]%c " + msg, "color: #fa0; font-weight: bold", ""),
+    error: (msg) =>
+      console.log("%c[bits]%c " + msg, "color: #f55; font-weight: bold", ""),
+  };
+
   // ---------------------------------------------------------------------------
   // SSE Connection
 
-  function connect() {
+  function scheduleReconnect(delay = 1000) {
+    const jitter = delay * 0.5 * Math.random();
+    const wait = Math.round(delay + jitter);
+    const next = Math.min(30000, delay * 2);
+    log.warn("reconnecting in " + wait + "ms");
+    setTimeout(() => connect(next), wait);
+  }
+
+  function connect(retryDelay = 1000) {
     controller?.abort();
     controller = new AbortController();
 
@@ -29,6 +46,7 @@
     })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        log.info("connected 🚀");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -39,22 +57,27 @@
             .read()
             .then(({ done, value }) => {
               if (done) {
-                console.log("[bits] stream ended");
-                return connect();
+                log.warn("stream ended");
+                return scheduleReconnect();
               }
               buffer += decoder.decode(value, { stream: true });
               buffer = processEvents(buffer);
               read();
             })
             .catch((err) => {
-              console.log("[bits] stream error:", err.name, err.message);
-              if (err.name !== "AbortError") connect();
+              if (err.name !== "AbortError") {
+                log.error("stream error: " + err.message);
+                scheduleReconnect();
+              }
             });
         }
         read();
       })
       .catch((err) => {
-        if (err.name !== "AbortError") setTimeout(connect, 1000);
+        if (err.name !== "AbortError") {
+          log.error("fetch failed: " + err.message);
+          scheduleReconnect(retryDelay);
+        }
       });
   }
 
