@@ -24,6 +24,7 @@ excludes = [
 command = "cljfmt"
 options = ["fix"]
 includes = ["*.clj", "*.cljc", "*.cljs", "*.edn"]
+excludes = [".clj-kondo/imports/**"]
 
 [formatter.just]
 command = "just"
