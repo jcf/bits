@@ -120,11 +120,17 @@
   // ---------------------------------------------------------------------------
   // Action Dispatch
 
+  function getCsrf() {
+    const match = document.cookie.match(/(^|; )__Host-bits-csrf=([^;]+)/);
+    return match ? match[2] : null;
+  }
+
   function postAction(action, params) {
+    const csrf = getCsrf();
     fetch("/action", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ action, ...params }),
+      body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
     });
   }

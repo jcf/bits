@@ -54,7 +54,13 @@
                    :bits.next/cookie-secret
                    :bits.next/http-host
                    :bits.next/http-port]
-          :opt-un [#_ :bits.service/cookie-name]))
+          :opt-un [#_:bits.service/cookie-name]))
+
+;;; ----------------------------------------------------------------------------
+;;; Postgres
+
+(s/def :bits.postgres/config
+  (s/keys))
 
 ;;; ----------------------------------------------------------------------------
 ;;; System

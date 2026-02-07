@@ -2,17 +2,14 @@
   (:require
    [bits.assets :as assets]
    [bits.boot :as boot]
-   [bits.service :as service]
+   [bits.next :as next]
+   [bits.next.reaper :as reaper]
+   [bits.next.session :as session]
+   [bits.postgres :as postgres]
    [bits.spec]
-   [buddy.core.codecs :as codecs]
    [camel-snake-kebab.core :as csk]
    [com.stuartsierra.component :as component]
-   [io.pedestal.log :as log]
-   [medley.core :as medley]
-   [steffan-westcott.clj-otel.api.trace.span :as span]
-   [bits.next :as next])
-  (:import
-   (java.security Security)))
+   [medley.core :as medley]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Config
@@ -36,28 +33,40 @@
 
 (defn read-config
   []
-  {:buster  {:resources #{"public/Inter-Bold.woff2"
-                          "public/Inter-Medium.woff2"
-                          "public/Inter-Regular.woff2"
-                          "public/JetBrainsMono-Bold.woff2"
-                          "public/JetBrainsMono-Regular.woff2"
-                          "public/app.css"}}
-   :service {:cookie-name   "bits"
-             :cookie-secret (some-> :cookie-secret (env-or "00000000000000000000000000000000") codecs/hex->bytes)
-             :http-host     "0.0.0.0"
-             :http-port     (env-or :port 3000)}})
+  {:buster        {:resources #{"public/Inter-Bold.woff2"
+                                "public/Inter-Medium.woff2"
+                                "public/Inter-Regular.woff2"
+                                "public/JetBrainsMono-Bold.woff2"
+                                "public/JetBrainsMono-Regular.woff2"
+                                "public/app.css"}}
+   :pool          {:database-url (env-or :database-url "jdbc:postgresql://localhost:5432/bits_dev?user=bits&password=please")}
+   :reaper        {:interval-hours 1}
+   :service       {:cookie-name      "__Host-bits"
+                   :csrf-cookie-name "__Host-bits-csrf"
+                   :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
+                   :http-host        "0.0.0.0"
+                   :http-port        (env-or :port 3000)
+                   :server-name      "bits"}
+   :session-store {:idle-timeout-days 30}})
 
 ;;; ----------------------------------------------------------------------------
 ;;; System
 
 (defn components
   [config]
-  {:bootstrapper (boot/make-bootstrapper (:bootstrapper config))
-   :buster       (assets/make-buster     (:buster config))
-   :service      (next/make-service      (:service config))})
+  {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
+   :buster        (assets/make-buster         (:buster config))
+   :migrator      (postgres/make-migrator     (:pool config))
+   :pool          (postgres/make-pool         (:pool config))
+   :reaper        (reaper/make-reaper         (:reaper config))
+   :service       (next/make-service          (:service config))
+   :session-store (session/make-session-store (:session-store config))})
 
 (def dependencies
-  {:service [:bootstrapper :buster]})
+  {:pool          [:migrator]
+   :reaper        [:pool]
+   :service       [:bootstrapper :buster :pool :session-store]
+   :session-store [:pool]})
 
 (defn system
   ([]

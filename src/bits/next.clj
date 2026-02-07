@@ -1,21 +1,23 @@
 (ns bits.next
   (:require
    [bits.brotli :as brotli]
+   [bits.crypto :as crypto]
    [bits.html :as html]
+   [buddy.core.bytes :as buddy.bytes]
    [buddy.core.codecs :as buddy.codecs]
    [buddy.core.hash :as buddy.hash]
    [clojure.core.async :as a]
-   [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
    [org.httpkit.server :as server]
    [reitit.ring :as ring]
+   [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
    [ring.middleware.session :as middleware.session]
-   [ring.middleware.session.cookie :as middleware.session.cookie]
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
+   (java.time Instant)
    (java.util.concurrent Executors)))
 
 (set-agent-send-executor!
@@ -84,15 +86,16 @@
 
 (defn layout
   [request & content]
-  [:html {:lang "en"}
+  [:html {:class "min-h-screen" :lang "en"}
    [:head
     [:meta {:name "viewport" :content "width=device-width"}]
     [:title "Bits"]
     [:link {:rel "icon" :href "data:,"}]
+    [:link {:rel "stylesheet" :href "/app.css"}]
     [:script {:src "/idiomorph@0.7.4.min.js"}]
     [:script {:src "/bits.js"}]]
-   [:body
-    (into [:main#morph] content)]])
+   [:body {:class "min-h-screen"}
+    (into [:main#morph {:class "min-h-screen"}] content)]])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Handlers
@@ -118,50 +121,68 @@
      :body    (html/html (layout-fn request (view-fn request)))}))
 
 (defn render-handler
-  "SSE stream that re-renders view on refresh signals. Brotli compressed."
+  "SSE stream that re-renders view on refresh signals. Brotli compressed.
+   Registers channel in the channels atom for REPL inspection."
   [view-fn]
   (fn [request]
-    (let [refresh-mult (::refresh-mult request)
+    (let [channels     (::channels request)
+          channel-id   (crypto/random-sid)
+          refresh-mult (::refresh-mult request)
           <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
           <cancel      (a/chan)
-          last-id      (get-in request [:headers "last-event-id"])]
+          last-id      (get-in request [:headers "last-event-id"])
+          sid          (get-in request [:session :sid])
+          user-id      (get-in request [:session :user-id])]
       (a/>!! <refresh :init)
       (server/as-channel request
                          {:on-open
                           (fn [ch]
-                            (log/debug :msg "SSE connection opened")
+                            (log/debug :msg "Channel opened" :channel-id channel-id :sid sid)
                             (Thread/startVirtualThread
                              (bound-fn []
                                (with-open [ba-out (brotli/byte-array-out-stream)
                                            br-out (brotli/compress-out-stream ba-out :window-size 18)]
-                                 (let [stream {:request request
-                                               :ba-out  ba-out
-                                               :br-out  br-out
-                                               :ch      ch}]
-                                   (loop [last-hash last-id]
-                                     (a/alt!!
-                                       <cancel
-                                       (do
-                                         (a/close! <refresh)
-                                         (a/close! <cancel))
+                                 (let [stream {:ba-out ba-out
+                                               :br-out br-out
+                                               :ch     ch}
+                                       send!  #(send-sse! stream %)
+                                       close! #(server/close ch)]
+                                   (swap! channels assoc channel-id
+                                          {:close!       close!
+                                           :connected-at (Instant/now)
+                                           :path         (:uri request)
+                                           :remote-addr  (:remote-addr request)
+                                           :send!        send!
+                                           :sid          sid
+                                           :user-id      user-id})
+                                   (try
+                                     (loop [last-hash last-id]
+                                       (a/alt!!
+                                         <cancel
+                                         (do
+                                           (a/close! <refresh)
+                                           (a/close! <cancel))
 
-                                       <refresh
-                                       ([_]
-                                        (some->
-                                         (let [html-str (html/htmx (view-fn request))
-                                               hash     (content-hash html-str)
-                                               changed? (not= hash last-hash)]
-                                           (when changed?
-                                             (send-sse! stream (morph-event html-str)))
-                                           hash)
-                                         recur))
+                                         <refresh
+                                         ([_]
+                                          (some->
+                                           (let [html-str (html/htmx (view-fn request))
+                                                 hash     (content-hash html-str)
+                                                 changed? (not= hash last-hash)]
+                                             (when changed?
+                                               (send! (morph-event html-str)))
+                                             hash)
+                                           recur))
 
-                                       :priority true))))
+                                         :priority true))
+                                     (finally
+                                       (swap! channels dissoc channel-id)))))
                                (server/close ch))))
 
                           :on-close
                           (fn [_ch _status]
-                            (log/debug :msg "SSE connection closed")
+                            (log/debug :msg "Channel closed" :channel-id channel-id :sid sid)
+                            (swap! channels dissoc channel-id)
                             (a/>!! <cancel :stop)
                             (a/untap refresh-mult <refresh))}))))
 
@@ -189,11 +210,36 @@
 
 (defn counter-view
   [_request]
-  (list
-   [:h1 "Count: " (:count @!state)]
-   [:div
-    [:button {:data-action "inc"} "+"]
-    [:button {:data-action "dec"} "-"]]))
+  [:div {:class "min-h-screen flex flex-col justify-center items-center space-y-2"}
+   [:header
+    [:h1 {:class "text-4xl"}
+     "Count: "
+     [:span {:class "font-bold"} (:count @!state)]]]
+   [:section {:class "flex space-x-2"}
+    [:button
+     {:type        "button",
+      :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
+      :data-action "inc"}
+     [:svg
+      {:viewBox     "0 0 20 20",
+       :fill        "currentColor",
+       :data-slot   "icon",
+       :aria-hidden "true",
+       :class       "size-5"}
+      [:path
+       {:d "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"}]]]
+    [:button
+     {:type        "button",
+      :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
+      :data-action "dec"}
+     [:svg
+      {:viewBox     "0 0 20 20",
+       :fill        "currentColor",
+       :data-slot   "icon",
+       :aria-hidden "true",
+       :class       "size-5"}
+      [:path
+       {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]]]]])
 
 (def actions
   {"inc" (fn [_req] (swap! !state update :count inc))
@@ -220,55 +266,114 @@
                     ::refresh-ch   refresh-ch
                     ::refresh-mult refresh-mult))))
 
+(def ^:private safe-methods
+  "HTTP methods that don't require CSRF validation."
+  #{:get :head :options})
+
+(defn- sse-request?
+  "Returns true if request is for SSE stream (read-only, no CSRF needed)."
+  [request]
+  (some-> (get-in request [:headers "accept"])
+          (str/includes? "text/event-stream")))
+
+(defn- csrf-equals?
+  "Constant-time comparison of CSRF tokens to prevent timing attacks."
+  [expected actual]
+  (and (some? expected)
+       (some? actual)
+       (buddy.bytes/equals? (.getBytes ^String expected "UTF-8")
+                            (.getBytes ^String actual "UTF-8"))))
+
+(defn wrap-csrf
+  "Adds CSRF token to request, validates on unsafe methods, sets CSRF cookie.
+   Generates sid for anonymous users, ensuring CSRF works from first request.
+   Only sets cookie when token changes (new session or rotation)."
+  [handler {:keys [cookie-name secret]}]
+  (fn [request]
+    (let [sid            (or (get-in request [:session :sid])
+                             (crypto/random-sid))
+          expected       (crypto/csrf-token secret sid)
+          actual         (get-in request [:params "csrf"])
+          current-cookie (get-in request [:cookies cookie-name :value])
+          safe?          (or (contains? safe-methods (:request-method request))
+                             (sse-request? request))
+          valid?         (or safe? (csrf-equals? expected actual))]
+      (if valid?
+        (cond-> (-> (handler (assoc request ::csrf expected))
+                    (update :session (fnil assoc {}) :sid sid))
+          (not= expected current-cookie)
+          (assoc-in [:cookies cookie-name] {:value     expected
+                                            :http-only false
+                                            :path      "/"
+                                            :same-site :lax
+                                            :secure    true}))
+        {:status 403
+         :body   "Invalid CSRF token"}))))
+
+(defn wrap-channels
+  "Injects channels atom into request."
+  [handler channels]
+  (fn [request]
+    (handler (assoc request ::channels channels))))
+
 ;;; ----------------------------------------------------------------------------
 ;;; App
 
 (defn make-app
   [service]
-  (let [{:keys [cookie-name cookie-secret refresh-ch refresh-mult]} service
-
-        ;; Guard against Ring generating a random cookie secret and breaking all
-        ;; of our sessions.
-        _            (s/assert bytes? cookie-secret)
-        cookie-store (middleware.session.cookie/cookie-store {:key cookie-secret})]
-
+  (let [{:keys [channels cookie-name csrf-cookie-name csrf-secret refresh-ch refresh-mult session-store]} service]
     (ring/ring-handler
      (ring/router routes)
      (ring/routes
       (ring/create-resource-handler {:path "/"}))
      {:middleware [[wrap-refresh refresh-ch refresh-mult]
+                   [wrap-channels channels]
                    [middleware.params/wrap-params]
+                   [middleware.cookies/wrap-cookies]
                    [middleware.session/wrap-session {:cookie-attrs {:http-only true
+                                                                    :same-site :lax
                                                                     :secure    true}
                                                      :cookie-name  cookie-name
-                                                     :store        cookie-store}]]})))
+                                                     :store        session-store}]
+                   [wrap-csrf {:cookie-name csrf-cookie-name
+                               :secret      csrf-secret}]]})))
 
-(defrecord Service [cookie-name
-                    cookie-secret
+(defrecord Service [channels
+                    cookie-name
+                    csrf-cookie-name
+                    csrf-secret
                     http-host
                     http-port
                     refresh-ch
                     refresh-mult
+                    server-name
+                    session-store
                     stop-fn]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-service}
-      (let [refresh-ch   (a/chan (a/sliding-buffer 1))
+      (let [channels     (atom {})
+            refresh-ch   (a/chan (a/sliding-buffer 1))
             refresh-mult (a/mult refresh-ch)
             this         (assoc this
+                                :channels     channels
                                 :refresh-ch   refresh-ch
                                 :refresh-mult refresh-mult)]
         (assoc this :stop-fn (server/run-server (make-app this)
                                                 {:host                       http-host
                                                  :legacy-unsafe-remote-addr? false
-                                                 :port                       http-port})))))
+                                                 :port                       http-port
+                                                 :server-header              server-name})))))
   (stop [this]
     (span/with-span! {:name ::stop-service}
+      (doseq [[_ {:keys [close!]}] @(:channels this)]
+        (close!))
+      (reset! (:channels this) {})
       (when-let [stop (:stop-fn this)]
         (stop :timeout 200))
       (when-let [ch (:refresh-ch this)]
         (a/close! ch))
-      (assoc this :stop-fn nil :refresh-ch nil :refresh-mult nil))))
+      (assoc this :channels nil :refresh-ch nil :refresh-mult nil :stop-fn nil))))
 
 (defn make-service
   [config]

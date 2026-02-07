@@ -2,6 +2,9 @@
   (:refer-clojure :exclude [derive])
   (:require
    [bits.cryptex :as cryptex]
+   [buddy.core.codecs :as codecs]
+   [buddy.core.mac :as mac]
+   [buddy.core.nonce :as nonce]
    [buddy.hashers :as hashers]
    [clojure.spec.alpha :as s]))
 
@@ -36,3 +39,24 @@
 (comment
   (let [secret "secret"]
     (verify (cryptex/cryptex secret) (derive (cryptex/cryptex secret)))))
+
+;;; ----------------------------------------------------------------------------
+;;; Session crypto
+
+(defn random-sid
+  "160-bit (20 byte) secure random, URL-safe base64 encoded."
+  []
+  (-> (nonce/random-bytes 20)
+      (codecs/bytes->b64 true)
+      codecs/bytes->str))
+
+(defn csrf-token
+  "Compute HMAC-SHA256 of data with secret, URL-safe base64 encoded."
+  [secret data]
+  (-> (mac/hash data {:key secret :alg :hmac+sha256})
+      (codecs/bytes->b64 true)
+      codecs/bytes->str))
+
+(comment
+  (random-sid)
+  (csrf-token "secret" "session-id"))

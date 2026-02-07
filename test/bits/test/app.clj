@@ -1,11 +1,11 @@
 (ns bits.test.app
   (:require
+   [bits.app :as app]
    [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
-   [bits.app :as app]
    [java-time.api :as time]
    [org.httpkit.server :as hk]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
