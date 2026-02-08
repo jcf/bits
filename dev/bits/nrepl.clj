@@ -3,8 +3,6 @@
    [babashka.cli :as cli]
    [babashka.fs :as fs]
    [cider.nrepl.middleware]
-   [clansi.core :as ansi]
-   [clojure.stacktrace :as stacktrace]
    [clojure.string :as str]
    [io.pedestal.log :as log]
    [nrepl.server :as nrepl]

@@ -1,6 +1,5 @@
 (ns bits.postgres
   (:require
-   [babashka.fs :as fs]
    [babashka.process :as proc]
    [bits.spec]
    [camel-snake-kebab.core :as csk]

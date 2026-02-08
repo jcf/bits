@@ -9,7 +9,7 @@
                                        Encoder$Mode BrotliOutputStream)
    (java.io ByteArrayOutputStream IOException)))
 
-(defonce ^:private ensure-availability
+(defonce ensure-availability
   (Brotli4jLoader/ensureAvailability))
 
 (defn window-size->kb

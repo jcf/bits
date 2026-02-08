@@ -1,6 +1,4 @@
 (ns bits.string
-  (:require
-   [clojure.string :as str])
   (:import
    (org.apache.commons.lang3 StringUtils)))
 

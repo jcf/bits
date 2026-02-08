@@ -54,13 +54,13 @@
     (is (match? {:status 403} response))))
 
 (deftest csrf-accepts-valid-token
-  (let [handler (make-csrf-handler)
-        sid     "test-session-id"
-        token   (crypto/csrf-token "test-secret" sid)]
-    (let [response (handler {:request-method :post
-                             :session        {:sid sid}
-                             :params         {"csrf" token}})]
-      (is (match? {:status 200} response)))))
+  (let [handler  (make-csrf-handler)
+        sid      "test-session-id"
+        token    (crypto/csrf-token "test-secret" sid)
+        response (handler {:request-method :post
+                           :session        {:sid sid}
+                           :params         {"csrf" token}})]
+    (is (match? {:status 200} response))))
 
 (deftest csrf-allows-safe-methods-without-token
   (let [handler (make-csrf-handler)]

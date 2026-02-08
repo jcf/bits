@@ -3,9 +3,7 @@
    [bits.app :as app]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
-   [com.stuartsierra.component :as component]
-   [io.pedestal.log :as log]
-   [steffan-westcott.clj-otel.api.trace.span :as span]))
+   [com.stuartsierra.component :as component]))
 
 (defn- system-ex-info
   [cause]

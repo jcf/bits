@@ -13,4 +13,12 @@
   {:exclude {com.stuartsierra.component.repl [system]}}
 
   :unresolved-symbol
-  {:exclude [(clojure.test/is [match?])]}}}
+  {:exclude [(clojure.test/is [match?])]}
+
+  :unresolved-var
+  {:exclude [datahike.api/connect
+             datahike.api/create-database
+             datahike.api/pull
+             datahike.api/q
+             datahike.api/release
+             datahike.api/transact]}}}
