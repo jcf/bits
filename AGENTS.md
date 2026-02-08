@@ -109,6 +109,188 @@ async fn test_behavior() {
 
 ## Clojure
 
+### Configuration Lives in bits.app
+
+All configuration originates in `bits.app/read-config`. This is the single source
+of truth. Defaults are defined there, not scattered across component namespaces.
+
+**Components never define defaults.** They receive config and use it as-is.
+
+```clojure
+;; BAD: Defaults in component namespace
+(def ^:private default-argon-config
+  {:alg :argon2id :iterations 3 :memory (* 64 1024)})
+
+(defrecord Keymaster [argon-config ...]
+  component/Lifecycle
+  (start [this]
+    (let [config (or argon-config default-argon-config)]  ; <- NO!
+      ...)))
+
+;; GOOD: Defaults in bits.app, component just uses what it's given
+;; In bits.app:
+(defn read-config []
+  {:keymaster {:argon-config {:alg         :argon2id
+                              :iterations  3
+                              :memory      (* 64 1024)
+                              :parallelism 1}
+               :idle-timeout-days 30}
+   ...})
+
+;; In bits.crypto:
+(defrecord Keymaster [argon-config idle-timeout-days ...]
+  component/Lifecycle
+  (start [this]
+    ;; Just use argon-config directly - no defaults, no merging
+    (assoc this :dummy-hash (derive this ...))))
+```
+
+**Why this matters:**
+
+- **One place to look** — All defaults are in `bits.app/read-config`
+- **Easy to understand** — No hunting through namespaces for where a value comes from
+- **Environment overrides work** — devenv/env vars override `bits.app` values
+- **Validation in one place** — `bits.spec` validates the config from `bits.app`
+
+### Component Structure
+
+Every component namespace follows the same structure:
+
+1. **API functions** — Functions that operate on the component (component as first arg)
+2. **Record** — The component record implementing `component/Lifecycle`
+3. **Factory** — `make-<component>` function with `:pre` validation
+4. **Print method** — Simplified representation for REPL/logs
+
+**Specs live in `bits.spec`**, not in component namespaces. This avoids cyclic
+dependencies. Use literal keywords (`:bits.crypto/config`) in `bits.spec`
+since it can't require other namespaces. In component namespaces, use `::config`
+which auto-resolves to the same keyword.
+
+```clojure
+;; In bits.spec (literal keywords, no requires):
+(s/def :bits.crypto/argon map?)
+(s/def :bits.crypto/idle-timeout-days pos-int?)
+(s/def :bits.crypto/config
+  (s/keys :req-un [:bits.crypto/argon
+                   :bits.crypto/idle-timeout-days]))
+
+;; In bits.crypto:
+(ns bits.crypto
+  (:require
+   [bits.cryptex :as cryptex]
+   [bits.spec]
+   [buddy.hashers :as hashers]
+   [clojure.spec.alpha :as s]
+   [com.stuartsierra.component :as component]))
+
+;;; ----------------------------------------------------------------------------
+;;; API
+
+(defn derive
+  [keymaster cryptex]
+  (hashers/derive (cryptex/reveal cryptex) (:argon keymaster)))
+
+(defn verify
+  [_keymaster cryptex hash]
+  (hashers/verify (cryptex/reveal cryptex) hash))
+
+;;; ----------------------------------------------------------------------------
+;;; Component
+
+(defrecord Keymaster [argon dummy-hash idle-timeout-days]
+  component/Lifecycle
+  (start [this] ...)
+  (stop [this] ...))
+
+(defn make-keymaster
+  [config]
+  {:pre [(s/valid? ::config config)]}
+  (map->Keymaster config))
+
+(defmethod print-method Keymaster
+  [keymaster ^java.io.Writer w]
+  (.write w (format "#<Keymaster idle-timeout-days=%d>"
+                    (:idle-timeout-days keymaster))))
+```
+
+**Key points:**
+
+- **Factory is always `make-<name>`** — `make-keymaster`, `make-service`, `make-pool`
+- **Factory takes config map** — Not destructured args with defaults
+- **`:pre` validates with spec** — Catches config errors at system construction
+- **Specs in `bits.spec`** — Avoids cyclic dependencies between namespaces
+- **Print method hides internals** — Don't dump hashes, connections, etc.
+- **API functions take component first** — Enables testing with mock components
+- **No defaults in component** — All defaults live in `bits.app/read-config`
+
+### Functions That Need Config Take a Component
+
+When a function needs configuration, it takes the component as its first
+argument. The component holds the config.
+
+**Never add a configuration parameter to an existing function.** Configuration
+implies state, state implies a component, and the component goes first.
+
+```clojure
+;; BAD: Adding config as an extra parameter
+(defn derive
+  [cryptex config]  ; <- NO! Don't tack on parameters
+  (hashers/derive (cryptex/reveal cryptex) config))
+
+;; GOOD: Component owns config and functions that use it
+(defn derive
+  [keymaster cryptex]
+  (hashers/derive (cryptex/reveal cryptex) (:argon-config keymaster)))
+```
+
+**Rationale:**
+
+- **Testability** — Pass a test component with fast/mock config
+- **Single source of truth** — Config lives in the component
+- **No parameter creep** — Components don't accumulate positional args
+- **Clear ownership** — The component that owns the config owns the functions
+
+### Routes Are Static Data
+
+Route definitions are pure data. No computation, no function calls, no normalization.
+Computation happens in `make-app` or component startup, not in route definitions.
+
+```clojure
+;; Good: Static data
+(def routes
+  [["/" {:get home-handler}]
+   ["/action" {:post {:handler action-handler}}]])
+
+;; Bad: Computation in route definition
+(def routes
+  [["/" {:get home-handler}]
+   ["/action" {:post {:parameters {:form (build-schema actions)}  ; <- NO!
+                      :handler (make-handler (normalize actions))}}]])  ; <- NO!
+```
+
+Normalization, schema building, and handler construction happen in `make-app` or
+component startup - never at namespace load time.
+
+### Variable Naming
+
+Avoid Hungarian notation. Don't encode types in names when context is clear.
+
+```clojure
+;; Good: Plain names, context is clear
+(let [action (get-in request [:parameters :form :action])]
+  (get actions action))
+
+;; Bad: Hungarian notation
+(let [action-kw (get-in request [:parameters :form :action])]
+  (get actions action-kw))
+```
+
+**Rationale:**
+
+- **Redundant** — The code shows it's a keyword; the name doesn't need to
+- **Noisy** — Suffixes clutter the code without adding information
+- **Brittle** — If the type changes, the name lies
+
 ### Namespace Aliases
 
 Use descriptive aliases that are subsets of the full namespace. Avoid cryptic
@@ -220,3 +402,47 @@ Use **lowercase** for all header names and Ring utilities for access.
 - **Consistency** — Ring normalizes request headers to lowercase; match this for responses
 - **Case-insensitive access** — Ring utilities handle case variations safely
 - **HTTP spec compliance** — Header names are case-insensitive per RFC 7230
+
+### Qualified Keywords as Domain Identifiers
+
+Namespace-qualified keywords identify domain entities, not code locations. One entity
+gets one keyword, used everywhere in the codebase.
+
+```clojure
+;; Good: One canonical name for the entity, used everywhere
+;; The keymaster component owns :bits.crypto/keymaster
+;; Every namespace that needs it uses the same keyword
+(get request :bits.crypto/keymaster)
+(assoc ctx :bits.crypto/keymaster km)
+
+;; Bad: Different keywords per namespace for the same thing
+;; Now you need specs for ::auth/keymaster, ::next/keymaster, ::app/keymaster
+(get request ::keymaster)  ; in bits.auth → :bits.auth/keymaster
+(get request ::keymaster)  ; in bits.next → :bits.next/keymaster
+
+;; Good: User email is :user/email everywhere
+{:user/email "alice@example.com"}
+
+;; Bad: Same data, different names per context
+{:auth/email "..."}   ; in auth namespace
+{:form/email "..."}   ; in form namespace
+{:db/email "..."}     ; in database namespace
+```
+
+**Rationale:**
+
+- **Single source of truth** — One spec for `:user/email` validates it everywhere
+- **Grep-ability** — Search for `:user/email` finds all uses; aliases fragment this
+- **Domain modeling** — Keywords represent the domain, not code organization
+- **RDF/Linked Data philosophy** — Identifiers are global; namespace is part of identity
+
+**When to use `::` (auto-resolved keywords):**
+
+- For keywords truly local to a namespace (internal implementation details)
+- For keywords that represent "this namespace's contribution" to data
+
+**When to use explicit namespaces:**
+
+- For domain entities shared across namespaces
+- For specs that should be reused
+- For anything you'd want to grep for across the codebase

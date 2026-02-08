@@ -2,11 +2,13 @@
   (:require
    [bits.assets :as assets]
    [bits.boot :as boot]
+   [bits.crypto :as crypto]
    [bits.datahike :as datahike]
    [bits.next :as next]
    [bits.next.reaper :as reaper]
    [bits.next.session :as session]
    [bits.postgres :as postgres]
+   [bits.service :as service]
    [bits.spec]
    [camel-snake-kebab.core :as csk]
    [com.stuartsierra.component :as component]
@@ -42,6 +44,11 @@
                                   "public/JetBrainsMono-Regular.woff2"
                                   "public/app.css"}}
      :datahike      {:store (datahike/jdbc-url->store database-url)}
+     :keymaster     {:argon             {:alg         :argon2id
+                                         :iterations  3
+                                         :memory      (* 64 1024)
+                                         :parallelism 1}
+                     :idle-timeout-days 30}
      :pool          {:database-url database-url}
      :reaper        {:interval-hours 1}
      :service       {:cookie-name      "__Host-bits"
@@ -50,7 +57,8 @@
                      :http-host        "0.0.0.0"
                      :http-port        (env-or :port 3000)
                      :max-refresh-ms   50
-                     :server-name      "bits"}
+                     :routes           next/routes
+                     :server-name      "Bits"}
      :session-store {:idle-timeout-days 30}}))
 
 ;;; ----------------------------------------------------------------------------
@@ -61,16 +69,17 @@
   {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
    :buster        (assets/make-buster         (:buster config))
    :datahike      (datahike/make-database     (:datahike config))
+   :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:pool config))
    :pool          (postgres/make-pool         (:pool config))
    :reaper        (reaper/make-reaper         (:reaper config))
-   :service       (next/make-service          (:service config))
+   :service       (service/make-service       (:service config))
    :session-store (session/make-session-store (:session-store config))})
 
 (def dependencies
   {:pool          [:migrator]
    :reaper        [:pool]
-   :service       [:bootstrapper :buster :datahike :pool :session-store]
+   :service       [:bootstrapper :buster :datahike :keymaster :pool :session-store]
    :session-store [:pool]})
 
 (defn system

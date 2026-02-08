@@ -2,43 +2,51 @@
   (:refer-clojure :exclude [derive])
   (:require
    [bits.cryptex :as cryptex]
+   [bits.spec]
    [buddy.core.codecs :as codecs]
    [buddy.core.mac :as mac]
    [buddy.core.nonce :as nonce]
    [buddy.hashers :as hashers]
-   [clojure.spec.alpha :as s]))
+   [clojure.spec.alpha :as s]
+   [com.stuartsierra.component :as component]
+   [steffan-westcott.clj-otel.api.trace.span :as span]))
 
-(s/def ::update boolean?)
-(s/def ::valid  boolean?)
+(def ^:private dummy-password
+  "Constant password for timing oracle prevention."
+  "constant-time-dummy-password-bits")
 
-(s/def ::verification
-  (s/keys :req-un [::update ::valid]))
-
-(def argon2id
-  {:alg         :argon2id
-   :iterations  3
-   :memory      (* 64 1024)
-   :parallelism 1})
-
-(s/fdef derive
-  :args (s/cat :cryptex ::cryptex/cryptex)
-  :ret  string?)
+;;; ----------------------------------------------------------------------------
+;;; Keymaster API
 
 (defn derive
-  [cryptex]
-  (hashers/derive (cryptex/reveal cryptex) argon2id))
-
-(s/fdef verify
-  :args (s/cat :string string?)
-  :ret  ::verification)
+  [keymaster cryptex]
+  (hashers/derive (cryptex/reveal cryptex) (:argon keymaster)))
 
 (defn verify
-  [cryptex hash]
+  [_keymaster cryptex hash]
   (hashers/verify (cryptex/reveal cryptex) hash))
 
-(comment
-  (let [secret "secret"]
-    (verify (cryptex/cryptex secret) (derive (cryptex/cryptex secret)))))
+;;; ----------------------------------------------------------------------------
+;;; Keymaster Component
+
+(defrecord Keymaster [argon dummy-hash idle-timeout-days]
+  component/Lifecycle
+  (start [this]
+    (span/with-span! {:name ::start-keymaster}
+      (assoc this :dummy-hash (derive this (cryptex/cryptex dummy-password)))))
+  (stop [this]
+    (span/with-span! {:name ::stop-keymaster}
+      (assoc this :dummy-hash nil))))
+
+(defn make-keymaster
+  [config]
+  {:pre [(s/valid? ::config config)]}
+  (map->Keymaster config))
+
+(defmethod print-method Keymaster
+  [keymaster ^java.io.Writer w]
+  (.write w (format "#<Keymaster idle-timeout-days=%d>"
+                    (:idle-timeout-days keymaster))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Session crypto
@@ -56,7 +64,3 @@
   (-> (mac/hash data {:key secret :alg :hmac+sha256})
       (codecs/bytes->b64 true)
       codecs/bytes->str))
-
-(comment
-  (random-sid)
-  (csrf-token "secret" "session-id"))
