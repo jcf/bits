@@ -18,6 +18,7 @@
    [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
    [ring.middleware.session :as middleware.session]
+   [ring.util.response :as response]
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (java.time Instant)
@@ -129,9 +130,9 @@
   (let [{:keys [ba-out br-out ch]} stream
         body                       (brotli/compress-stream ba-out br-out event)
         response                   {:status  200
-                                    :headers {"Content-Type"     "text/event-stream"
-                                              "Cache-Control"    "no-store"
-                                              "Content-Encoding" "br"}
+                                    :headers {"content-type"     "text/event-stream"
+                                              "cache-control"    "no-store"
+                                              "content-encoding" "br"}
                                     :body    body}]
     (server/send! ch response false)))
 
@@ -140,7 +141,7 @@
   [layout-fn view-fn]
   (fn [request]
     {:status  200
-     :headers {"Content-Type" "text/html; charset=utf-8"}
+     :headers {"content-type" "text/html; charset=utf-8"}
      :body    (html/html (layout-fn request (view-fn request)))}))
 
 (defn render-handler
@@ -156,7 +157,7 @@
            refresh-mult (::refresh-mult request)
            <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
            <cancel      (a/chan)
-           last-id      (get-in request [:headers "last-event-id"])
+           last-id      (response/get-header request "last-event-id")
            sid          (get-in request [:session :sid])
            user-id      (get-in request [:session :user-id])
            request      (assoc request ::channel-id channel-id)]
@@ -241,12 +242,12 @@
 
             (::redirect result)
             {:status  200
-             :headers {"Location" (::redirect result)}
+             :headers {"location" (::redirect result)}
              :body    ""}
 
             (::respond result)
             {:status  200
-             :headers {"Content-Type" "text/html; charset=utf-8"}
+             :headers {"content-type" "text/html; charset=utf-8"}
              :body    (html/htmx (::respond result))}
 
             :else
@@ -462,7 +463,7 @@
 (defn- sse-request?
   "Returns true if request is for SSE stream (read-only, no CSRF needed)."
   [request]
-  (some-> (get-in request [:headers "accept"])
+  (some-> (response/get-header request "accept")
           (str/includes? "text/event-stream")))
 
 (defn- csrf-equals?
