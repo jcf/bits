@@ -27,11 +27,7 @@
   http-kit/http-kit                        {:mvn/version "2.9.0-beta3"}
   inflections/inflections                  {:mvn/version "0.15.0"}
   io.netty/netty-buffer                    {:mvn/version "4.2.10.Final"}
-  io.pedestal/pedestal.error               {:mvn/version "0.8.1"}
-  io.pedestal/pedestal.http-kit            {:mvn/version "0.8.1"}
-  io.pedestal/pedestal.jetty               {:mvn/version "0.8.1"}
   io.pedestal/pedestal.log                 {:mvn/version "0.8.1"}
-  javax.servlet/javax.servlet-api          {:mvn/version "4.0.1"}
   lambdaisland/uri                         {:mvn/version "1.19.155"}
   metosin/reitit                           {:mvn/version "0.10.0"}
   org.apache.commons/commons-lang3         {:mvn/version "3.20.0"}

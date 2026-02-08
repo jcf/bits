@@ -2,7 +2,6 @@
   (:require
    [bits.app :as app]
    [bits.next :as next]
-   [bits.service :as service]
    [clojure.core.async :as a]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [set-init start stop system]]

@@ -1,13 +1,10 @@
 (ns bits.test.app
   (:require
    [bits.app :as app]
-   [clojure.java.io :as io]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
-   [java-time.api :as time]
-   [org.httpkit.server :as hk]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 (defn- system-ex-info
@@ -50,27 +47,11 @@
   (assoc-in system [:service :allowed-origins] origins))
 
 ;;; ----------------------------------------------------------------------------
-;;; Connector reflection
-
-(defn- extract-http-kit-server
-  [connector]
-  (when connector
-    (let [fields            (.getDeclaredFields (class connector))
-          ;; Closed-over atoms in reify are named val$*<symbol>
-          server-atom-field (->> fields
-                                 (filter #(str/includes? (.getName %) "server"))
-                                 first)]
-      (when server-atom-field
-        (.setAccessible server-atom-field true)
-        @(.get server-atom-field connector)))))
-
-;;; ----------------------------------------------------------------------------
 ;;; URLs
 
 (defn service-port
   [service]
-  (when-let [server (extract-http-kit-server (:connector service))]
-    (hk/server-port server)))
+  (some-> service :stop-fn meta :local-port))
 
 (s/fdef service-url
   :args (s/cat :service ::service :path string?)

@@ -23,39 +23,14 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Service
 
-(s/def :bits.service/allow-credentials? boolean?)
-(s/def :bits.service/allowed-headers (s/coll-of string? :kind set?))
-(s/def :bits.service/allowed-origins (s/coll-of string? :kind set?))
-(s/def :bits.service/canonical-host string?)
-(s/def :bits.service/cookie-name string?)
-(s/def :bits.service/cookie-secret bytes?)
-(s/def :bits.service/http-host string?)
-(s/def :bits.service/http-port (s/or :zero zero? :pos-int pos-int?))
-(s/def :bits.service/join? boolean?)
-(s/def :bits.service/name string?)
-(s/def :bits.service/origin string?)
-(s/def :bits.service/server-header string?)
-
 (s/def :bits.next/cookie-secret bytes?)
 (s/def :bits.next/http-host string?)
 (s/def :bits.next/http-port (s/or :zero zero? :pos-int pos-int?))
 
-(s/def :bits.service/config
-  (s/keys :req-un [;; :bits.service/allow-credentials?
-                   ;; :bits.service/allowed-headers
-                   ;; :bits.service/allowed-origins
-                   ;; :bits.service/canonical-host
-                   ;; :bits.service/cookie-secret
-                   ;; :bits.service/http-host
-                   ;; :bits.service/http-port
-                   ;; :bits.service/join?
-                   ;; :bits.service/name
-                   ;; :bits.service/origin
-                   ;; :bits.service/server-header
-                   :bits.next/cookie-secret
+(s/def :bits.next/config
+  (s/keys :req-un [:bits.next/cookie-secret
                    :bits.next/http-host
-                   :bits.next/http-port]
-          :opt-un [#_:bits.service/cookie-name]))
+                   :bits.next/http-port]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Datahike
@@ -99,7 +74,7 @@
 ;; Rename the keys as we're using unqualified keys to configure our system's
 ;; components.
 (s/def :bits.system/buster :bits.assets/config)
-(s/def :bits.system/service :bits.service/config)
+(s/def :bits.system/service :bits.next/config)
 
 (s/def :bits.system/config
   (s/keys :req-un [:bits.system/buster
