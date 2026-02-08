@@ -136,8 +136,13 @@ build:
 
 # Build the Docker image
 [group('build')]
-docker tag="bits:latest":
+docker-build tag="bits:latest":
     docker build -t {{ tag }} .
+
+# Run the Docker image
+[group('build')]
+docker-run tag="bits:latest" *args:
+    docker run --rm -p 3000:3000 {{ args }} {{ tag }}
 
 # ------------------------------------------------------------------------------
 # PostgreSQL
