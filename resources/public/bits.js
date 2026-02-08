@@ -185,6 +185,21 @@
     }
   });
 
+  document.addEventListener("submit", (e) => {
+    const form = e.target;
+    if (form.action && form.action.endsWith("/action")) {
+      e.preventDefault();
+      const params = Object.fromEntries(new FormData(form));
+      const action = params.action;
+      delete params.action;
+      if (action) {
+        postAction(action, params);
+      } else {
+        log.warn("Form missing required hidden action input:", form);
+      }
+    }
+  });
+
   // ---------------------------------------------------------------------------
   // Declarative Event Tracking
 
