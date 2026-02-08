@@ -7,10 +7,8 @@ plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
     @just fmt
-    @just build
     @just lint
     @just test
-    @just integration
 
 # ------------------------------------------------------------------------------
 # Docs
@@ -123,8 +121,8 @@ lint:
 
 # Run tests
 [group('dev')]
-test:
-    exit 1
+test *args:
+    clojure -M:dev:test:runner:{{ os }} {{ args }}
 
 # Build an AOT-compiled uberjar
 [group('build')]

@@ -97,12 +97,6 @@ in {
   languages.javascript.pnpm.enable = true;
   languages.javascript.pnpm.install.enable = true;
 
-  languages.rust = {
-    enable = true;
-    channel = "stable";
-    targets = ["wasm32-unknown-unknown"];
-  };
-
   processes.nrepl = {
     exec = "just nrepl";
   };
