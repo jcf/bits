@@ -222,7 +222,7 @@
 (defn action-handler
   "Dispatches actions by name.
    Action return values:
-     {::redirect url}     — 204 with X-Redirect header (client navigates)
+     {::redirect url}     — 204 with Location header (client navigates)
      {::respond  hiccup}  — 200 with rendered HTML (client morphs)
      anything else        — signal refresh, 204
    Auth actions may also include ::auth/session to update the session."
@@ -241,7 +241,7 @@
           (cond
             redirect
             (with-session {:status  204
-                           :headers {"X-Redirect" redirect}})
+                           :headers {"Location" redirect}})
 
             content
             (with-session {:status  200
