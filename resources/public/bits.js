@@ -161,6 +161,11 @@
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
+    }).then((response) => {
+      // Always morph a response returned by an action request into the page.
+      if (response.status === 200) {
+        response.text().then((html) => handlers.morph(html));
+      }
     });
   }
 
