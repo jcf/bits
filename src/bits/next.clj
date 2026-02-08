@@ -216,6 +216,10 @@
   [content]
   {::respond content})
 
+(defn redirect
+  [url]
+  {::redirect url})
+
 (defn action-handler
   "Dispatches actions by name. Actions can return:
    - A Ring response map (with :status) - passed through directly (e.g. redirects)
@@ -231,6 +235,11 @@
           (cond
             (:status result)
             result
+
+            (::redirect result)
+            {:status  200
+             :headers {"Location" (::redirect result)}
+             :body    ""}
 
             (::respond result)
             {:status  200
@@ -391,9 +400,7 @@
   {"inc"            (fn [_req] (swap! !state update :count inc))
    "dec"            (fn [_req] (swap! !state update :count dec))
    "redirect-demo"  (fn [_req]
-                      {:status  200
-                       :headers {"Location" "https://example.com"}
-                       :body    ""})
+                      (redirect "https://example.com"))
    "validate-email" (fn [request]
                       (let [email (get-in request [:params "email"] "")]
                         (cond
