@@ -1,6 +1,7 @@
 (ns bits.next
   (:require
    [bits.brotli :as brotli]
+   [bits.csp :as csp]
    [bits.crypto :as crypto]
    [bits.html :as html]
    [buddy.core.bytes :as buddy.bytes]
@@ -11,7 +12,9 @@
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
    [org.httpkit.server :as server]
+   [reitit.coercion.malli :as coercion.malli]
    [reitit.ring :as ring]
+   [reitit.ring.coercion :as ring.coercion]
    [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
    [ring.middleware.session :as middleware.session]
@@ -221,15 +224,15 @@
   {::redirect url})
 
 (defn action-handler
-  "Dispatches actions by name. Actions can return:
+  "Dispatches actions by keyword from coerced parameters. Actions can return:
    - A Ring response map (with :status) - passed through directly (e.g. redirects)
    - A respond wrapper - returns 200 with rendered HTML (e.g. validation errors)
    - Anything else - signals refresh with 204"
   [actions]
   (fn [request]
-    (let [refresh-ch  (::refresh-ch request)
-          action-name (get-in request [:params "action"])
-          action-fn   (get actions action-name)]
+    (let [refresh-ch (::refresh-ch request)
+          action     (get-in request [:parameters :form :action])
+          action-fn  (get actions action)]
       (if action-fn
         (let [result (action-fn request)]
           (cond
@@ -251,9 +254,9 @@
               (a/put! refresh-ch :action)
               {:status 204})))
         (do
-          (log/warn :msg "Unknown action" :action action-name)
+          (log/warn :msg "Unknown action" :action action)
           {:status 400
-           :body   (str "Unknown action: " action-name)})))))
+           :body   (str "Unknown action: " action)})))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Demo: Counter
@@ -397,30 +400,29 @@
         (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")]]])))
 
 (def actions
-  {"inc"            (fn [_req] (swap! !state update :count inc))
-   "dec"            (fn [_req] (swap! !state update :count dec))
-   "redirect-demo"  (fn [_req]
-                      (redirect "https://example.com"))
-   "validate-email" (fn [request]
-                      (let [email (get-in request [:params "email"] "")]
-                        (cond
-                          (str/blank? email)
-                          (respond (email-view request {:email email
-                                                        :error "Email is required"}))
+  {:counter/inc    (fn [_req] (swap! !state update :count inc))
+   :counter/dec    (fn [_req] (swap! !state update :count dec))
+   :demo/redirect  (fn [_req] (redirect "https://example.com"))
+   :email/validate (fn [request]
+                     (let [email (get-in request [:params "email"] "")]
+                       (cond
+                         (str/blank? email)
+                         (respond (email-view request {:email email
+                                                       :error "Email is required"}))
 
-                          (not (str/includes? email "@"))
-                          (respond (email-view request {:email email
-                                                        :error "Please enter a valid email address"}))
+                         (not (str/includes? email "@"))
+                         (respond (email-view request {:email email
+                                                       :error "Please enter a valid email address"}))
 
-                          :else
-                          (respond (email-view request {:email   email
-                                                        :success (str "Welcome, " email "!")})))))
-   "cursor-move"    (fn [request]
-                      (let [channel-id (get-in request [:params "channel"])
-                            x          (parse-long (get-in request [:params "x"] "0"))
-                            y          (parse-long (get-in request [:params "y"] "0"))]
-                        (when (and channel-id x y (< x 10000) (< y 10000))
-                          (update-cursor! channel-id x y))))})
+                         :else
+                         (respond (email-view request {:email   email
+                                                       :success (str "Welcome, " email "!")})))))
+   :cursor/move    (fn [request]
+                     (let [channel-id (get-in request [:params "channel"])
+                           x          (parse-long (get-in request [:params "x"] "0"))
+                           y          (parse-long (get-in request [:params "y"] "0"))]
+                       (when (and channel-id x y (< x 10000) (< y 10000))
+                         (update-cursor! channel-id x y))))})
 
 ;;; ----------------------------------------------------------------------------
 ;;; Routes
@@ -439,7 +441,8 @@
     {:get  (page-handler layout redirect-view)
      :post (render-handler redirect-view)}]
    ["/action"
-    {:post (action-handler actions)}]])
+    {:post {:parameters {:form {:action :keyword}}
+            :handler    (action-handler actions)}}]])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Middleware
@@ -547,13 +550,34 @@
      :sessions (count (into #{} (map :sid) channels))}))
 
 ;;; ----------------------------------------------------------------------------
+;;; Secure headers
+
+(def ^:private secure-headers
+  {"content-security-policy"           (csp/csp-map->str (csp/policy))
+   "referrer-policy"                   "strict-origin"
+   "strict-transport-security"         "max-age=31536000; includeSubdomains"
+   "x-content-type-options"            "nosniff"
+   "x-download-options"                "noopen"
+   "x-frame-options"                   "DENY"
+   "x-permitted-cross-domain-policies" "none"
+   "x-xss-protection"                  "1; mode=block"})
+
+(defn- wrap-secure-headers
+  [handler]
+  (fn [request]
+    (when-let [response (handler request)]
+      (update response :headers merge secure-headers))))
+
+;;; ----------------------------------------------------------------------------
 ;;; App
 
 (defn make-app
   [service]
   (let [{:keys [channels cookie-name csrf-cookie-name csrf-secret refresh-ch refresh-mult session-store]} service]
     (ring/ring-handler
-     (ring/router routes)
+     (ring/router routes
+                  {:data {:coercion   coercion.malli/coercion
+                          :middleware [ring.coercion/coerce-request-middleware]}})
      (ring/routes
       (ring/create-resource-handler {:path "/"}))
      {:middleware [[wrap-refresh refresh-ch refresh-mult]
@@ -565,8 +589,9 @@
                                                                     :secure    true}
                                                      :cookie-name  cookie-name
                                                      :store        session-store}]
-                   [wrap-csrf {:cookie-name csrf-cookie-name
-                               :secret      csrf-secret}]]})))
+                    [wrap-csrf {:cookie-name csrf-cookie-name
+                               :secret      csrf-secret}]
+                   [wrap-secure-headers]]})))
 
 (defrecord Service [channels
                     cookie-name
