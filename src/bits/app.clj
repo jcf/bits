@@ -49,6 +49,7 @@
                      :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
                      :http-host        "0.0.0.0"
                      :http-port        (env-or :port 3000)
+                     :max-refresh-ms   50
                      :server-name      "bits"}
      :session-store {:idle-timeout-days 30}}))
 

@@ -505,6 +505,34 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Refresh
 
+(defn throttle
+  "Rate-limits channel, emitting at most one value per `ms` milliseconds.
+   Input channel should be buffered. Output channel has no buffer."
+  [<in ms]
+  (let [<out (a/chan)]
+    (Thread/startVirtualThread
+     (bound-fn []
+       (loop []
+         (when-some [v (a/<!! <in)]
+           (a/>!! <out v)
+           (Thread/sleep ^long ms)
+           (recur)))
+       (a/close! <out)))
+    <out))
+
+(comment
+  ;; Dropping: fewer values out than in
+  (let [<in  (a/chan (a/dropping-buffer 1))
+        <out (throttle <in 100)]
+    (a/onto-chan!! <in (range 10))
+    (a/<!! (a/into [] <out)))
+
+  ;; Clean shutdown: nil on closed channel
+  (let [<in  (a/chan (a/dropping-buffer 1))
+        <out (throttle <in 50)]
+    (a/close! <in)
+    (a/<!! <out)))
+
 (defn refresh!
   [service]
   (a/put! (:refresh-ch service) :action))
@@ -546,6 +574,7 @@
                     csrf-secret
                     http-host
                     http-port
+                    max-refresh-ms
                     refresh-ch
                     refresh-mult
                     server-name
@@ -555,8 +584,11 @@
   (start [this]
     (span/with-span! {:name ::start-service}
       (let [channels     (atom {})
-            refresh-ch   (a/chan (a/sliding-buffer 1))
-            refresh-mult (a/mult refresh-ch)
+            refresh-ch   (a/chan (a/dropping-buffer 1))
+            throttled    (if max-refresh-ms
+                           (throttle refresh-ch max-refresh-ms)
+                           refresh-ch)
+            refresh-mult (a/mult throttled)
             this         (assoc this
                                 :channels     channels
                                 :refresh-ch   refresh-ch
