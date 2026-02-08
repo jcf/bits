@@ -101,8 +101,10 @@
 ;;; Navigation
 
 (def nav-links
-  [["/"        "Counter"]
-   ["/cursors" "Cursors"]])
+  [["/"         "Counter"]
+   ["/cursors"  "Cursors"]
+   ["/email"    "Email"]
+   ["/redirect" "Redirect"]])
 
 (defn nav-header
   [current-path]
@@ -215,9 +217,10 @@
   {::respond content})
 
 (defn action-handler
-  "Dispatches actions by name. If action returns HTML (e.g. because of a
-  validation error), returns 200 with rendered HTML. Otherwise signals refresh
-  with a 204."
+  "Dispatches actions by name. Actions can return:
+   - A Ring response map (with :status) - passed through directly (e.g. redirects)
+   - A respond wrapper - returns 200 with rendered HTML (e.g. validation errors)
+   - Anything else - signals refresh with 204"
   [actions]
   (fn [request]
     (let [refresh-ch  (::refresh-ch request)
@@ -225,10 +228,16 @@
           action-fn   (get actions action-name)]
       (if action-fn
         (let [result (action-fn request)]
-          (if-let [content (::respond result)]
+          (cond
+            (:status result)
+            result
+
+            (::respond result)
             {:status  200
              :headers {"Content-Type" "text/html; charset=utf-8"}
-             :body    (html/htmx content)}
+             :body    (html/htmx (::respond result))}
+
+            :else
             (do
               (a/put! refresh-ch :action)
               {:status 204})))
@@ -241,6 +250,34 @@
 ;;; Demo: Counter
 
 (defonce !state (atom {:count 0}))
+
+(defn email-form
+  [{:keys [email error success]}]
+  [:div#email-demo {:class "p-6 bg-white dark:bg-neutral-900 rounded-lg shadow max-w-sm"}
+   [:h3 {:class "text-lg font-semibold mb-4 dark:text-white"} "Email Validation"]
+   [:form {:class "space-y-4"}
+    (when error
+      [:p {:class "text-sm text-red-600 dark:text-red-400"} error])
+    (when success
+      [:p {:class "text-sm text-green-600 dark:text-green-400"} success])
+    [:input {:type        "email"
+             :name        "email"
+             :value       (or email "")
+             :placeholder "you@example.com"
+             :class       "w-full px-3 py-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700 dark:text-white"}]
+    [:button {:type        "button"
+              :data-action "validate-email"
+              :class       "w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"}
+     "Submit"]]])
+
+(defn redirect-demo
+  []
+  [:div {:class "p-6 bg-white dark:bg-neutral-900 rounded-lg shadow max-w-sm"}
+   [:h3 {:class "text-lg font-semibold mb-4 dark:text-white"} "Redirect Demo"]
+   [:button {:type        "button"
+             :data-action "redirect-demo"
+             :class       "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500"}
+    "Go to example.com"]])
 
 (defn counter-view
   [_request]
@@ -276,6 +313,21 @@
         :class       "size-5"}
        [:path
         {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]]]]]))
+
+(defn email-view
+  ([_request] (email-view _request {}))
+  ([_request form-state]
+   (list
+    (nav-header "/email")
+    [:div {:class "min-h-screen flex flex-col justify-center items-center"}
+     (email-form form-state)])))
+
+(defn redirect-view
+  [_request]
+  (list
+   (nav-header "/redirect")
+   [:div {:class "min-h-screen flex flex-col justify-center items-center"}
+    (redirect-demo)]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Demo: Cursors
@@ -336,14 +388,32 @@
         (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")]]])))
 
 (def actions
-  {"inc"         (fn [_req] (swap! !state update :count inc))
-   "dec"         (fn [_req] (swap! !state update :count dec))
-   "cursor-move" (fn [request]
-                   (let [channel-id (get-in request [:params "channel"])
-                         x          (parse-long (get-in request [:params "x"] "0"))
-                         y          (parse-long (get-in request [:params "y"] "0"))]
-                     (when (and channel-id x y (< x 10000) (< y 10000))
-                       (update-cursor! channel-id x y))))})
+  {"inc"            (fn [_req] (swap! !state update :count inc))
+   "dec"            (fn [_req] (swap! !state update :count dec))
+   "redirect-demo"  (fn [_req]
+                      {:status  200
+                       :headers {"Location" "https://example.com"}
+                       :body    ""})
+   "validate-email" (fn [request]
+                      (let [email (get-in request [:params "email"] "")]
+                        (cond
+                          (str/blank? email)
+                          (respond (email-view request {:email email
+                                                        :error "Email is required"}))
+
+                          (not (str/includes? email "@"))
+                          (respond (email-view request {:email email
+                                                        :error "Please enter a valid email address"}))
+
+                          :else
+                          (respond (email-view request {:email   email
+                                                        :success (str "Welcome, " email "!")})))))
+   "cursor-move"    (fn [request]
+                      (let [channel-id (get-in request [:params "channel"])
+                            x          (parse-long (get-in request [:params "x"] "0"))
+                            y          (parse-long (get-in request [:params "y"] "0"))]
+                        (when (and channel-id x y (< x 10000) (< y 10000))
+                          (update-cursor! channel-id x y))))})
 
 ;;; ----------------------------------------------------------------------------
 ;;; Routes
@@ -355,6 +425,12 @@
    ["/cursors"
     {:get  (page-handler layout cursors-view)
      :post (render-handler cursors-view {:on-close remove-cursor!})}]
+   ["/email"
+    {:get  (page-handler layout email-view)
+     :post (render-handler email-view)}]
+   ["/redirect"
+    {:get  (page-handler layout redirect-view)
+     :post (render-handler redirect-view)}]
    ["/action"
     {:post (action-handler actions)}]])
 
