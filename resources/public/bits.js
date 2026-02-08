@@ -162,8 +162,15 @@
       body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
     }).then((response) => {
-      // Always morph a response returned by an action request into the page.
-      if (response.status === 200) {
+      // If we have a Location header in the response, we redirect to that
+      // location, trusting that the server will always send us somewhere safe.
+      //
+      // Where the response is 200 (rather than 204), we morph the response body
+      // into the DOM ignoring whatever is in the body.
+      const location = response.headers.get("Location");
+      if (location) {
+        window.location.href = location;
+      } else if (response.status === 200) {
         response.text().then((html) => handlers.morph(html));
       }
     });
