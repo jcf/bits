@@ -106,3 +106,42 @@ async fn test_behavior() {
     // Test logic
 }
 ```
+
+## Clojure
+
+### Separation of Pure and I/O
+
+Keep pure data separate from functions that perform I/O. Queries should be
+defined as pure data; execution should happen in separate functions.
+
+```clojure
+;;; ----------------------------------------------------------------------------
+;;; Queries (pure data)
+
+(def user-by-email-query
+  '[:find (pull ?u [:user/id :user/password-hash]) .
+    :in $ ?email
+    :where
+    [?e :email/address ?email]
+    [?e :email/user ?u]])
+
+;;; ----------------------------------------------------------------------------
+;;; I/O (functions that execute queries)
+
+(defn find-by-email
+  [database email]
+  (datahike/q user-by-email-query (datahike/db database) email))
+```
+
+**Rationale:**
+
+- **Testability** - Pure query data can be inspected and validated without I/O
+- **Reusability** - Same query can be used with different execution contexts
+- **Clarity** - Clear separation between "what" (query) and "how" (execution)
+
+**Notes:**
+
+- Use `.` after find pattern for unique attribute lookups — returns single
+  result directly (or nil) instead of a set
+- Use `(pull ?e [...])` to get maps with exact keys — no post-processing
+- Keep I/O functions minimal — just execute the query
