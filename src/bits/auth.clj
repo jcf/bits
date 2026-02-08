@@ -4,7 +4,6 @@
    [bits.auth.rate-limit :as rate-limit]
    [bits.crypto :as crypto]
    [bits.cryptex :as cryptex]
-   [bits.html :as html]
    [bits.next.session :as session]
    [io.pedestal.log :as log]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
@@ -154,9 +153,9 @@
             (let [idle-days 30
                   new-sid   (session/rotate-session! pool sid (:user/id user) idle-days)]
               (log/info :msg "Authentication successful" :user-id (:user/id user))
-              {::respond [:script (html/raw "window.location.href = '/';")]
-               ::session {:sid     new-sid
-                          :user-id (:user/id user)}})
+              {::redirect "/"
+               ::session  {:sid     new-sid
+                           :user-id (:user/id user)}})
 
             ;; Failure: generic error, no hint about email existence
             (do
@@ -171,4 +170,4 @@
           sid  (get-in request [:session :sid])]
       (when sid
         (session/clear-user! pool sid 30))
-      {::respond [:script (html/raw "window.location.href = '/login';")]})))
+      {::redirect "/login"})))

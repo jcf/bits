@@ -220,23 +220,35 @@
   {::respond content})
 
 (defn action-handler
-  "Dispatches actions by name. If action returns (respond hiccup),
-   returns 200 with rendered HTML for client-side morphing.
-   Otherwise signals refresh and returns 204."
+  "Dispatches actions by name.
+   Action return values:
+     {::redirect url}     — 204 with X-Redirect header (client navigates)
+     {::respond  hiccup}  — 200 with rendered HTML (client morphs)
+     anything else        — signal refresh, 204
+   Auth actions may also include ::auth/session to update the session."
   [actions]
   (fn [request]
     (let [refresh-ch  (::refresh-ch request)
           action-name (get-in request [:params "action"])
           action-fn   (get actions action-name)]
       (if action-fn
-        (let [result (action-fn request)]
-          (if-let [content (or (::respond result) (::auth/respond result))]
-            (cond-> {:status  200
-                     :headers {"Content-Type" "text/html; charset=utf-8"}
-                     :body    (html/htmx content)}
-              ;; Auth actions can update the session (e.g. after rotation)
-              (::auth/session result)
-              (assoc :session (::auth/session result)))
+        (let [result      (action-fn request)
+              redirect    (or (::redirect result) (::auth/redirect result))
+              content     (or (::respond result) (::auth/respond result))
+              session     (::auth/session result)
+              with-session (fn [response]
+                             (cond-> response session (assoc :session session)))]
+          (cond
+            redirect
+            (with-session {:status  204
+                           :headers {"X-Redirect" redirect}})
+
+            content
+            (with-session {:status  200
+                           :headers {"Content-Type" "text/html; charset=utf-8"}
+                           :body    (html/htmx content)})
+
+            :else
             (do
               (a/put! refresh-ch :action)
               {:status 204})))

@@ -162,7 +162,10 @@
       body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
     }).then((response) => {
-      if (response.status === 200) {
+      const redirect = response.headers.get("X-Redirect");
+      if (redirect) {
+        window.location.href = redirect;
+      } else if (response.status === 200) {
         response.text().then((html) => handlers.morph(html));
       }
     });
