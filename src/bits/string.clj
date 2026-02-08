@@ -10,3 +10,7 @@
   [^String s ^String prefix]
   {:pre [(string? s) (string? prefix)]}
   (StringUtils/removeStart s prefix))
+
+(defn keyword->string
+  [kw]
+  (subs (str kw) 1))
