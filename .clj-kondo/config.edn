@@ -4,8 +4,10 @@
 
  :linters
  {:consistent-alias
-  {:aliases {clojure.spec.alpha s
-             iv.interceptor     i}}
+  {:aliases {clojure.spec.alpha    s
+             iv.interceptor        i
+             reitit.coercion.malli coercion.malli
+             reitit.ring.coercion  ring.coercion}}
 
   :unused-referred-var
   {:exclude {com.stuartsierra.component.repl [system]}}

@@ -109,6 +109,28 @@ async fn test_behavior() {
 
 ## Clojure
 
+### Namespace Aliases
+
+Use descriptive aliases that are subsets of the full namespace. Avoid cryptic
+abbreviations that require mental lookup.
+
+```clojure
+;; Good: Descriptive subset of namespace
+[reitit.coercion.malli :as coercion.malli]
+[reitit.ring.coercion :as ring.coercion]
+[clojure.core.async :as a]
+
+;; Bad: Cryptic abbreviations
+[reitit.coercion.malli :as rcm]
+[reitit.ring.coercion :as rrc]
+```
+
+**Rationale:**
+
+- **Readability** — Code reads naturally without mental lookup
+- **Discoverability** — New readers can trace back to the source namespace
+- **Consistency** — Aliases match namespace structure
+
 ### Separation of Pure and I/O
 
 Keep pure data separate from functions that perform I/O. Queries should be
