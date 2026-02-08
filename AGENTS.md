@@ -161,10 +161,14 @@ Every component namespace follows the same structure:
 3. **Factory** — `make-<component>` function with `:pre` validation
 4. **Print method** — Simplified representation for REPL/logs
 
-**Specs live in `bits.spec`**, not in component namespaces. This avoids cyclic
-dependencies. Use literal keywords (`:bits.crypto/config`) in `bits.spec`
-since it can't require other namespaces. In component namespaces, use `::config`
-which auto-resolves to the same keyword.
+**Specs in `bits.spec`** to avoid cyclic dependencies:
+
+- Component configuration specs (e.g., `:bits.crypto/config`)
+- Specs for namespaces that may require `bits.spec` (e.g., morph action specs)
+
+Use literal keywords (`:bits.keymaster/config`) since `bits.spec` can't require
+component namespaces. Each namespace that needs specs in `bits.spec` gets its own
+section with a comment explaining why.
 
 ```clojure
 ;; In bits.spec (literal keywords, no requires):
