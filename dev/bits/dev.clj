@@ -1,11 +1,11 @@
 (ns bits.dev
   (:require
    [bits.app :as app]
+   [bits.morph :as morph]
    [bits.next :as next]
-   [clojure.core.async :as a]
+   [bits.service :as service]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [set-init start stop system]]
-   [hato.client :as http]
    [io.pedestal.log :as log]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
@@ -41,18 +41,18 @@
   (com.stuartsierra.component.repl/reset)
   (com.stuartsierra.component.repl/stop)
 
-  (next/stats (:service system))
+  (service/stats (:service system))
 
   (def channels (deref (:channels (:service system))))
   (def send! (:send! (-> channels vals first)))
 
-  (send! (next/title-event "Hello from the server!"))
-  (send! (next/title-event "Bits"))
+  (send! (morph/title-event "Hello from the server!"))
+  (send! (morph/title-event "Bits"))
 
   (do
-    (reset! bits.next/!cursors {})
-    (next/refresh! (:service system)))
+    (reset! next/!cursors {})
+    (service/refresh! (:service system)))
 
   (do
-    (swap! next/!state #(update % :count * 2))
-    (next/refresh!)))
+    (swap! next/!state update :count * 2)
+    (service/refresh! (:service system))))

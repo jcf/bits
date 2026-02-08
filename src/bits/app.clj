@@ -51,7 +51,8 @@
                      :idle-timeout-days 30}
      :pool          {:database-url database-url}
      :reaper        {:interval-hours 1}
-     :service       {:cookie-name      "__Host-bits"
+     :service       {:actions          next/actions
+                     :cookie-name      "__Host-bits"
                      :csrf-cookie-name "__Host-bits-csrf"
                      :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
                      :http-host        "0.0.0.0"

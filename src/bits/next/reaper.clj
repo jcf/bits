@@ -1,5 +1,6 @@
 (ns bits.next.reaper
   (:require
+   [bits.auth.rate-limit :as rate-limit]
    [bits.next.session :as session]
    [com.stuartsierra.component :as component]
    [steffan-westcott.clj-otel.api.trace.span :as span])
@@ -14,10 +15,12 @@
     (span/with-span! {:name ::start-reaper}
       (let [executor (Executors/newSingleThreadScheduledExecutor)
             task     (fn []
-                       (span/with-span! {:name ::reap-sessions}
+                       (span/with-span! {:name ::reap}
                          (try
-                           (let [deleted (session/delete-expired-sessions! pool)]
-                             (span/add-span-data! {:attributes {:deleted deleted}}))
+                           (let [sessions-deleted (session/delete-expired-sessions! pool)
+                                 attempts-deleted (rate-limit/delete-old-attempts! pool)]
+                             (span/add-span-data! {:attributes {:sessions-deleted sessions-deleted
+                                                                :attempts-deleted attempts-deleted}}))
                            (catch Exception e
                              (span/add-exception! e {:escaping? false})))))]
         (.scheduleAtFixedRate executor task

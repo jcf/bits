@@ -126,11 +126,18 @@
              :user-id (:user-id session))))
 
   (write-session [_ sid data]
-    (let [sid (or sid (:sid data) (crypto/random-sid))]
-      (if (get-session pool sid)
-        (update-session! pool sid data idle-timeout-days)
-        (create-session! pool sid idle-timeout-days))
-      sid))
+    ;; If data contains :sid different from current, this is a session
+    ;; rotation (e.g. post-authentication). Use the new sid — rotate-session!
+    ;; already handled the old session deletion.
+    (let [new-sid       (:sid data)
+          effective-sid (cond
+                          (and new-sid (not= new-sid sid)) new-sid
+                          (some? sid)                      sid
+                          :else                            (crypto/random-sid))]
+      (if (get-session pool effective-sid)
+        (update-session! pool effective-sid data idle-timeout-days)
+        (create-session! pool effective-sid idle-timeout-days))
+      effective-sid))
 
   (delete-session [_ sid]
     (some-> sid (->> (delete-session! pool)))

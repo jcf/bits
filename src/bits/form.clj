@@ -14,7 +14,7 @@
 (defn form
   [request action-kw & body]
   (let [[opts children] (tw/normalize-hiccup body)
-        csrf            (:bits.next/csrf request)
+        csrf            (:bits.morph/csrf request)
         attrs           (-> default-attrs
                             (update :class tw/merge-classes (:class opts))
                             (merge (dissoc opts :class)))]

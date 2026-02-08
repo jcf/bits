@@ -1,95 +1,16 @@
 (ns bits.next
   (:require
-   [bits.brotli :as brotli]
-   [bits.csp :as csp]
-   [bits.crypto :as crypto]
+   [bits.auth :as auth]
    [bits.html :as html]
-   [buddy.core.bytes :as buddy.bytes]
-   [buddy.core.codecs :as buddy.codecs]
-   [buddy.core.hash :as buddy.hash]
-   [clojure.core.async :as a]
-   [clojure.string :as str]
-   [com.stuartsierra.component :as component]
-   [io.pedestal.log :as log]
-   [org.httpkit.server :as server]
-   [reitit.coercion.malli :as coercion.malli]
-   [reitit.ring :as ring]
-   [reitit.ring.coercion :as ring.coercion]
-   [ring.middleware.cookies :as middleware.cookies]
-   [ring.middleware.params :as middleware.params]
-   [ring.middleware.session :as middleware.session]
-   [ring.util.response :as response]
-   [steffan-westcott.clj-otel.api.trace.span :as span])
-  (:import
-   (java.time Instant)
-   (java.util.concurrent Executors)))
-
-(set-agent-send-executor!
- (Executors/newVirtualThreadPerTaskExecutor))
-
-(set-agent-send-off-executor!
- (Executors/newVirtualThreadPerTaskExecutor))
-
-;;; ----------------------------------------------------------------------------
-;;; SSE Formatting
-
-(defn content-hash
-  "BLAKE3-256 hash of content (64 hex chars)."
-  [s]
-  {:pre [(string? s)]}
-  (-> (buddy.hash/blake3-256 s)
-      (buddy.codecs/bytes->hex)))
-
-(defn sse-event
-  "Format an SSE event. Multi-line data gets prefixed."
-  [event-type event-id data]
-  {:pre [(string? event-type)
-         (string? event-id)
-         (string? data)]}
-  (str "event: " event-type "\n"
-       "id: " event-id "\n"
-       "data: " (str/replace data "\n" "\ndata: ") "\n\n"))
-
-(defn morph-event
-  "Format HTML as a morph SSE event. Event ID is BLAKE3 hash for change detection."
-  [html-str]
-  {:pre [(string? html-str)]}
-  (sse-event "morph" (content-hash html-str) html-str))
-
-(defn title-event
-  "Update document.title."
-  [title]
-  {:pre [(string? title)]}
-  (sse-event "title" (content-hash title) title))
-
-(defn redirect-event
-  "Navigate to URL."
-  [url]
-  {:pre [(string? url)]}
-  (sse-event "redirect" (content-hash url) url))
-
-(defn reload-event
-  "Force full page reload."
-  []
-  (sse-event "reload" (content-hash "reload") ""))
-
-(defn push-url-event
-  "Update URL bar without reload (history.pushState)."
-  [url]
-  {:pre [(string? url)]}
-  (sse-event "push-url" (content-hash url) url))
-
-(defn replace-url-event
-  "Replace URL bar without reload (history.replaceState)."
-  [url]
-  {:pre [(string? url)]}
-  (sse-event "replace-url" (content-hash url) url))
+   [bits.morph :as morph]
+   [bits.ui :as ui]
+   [clojure.string :as str]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Layout
 
 (defn layout
-  [request & content]
+  [_request & content]
   [:html {:class "min-h-screen" :lang "en"}
    [:head
     [:meta {:name "viewport" :content "width=device-width"}]
@@ -98,166 +19,8 @@
     [:link {:rel "stylesheet" :href "/app.css"}]
     [:script {:src "/idiomorph@0.7.4.min.js"}]
     [:script {:src "/bits.js"}]]
-   [:body {:class "min-h-screen"}
+   [:body {:class "min-h-screen bg-white dark:bg-neutral-950"}
     (into [:main#morph {:class "min-h-screen"}] content)]])
-
-;;; ----------------------------------------------------------------------------
-;;; Navigation
-
-(def nav-links
-  [["/"         "Counter"]
-   ["/cursors"  "Cursors"]
-   ["/email"    "Email"]
-   ["/redirect" "Redirect"]])
-
-(defn nav-header
-  [current-path]
-  [:nav {:class "flex gap-4 p-4 bg-neutral-100 dark:bg-neutral-800"}
-   (for [[path label] nav-links]
-     [:a {:href  path
-          :class (str "text-sm font-medium "
-                      (if (= path current-path)
-                        "text-indigo-600 dark:text-indigo-400"
-                        "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"))}
-      label])])
-
-;;; ----------------------------------------------------------------------------
-;;; Handlers
-
-(defn send-sse!
-  "Send compressed SSE data over http-kit channel."
-  [stream event]
-  (let [{:keys [ba-out br-out ch]} stream
-        body                       (brotli/compress-stream ba-out br-out event)
-        response                   {:status  200
-                                    :headers {"content-type"     "text/event-stream"
-                                              "cache-control"    "no-store"
-                                              "content-encoding" "br"}
-                                    :body    body}]
-    (server/send! ch response false)))
-
-(defn page-handler
-  "Returns HTML page with view rendered. SSE takes over for updates."
-  [layout-fn view-fn]
-  (fn [request]
-    {:status  200
-     :headers {"content-type" "text/html; charset=utf-8"}
-     :body    (html/html (layout-fn request (view-fn request)))}))
-
-(defn render-handler
-  "SSE stream that re-renders view on refresh signals. Brotli compressed.
-   Registers channel in the channels atom for REPL inspection.
-   Options:
-     :on-close - callback fn called with channel-id when connection closes"
-  ([view-fn] (render-handler view-fn {}))
-  ([view-fn {:keys [on-close]}]
-   (fn [request]
-     (let [channels     (::channels request)
-           channel-id   (crypto/random-sid)
-           refresh-mult (::refresh-mult request)
-           <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
-           <cancel      (a/chan)
-           last-id      (response/get-header request "last-event-id")
-           sid          (get-in request [:session :sid])
-           user-id      (get-in request [:session :user-id])
-           request      (assoc request ::channel-id channel-id)]
-       (a/>!! <refresh :init)
-       (server/as-channel request
-                          {:on-open
-                           (fn [ch]
-                             (log/debug :msg "Channel opened" :channel-id channel-id :sid sid)
-                             (Thread/startVirtualThread
-                              (bound-fn []
-                                (with-open [ba-out (brotli/byte-array-out-stream)
-                                            br-out (brotli/compress-out-stream ba-out :window-size 18)]
-                                  (let [stream {:ba-out ba-out
-                                                :br-out br-out
-                                                :ch     ch}
-                                        send!  #(send-sse! stream %)
-                                        close! #(server/close ch)]
-                                    (swap! channels assoc channel-id
-                                           {:close!       close!
-                                            :connected-at (Instant/now)
-                                            :path         (:uri request)
-                                            :remote-addr  (:remote-addr request)
-                                            :send!        send!
-                                            :sid          sid
-                                            :user-id      user-id})
-                                    (send! (sse-event "channel" channel-id channel-id))
-                                    (try
-                                      (loop [last-hash last-id]
-                                        (a/alt!!
-                                          <cancel
-                                          (do
-                                            (a/close! <refresh)
-                                            (a/close! <cancel))
-
-                                          <refresh
-                                          ([_]
-                                           (some->
-                                            (let [html-str (html/htmx (view-fn request))
-                                                  hash     (content-hash html-str)
-                                                  changed? (not= hash last-hash)]
-                                              (when changed?
-                                                (send! (morph-event html-str)))
-                                              hash)
-                                            recur))
-
-                                          :priority true))
-                                      (finally
-                                        (swap! channels dissoc channel-id)))))
-                                (server/close ch))))
-
-                           :on-close
-                           (fn [_ch _status]
-                             (log/debug :msg "Channel closed" :channel-id channel-id :sid sid)
-                             (swap! channels dissoc channel-id)
-                             (when on-close (on-close channel-id))
-                             (a/>!! <cancel :stop)
-                             (a/untap refresh-mult <refresh))})))))
-
-(defn respond
-  [content]
-  {::respond content})
-
-(defn redirect
-  [url]
-  {::redirect url})
-
-(defn action-handler
-  "Dispatches actions by keyword from coerced parameters. Actions can return:
-   - A Ring response map (with :status) - passed through directly (e.g. redirects)
-   - A respond wrapper - returns 200 with rendered HTML (e.g. validation errors)
-   - Anything else - signals refresh with 204"
-  [actions]
-  (fn [request]
-    (let [refresh-ch (::refresh-ch request)
-          action     (get-in request [:parameters :form :action])
-          action-fn  (get actions action)]
-      (if action-fn
-        (let [result (action-fn request)]
-          (cond
-            (:status result)
-            result
-
-            (::redirect result)
-            {:status  200
-             :headers {"location" (::redirect result)}
-             :body    ""}
-
-            (::respond result)
-            {:status  200
-             :headers {"content-type" "text/html; charset=utf-8"}
-             :body    (html/htmx (::respond result))}
-
-            :else
-            (do
-              (a/put! refresh-ch :action)
-              {:status 204})))
-        (do
-          (log/warn :msg "Unknown action" :action action)
-          {:status 400
-           :body   (str "Unknown action: " action)})))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Demo: Counter
@@ -279,7 +42,7 @@
              :placeholder "you@example.com"
              :class       "w-full px-3 py-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700 dark:text-white"}]
     [:button {:type        "button"
-              :data-action "validate-email"
+              :data-action "email/validate"
               :class       "w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"}
      "Submit"]]])
 
@@ -288,24 +51,24 @@
   [:div {:class "p-6 bg-white dark:bg-neutral-900 rounded-lg shadow max-w-sm"}
    [:h3 {:class "text-lg font-semibold mb-4 dark:text-white"} "Redirect Demo"]
    [:button {:type        "button"
-             :data-action "redirect-demo"
+             :data-action "demo/redirect"
              :class       "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500"}
     "Go to example.com"]])
 
 (defn counter-view
   [_request]
   (list
-   (nav-header "/")
+   (ui/nav-header "/")
    [:div {:class "min-h-screen flex flex-col justify-center items-center space-y-2"}
     [:header
-     [:h1 {:class "text-4xl"}
+     [:h1 {:class "text-4xl dark:text-neutral-100"}
       "Count: "
       [:span {:class "font-bold"} (:count @!state)]]]
     [:section {:class "flex space-x-2"}
      [:button
       {:type        "button"
        :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-       :data-action "inc"}
+       :data-action "counter/inc"}
       [:svg
        {:viewBox     "0 0 20 20"
         :fill        "currentColor"
@@ -317,7 +80,7 @@
      [:button
       {:type        "button"
        :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-       :data-action "dec"}
+       :data-action "counter/dec"}
       [:svg
        {:viewBox     "0 0 20 20"
         :fill        "currentColor"
@@ -331,14 +94,14 @@
   ([_request] (email-view _request {}))
   ([_request form-state]
    (list
-    (nav-header "/email")
+    (ui/nav-header "/email")
     [:div {:class "min-h-screen flex flex-col justify-center items-center"}
      (email-form form-state)])))
 
 (defn redirect-view
   [_request]
   (list
-   (nav-header "/redirect")
+   (ui/nav-header "/redirect")
    [:div {:class "min-h-screen flex flex-col justify-center items-center"}
     (redirect-demo)]))
 
@@ -382,13 +145,13 @@
       short-id]]))
 
 (defn cursors-view
-  [request]
+  [_request]
   (let [cursors @!cursors]
     (list
-     (nav-header "/cursors")
+     (ui/nav-header "/cursors")
      [:div {:id               "cursor-container"
             :class            "relative min-h-screen"
-            :data-track-mouse "cursor-move"}
+            :data-track-mouse "cursor/move"}
 
       (cursor-styles cursors)
 
@@ -400,24 +163,35 @@
        [:p {:class "text-neutral-500 mt-4"}
         (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")]]])))
 
+;;; ----------------------------------------------------------------------------
+;;; Actions
+;;;
+;;; Raw action definitions. Plain functions need no params. Use a map with
+;;; :handler and :params when the action requires coerced parameters.
+;;; Normalized at system start, not at load time.
+
 (def actions
-  {:counter/inc    (fn [_req] (swap! !state update :count inc))
+  {:auth/login     {:handler auth/authenticate
+                    :params  [[:email :email]
+                              [:password :password]]}
+   :auth/sign-out  auth/sign-out
+   :counter/inc    (fn [_req] (swap! !state update :count inc))
    :counter/dec    (fn [_req] (swap! !state update :count dec))
-   :demo/redirect  (fn [_req] (redirect "https://example.com"))
+   :demo/redirect  (fn [_req] (morph/redirect "https://example.com"))
    :email/validate (fn [request]
                      (let [email (get-in request [:params "email"] "")]
                        (cond
                          (str/blank? email)
-                         (respond (email-view request {:email email
-                                                       :error "Email is required"}))
+                         (morph/respond (email-view request {:email email
+                                                             :error "Email is required"}))
 
                          (not (str/includes? email "@"))
-                         (respond (email-view request {:email email
-                                                       :error "Please enter a valid email address"}))
+                         (morph/respond (email-view request {:email email
+                                                             :error "Please enter a valid email address"}))
 
                          :else
-                         (respond (email-view request {:email   email
-                                                       :success (str "Welcome, " email "!")})))))
+                         (morph/respond (email-view request {:email   email
+                                                             :success (str "Welcome, " email "!")})))))
    :cursor/move    (fn [request]
                      (let [channel-id (get-in request [:params "channel"])
                            x          (parse-long (get-in request [:params "x"] "0"))
@@ -428,213 +202,23 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Routes
 
+(defn- login-view-wrapper
+  [request]
+  (auth/login-view request {}))
+
 (def routes
   [["/"
-    {:get  (page-handler layout counter-view)
-     :post (render-handler counter-view)}]
+    {:get  (morph/page-handler layout counter-view)
+     :post (morph/render-handler counter-view)}]
    ["/cursors"
-    {:get  (page-handler layout cursors-view)
-     :post (render-handler cursors-view {:on-close remove-cursor!})}]
+    {:get  (morph/page-handler layout cursors-view)
+     :post (morph/render-handler cursors-view {:on-close remove-cursor!})}]
    ["/email"
-    {:get  (page-handler layout email-view)
-     :post (render-handler email-view)}]
+    {:get  (morph/page-handler layout email-view)
+     :post (morph/render-handler email-view)}]
+   ["/login"
+    {:get  (morph/page-handler layout login-view-wrapper)
+     :post (morph/render-handler login-view-wrapper)}]
    ["/redirect"
-    {:get  (page-handler layout redirect-view)
-     :post (render-handler redirect-view)}]
-   ["/action"
-    {:post {:parameters {:form {:action :keyword}}
-            :handler    (action-handler actions)}}]])
-
-;;; ----------------------------------------------------------------------------
-;;; Middleware
-
-(defn wrap-refresh
-  "Injects refresh channels into request for handlers."
-  [handler refresh-ch refresh-mult]
-  (fn [request]
-    (handler (assoc request
-                    ::refresh-ch   refresh-ch
-                    ::refresh-mult refresh-mult))))
-
-(def ^:private safe-methods
-  "HTTP methods that don't require CSRF validation."
-  #{:get :head :options})
-
-(defn- sse-request?
-  "Returns true if request is for SSE stream (read-only, no CSRF needed)."
-  [request]
-  (some-> (response/get-header request "accept")
-          (str/includes? "text/event-stream")))
-
-(defn- csrf-equals?
-  "Constant-time comparison of CSRF tokens to prevent timing attacks."
-  [expected actual]
-  (and (some? expected)
-       (some? actual)
-       (buddy.bytes/equals? (.getBytes ^String expected "UTF-8")
-                            (.getBytes ^String actual "UTF-8"))))
-
-(defn wrap-csrf
-  "Adds CSRF token to request, validates on unsafe methods, sets CSRF cookie.
-   Generates sid for anonymous users, ensuring CSRF works from first request.
-   Only sets cookie when token changes (new session or rotation)."
-  [handler {:keys [cookie-name secret]}]
-  (fn [request]
-    (let [sid            (or (get-in request [:session :sid])
-                             (crypto/random-sid))
-          expected       (crypto/csrf-token secret sid)
-          actual         (get-in request [:params "csrf"])
-          current-cookie (get-in request [:cookies cookie-name :value])
-          safe?          (or (contains? safe-methods (:request-method request))
-                             (sse-request? request))
-          valid?         (or safe? (csrf-equals? expected actual))]
-      (if valid?
-        (cond-> (-> (handler (assoc request ::csrf expected))
-                    (update :session (fnil assoc {}) :sid sid))
-          (not= expected current-cookie)
-          (assoc-in [:cookies cookie-name] {:value     expected
-                                            :http-only false
-                                            :path      "/"
-                                            :same-site :lax
-                                            :secure    true}))
-        {:status 403
-         :body   "Invalid CSRF token"}))))
-
-(defn wrap-channels
-  "Injects channels atom into request."
-  [handler channels]
-  (fn [request]
-    (handler (assoc request ::channels channels))))
-
-;;; ----------------------------------------------------------------------------
-;;; Refresh
-
-(defn throttle
-  "Rate-limits channel, emitting at most one value per `ms` milliseconds.
-   Input channel should be buffered. Output channel has no buffer."
-  [<in ms]
-  (let [<out (a/chan)]
-    (Thread/startVirtualThread
-     (bound-fn []
-       (loop []
-         (when-some [v (a/<!! <in)]
-           (a/>!! <out v)
-           (Thread/sleep ^long ms)
-           (recur)))
-       (a/close! <out)))
-    <out))
-
-(comment
-  ;; Dropping: fewer values out than in
-  (let [<in  (a/chan (a/dropping-buffer 1))
-        <out (throttle <in 100)]
-    (a/onto-chan!! <in (range 10))
-    (a/<!! (a/into [] <out)))
-
-  ;; Clean shutdown: nil on closed channel
-  (let [<in  (a/chan (a/dropping-buffer 1))
-        <out (throttle <in 50)]
-    (a/close! <in)
-    (a/<!! <out)))
-
-(defn refresh!
-  [service]
-  (a/put! (:refresh-ch service) :action))
-
-;;; ----------------------------------------------------------------------------
-;;; Stats
-
-(defn stats
-  [service]
-  (let [channels @(:channels service)]
-    {:channels (count channels)
-     :sessions (count (into #{} (map :sid) channels))}))
-
-;;; ----------------------------------------------------------------------------
-;;; Secure headers
-
-(def ^:private secure-headers
-  {"content-security-policy"           (csp/csp-map->str (csp/policy))
-   "referrer-policy"                   "strict-origin"
-   "strict-transport-security"         "max-age=31536000; includeSubdomains"
-   "x-content-type-options"            "nosniff"
-   "x-download-options"                "noopen"
-   "x-frame-options"                   "DENY"
-   "x-permitted-cross-domain-policies" "none"
-   "x-xss-protection"                  "1; mode=block"})
-
-(defn- wrap-secure-headers
-  [handler]
-  (fn [request]
-    (when-let [response (handler request)]
-      (update response :headers merge secure-headers))))
-
-;;; ----------------------------------------------------------------------------
-;;; App
-
-(defn make-app
-  [service]
-  (let [{:keys [channels cookie-name csrf-cookie-name csrf-secret refresh-ch refresh-mult session-store]} service]
-    (ring/ring-handler
-     (ring/router routes
-                  {:data {:coercion   coercion.malli/coercion
-                          :middleware [ring.coercion/coerce-request-middleware]}})
-     (ring/routes
-      (ring/create-resource-handler {:path "/"}))
-     {:middleware [[wrap-refresh refresh-ch refresh-mult]
-                   [wrap-channels channels]
-                   [middleware.params/wrap-params]
-                   [middleware.cookies/wrap-cookies]
-                   [middleware.session/wrap-session {:cookie-attrs {:http-only true
-                                                                    :same-site :lax
-                                                                    :secure    true}
-                                                     :cookie-name  cookie-name
-                                                     :store        session-store}]
-                    [wrap-csrf {:cookie-name csrf-cookie-name
-                               :secret      csrf-secret}]
-                   [wrap-secure-headers]]})))
-
-(defrecord Service [channels
-                    cookie-name
-                    csrf-cookie-name
-                    csrf-secret
-                    http-host
-                    http-port
-                    max-refresh-ms
-                    refresh-ch
-                    refresh-mult
-                    server-name
-                    session-store
-                    stop-fn]
-  component/Lifecycle
-  (start [this]
-    (span/with-span! {:name ::start-service}
-      (let [channels     (atom {})
-            refresh-ch   (a/chan (a/dropping-buffer 1))
-            throttled    (if max-refresh-ms
-                           (throttle refresh-ch max-refresh-ms)
-                           refresh-ch)
-            refresh-mult (a/mult throttled)
-            this         (assoc this
-                                :channels     channels
-                                :refresh-ch   refresh-ch
-                                :refresh-mult refresh-mult)]
-        (assoc this :stop-fn (server/run-server (make-app this)
-                                                {:host                       http-host
-                                                 :legacy-unsafe-remote-addr? false
-                                                 :port                       http-port
-                                                 :server-header              server-name})))))
-  (stop [this]
-    (span/with-span! {:name ::stop-service}
-      (doseq [[_ {:keys [close!]}] @(:channels this)]
-        (close!))
-      (reset! (:channels this) {})
-      (when-let [stop (:stop-fn this)]
-        (stop :timeout 200))
-      (when-let [ch (:refresh-ch this)]
-        (a/close! ch))
-      (assoc this :channels nil :refresh-ch nil :refresh-mult nil :stop-fn nil))))
-
-(defn make-service
-  [config]
-  (map->Service config))
+    {:get  (morph/page-handler layout redirect-view)
+     :post (morph/render-handler redirect-view)}]])
