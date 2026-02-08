@@ -92,6 +92,10 @@
    {invetica/spec              {:mvn/version "0.5.0"}
     nubank/matcher-combinators {:mvn/version "3.10.0"}}}
 
+  :build
+  {:deps      {io.github.clojure/tools.build {:git/tag "v0.10.12" :git/sha "97c5562"}}
+   :ns-default build}
+
   :runner
   {:extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
    :main-opts  ["-m" "kaocha.runner"]}}}

@@ -127,6 +127,19 @@ test:
     exit 1
 
 # ------------------------------------------------------------------------------
+# Build
+
+# Build an AOT-compiled uberjar
+[group('build')]
+build:
+    clojure -T:build uber
+
+# Build the Docker image
+[group('build')]
+docker tag="bits:latest":
+    docker build -t {{ tag }} .
+
+# ------------------------------------------------------------------------------
 # PostgreSQL
 
 # Start an interactive psql session connected to the local development database
