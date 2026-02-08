@@ -161,6 +161,10 @@
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
+    }).then((response) => {
+      if (response.status === 200) {
+        response.text().then((html) => handlers.morph(html));
+      }
     });
   }
 
@@ -170,6 +174,17 @@
       e.preventDefault();
       const params = el.form ? Object.fromEntries(new FormData(el.form)) : {};
       postAction(el.dataset.action, params);
+    }
+  });
+
+  document.addEventListener("submit", (e) => {
+    const form = e.target;
+    if (form.action && form.action.endsWith("/action")) {
+      e.preventDefault();
+      const params = Object.fromEntries(new FormData(form));
+      const action = params.action;
+      delete params.action;
+      if (action) postAction(action, params);
     }
   });
 

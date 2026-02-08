@@ -1,5 +1,6 @@
 (ns bits.next
   (:require
+   [bits.auth :as auth]
    [bits.brotli :as brotli]
    [bits.crypto :as crypto]
    [bits.html :as html]
@@ -102,7 +103,8 @@
 
 (def nav-links
   [["/"        "Counter"]
-   ["/cursors" "Cursors"]])
+   ["/cursors" "Cursors"]
+   ["/login"   "Sign in"]])
 
 (defn nav-header
   [current-path]
@@ -210,18 +212,34 @@
                              (a/>!! <cancel :stop)
                              (a/untap refresh-mult <refresh))})))))
 
+(defn respond
+  "Return rendered HTML from an action instead of signaling a refresh.
+   Use for validation errors or ephemeral UI feedback that doesn't
+   flow through the database."
+  [content]
+  {::respond content})
+
 (defn action-handler
-  "Dispatches actions by name, signals refresh. Returns 204."
+  "Dispatches actions by name. If action returns (respond hiccup),
+   returns 200 with rendered HTML for client-side morphing.
+   Otherwise signals refresh and returns 204."
   [actions]
   (fn [request]
     (let [refresh-ch  (::refresh-ch request)
           action-name (get-in request [:params "action"])
           action-fn   (get actions action-name)]
       (if action-fn
-        (do
-          (action-fn request)
-          (a/put! refresh-ch :action)
-          {:status 204})
+        (let [result (action-fn request)]
+          (if-let [content (or (::respond result) (::auth/respond result))]
+            (cond-> {:status  200
+                     :headers {"Content-Type" "text/html; charset=utf-8"}
+                     :body    (html/htmx content)}
+              ;; Auth actions can update the session (e.g. after rotation)
+              (::auth/session result)
+              (assoc :session (::auth/session result)))
+            (do
+              (a/put! refresh-ch :action)
+              {:status 204})))
         (do
           (log/warn :msg "Unknown action" :action action-name)
           {:status 400
@@ -326,17 +344,27 @@
         (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")]]])))
 
 (def actions
-  {"inc"         (fn [_req] (swap! !state update :count inc))
-   "dec"         (fn [_req] (swap! !state update :count dec))
-   "cursor-move" (fn [request]
-                   (let [channel-id (get-in request [:params "channel"])
-                         x          (parse-long (get-in request [:params "x"] "0"))
-                         y          (parse-long (get-in request [:params "y"] "0"))]
-                     (when (and channel-id x y (< x 10000) (< y 10000))
-                       (update-cursor! channel-id x y))))})
+  {"inc"          (fn [_req] (swap! !state update :count inc))
+   "dec"          (fn [_req] (swap! !state update :count dec))
+   "authenticate" auth/authenticate
+   "sign-out"     auth/sign-out
+   "cursor-move"  (fn [request]
+                    (let [channel-id (get-in request [:params "channel"])
+                          x          (parse-long (get-in request [:params "x"] "0"))
+                          y          (parse-long (get-in request [:params "y"] "0"))]
+                      (when (and channel-id x y (< x 10000) (< y 10000))
+                        (update-cursor! channel-id x y))))})
 
 ;;; ----------------------------------------------------------------------------
 ;;; Routes
+
+(defn login-page-view
+  "Wraps auth/login-view for use in the page handler."
+  [request]
+  (let [user-id (get-in request [:session :user-id])]
+    (if user-id
+      (auth/authenticated-view request)
+      (auth/login-view request))))
 
 (def routes
   [["/"
@@ -345,6 +373,9 @@
    ["/cursors"
     {:get  (page-handler layout cursors-view)
      :post (render-handler cursors-view {:on-close remove-cursor!})}]
+   ["/login"
+    {:get  (page-handler layout login-page-view)
+     :post (render-handler login-page-view)}]
    ["/action"
     {:post (action-handler actions)}]])
 
@@ -380,7 +411,9 @@
 (defn wrap-csrf
   "Adds CSRF token to request, validates on unsafe methods, sets CSRF cookie.
    Generates sid for anonymous users, ensuring CSRF works from first request.
-   Only sets cookie when token changes (new session or rotation)."
+   Only sets cookie when token changes (new session or rotation).
+   Respects session rotation — if the response already contains a :sid
+   (e.g. from authentication), uses that for the CSRF token."
   [handler {:keys [cookie-name secret]}]
   (fn [request]
     (let [sid            (or (get-in request [:session :sid])
@@ -392,14 +425,20 @@
                              (sse-request? request))
           valid?         (or safe? (csrf-equals? expected actual))]
       (if valid?
-        (cond-> (-> (handler (assoc request ::csrf expected))
-                    (update :session (fnil assoc {}) :sid sid))
-          (not= expected current-cookie)
-          (assoc-in [:cookies cookie-name] {:value     expected
-                                            :http-only false
-                                            :path      "/"
-                                            :same-site :lax
-                                            :secure    true}))
+        (let [response     (handler (assoc request ::csrf expected))
+              ;; If the handler rotated the session, use the new SID
+              response-sid (get-in response [:session :sid])
+              final-sid    (or response-sid sid)
+              final-csrf   (if response-sid
+                             (crypto/csrf-token secret response-sid)
+                             expected)]
+          (cond-> (update response :session (fnil assoc {}) :sid final-sid)
+            (not= final-csrf current-cookie)
+            (assoc-in [:cookies cookie-name] {:value     final-csrf
+                                              :http-only false
+                                              :path      "/"
+                                              :same-site :lax
+                                              :secure    true})))
         {:status 403
          :body   "Invalid CSRF token"}))))
 
@@ -408,6 +447,14 @@
   [handler channels]
   (fn [request]
     (handler (assoc request ::channels channels))))
+
+(defn wrap-auth-context
+  "Injects database and pool into requests for auth actions."
+  [handler {:keys [database pool]}]
+  (fn [request]
+    (handler (assoc request
+                    ::auth/database database
+                    ::auth/pool     pool))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Refresh
@@ -430,13 +477,16 @@
 
 (defn make-app
   [service]
-  (let [{:keys [channels cookie-name csrf-cookie-name csrf-secret refresh-ch refresh-mult session-store]} service]
+  (let [{:keys [channels cookie-name csrf-cookie-name csrf-secret
+                database pool refresh-ch refresh-mult session-store]} service]
     (ring/ring-handler
      (ring/router routes)
      (ring/routes
       (ring/create-resource-handler {:path "/"}))
      {:middleware [[wrap-refresh refresh-ch refresh-mult]
                    [wrap-channels channels]
+                   [wrap-auth-context {:database database
+                                      :pool     pool}]
                    [middleware.params/wrap-params]
                    [middleware.cookies/wrap-cookies]
                    [middleware.session/wrap-session {:cookie-attrs {:http-only true
@@ -451,8 +501,10 @@
                     cookie-name
                     csrf-cookie-name
                     csrf-secret
+                    database
                     http-host
                     http-port
+                    pool
                     refresh-ch
                     refresh-mult
                     server-name

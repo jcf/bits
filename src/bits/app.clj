@@ -69,7 +69,11 @@
 (def dependencies
   {:pool          [:migrator]
    :reaper        [:pool]
-   :service       [:bootstrapper :buster :datahike :pool :session-store]
+   :service       {:bootstrapper  :bootstrapper
+                   :buster        :buster
+                   :database      :datahike
+                   :pool          :pool
+                   :session-store :session-store}
    :session-store [:pool]})
 
 (defn system
