@@ -255,7 +255,7 @@
   [{:keys [email error success]}]
   [:div#email-demo {:class "p-6 bg-white dark:bg-neutral-900 rounded-lg shadow max-w-sm"}
    [:h3 {:class "text-lg font-semibold mb-4 dark:text-white"} "Email Validation"]
-   [:form {:class "space-y-4"}
+   [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
     (when error
       [:p {:class "text-sm text-red-600 dark:text-red-400"} error])
     (when success

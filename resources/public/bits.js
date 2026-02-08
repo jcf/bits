@@ -156,7 +156,7 @@
 
   function postAction(action, params) {
     const csrf = getCsrf();
-    fetch("/action", {
+    return fetch("/action", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ action, csrf, ...params }),
@@ -180,8 +180,13 @@
     const el = e.target.closest("[data-action]");
     if (el) {
       e.preventDefault();
-      const params = el.form ? Object.fromEntries(new FormData(el.form)) : {};
-      postAction(el.dataset.action, params);
+      const form = el.form || el.closest("form");
+      const params = form ? Object.fromEntries(new FormData(form)) : {};
+
+      if (form) form.inert = true;
+      postAction(el.dataset.action, params).finally(() => {
+        if (form) form.inert = false;
+      });
     }
   });
 
