@@ -124,7 +124,7 @@ lint:
 # Run tests
 [group('dev')]
 test:
-    exit 1
+    clojure -M:test:runner
 
 # ------------------------------------------------------------------------------
 # PostgreSQL
