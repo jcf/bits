@@ -126,6 +126,25 @@ lint:
 test:
     exit 1
 
+# Build an AOT-compiled uberjar
+[group('build')]
+build:
+    clojure -T:build uber
+
+# Build the Docker image
+[group('build')]
+docker-build tag="bits:latest":
+    docker build -t {{ tag }} .
+
+# Run the Docker image against the local devenv database
+[group('build')]
+docker-run tag="bits:latest" *args:
+    docker run --rm -p 3000:3000 \
+        -e DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/bits_dev?user=bits\&password=please \
+        -e CSRF_SECRET=default-csrf-secret-change-in-prod \
+        --add-host=host.docker.internal:host-gateway \
+        {{ args }} {{ tag }}
+
 # ------------------------------------------------------------------------------
 # PostgreSQL
 
