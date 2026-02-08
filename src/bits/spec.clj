@@ -21,16 +21,42 @@
   (s/keys :req-un [:bits.assets/resources]))
 
 ;;; ----------------------------------------------------------------------------
+;;; Morph
+;;;
+;;; These specs live here to avoid cyclic dependencies. bits.morph may require
+;;; bits.spec, so bits.spec cannot require bits.morph.
+
+(s/def :bits.morph/handler fn?)
+(s/def :bits.morph/params vector?)
+(s/def :bits.morph/action-map
+  (s/keys :req-un [:bits.morph/handler]
+          :opt-un [:bits.morph/params]))
+(s/def :bits.morph/action
+  (s/or :fn fn? :map :bits.morph/action-map))
+(s/def :bits.morph/actions
+  (s/map-of qualified-keyword? :bits.morph/action))
+
+;;; ----------------------------------------------------------------------------
 ;;; Service
 
-(s/def :bits.next/cookie-secret bytes?)
-(s/def :bits.next/http-host string?)
-(s/def :bits.next/http-port (s/or :zero zero? :pos-int pos-int?))
+(s/def :bits.service/actions :bits.morph/actions)
+(s/def :bits.service/cookie-name string?)
+(s/def :bits.service/csrf-cookie-name string?)
+(s/def :bits.service/csrf-secret string?)
+(s/def :bits.service/http-host string?)
+(s/def :bits.service/http-port (s/or :zero zero? :pos-int pos-int?))
+(s/def :bits.service/routes vector?)
+(s/def :bits.service/server-name string?)
 
-(s/def :bits.next/config
-  (s/keys :req-un [:bits.next/cookie-secret
-                   :bits.next/http-host
-                   :bits.next/http-port]))
+(s/def :bits.service/config
+  (s/keys :req-un [:bits.service/actions
+                   :bits.service/cookie-name
+                   :bits.service/csrf-cookie-name
+                   :bits.service/csrf-secret
+                   :bits.service/http-host
+                   :bits.service/http-port
+                   :bits.service/routes
+                   :bits.service/server-name]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Datahike
@@ -83,7 +109,7 @@
 ;; Rename the keys as we're using unqualified keys to configure our system's
 ;; components.
 (s/def :bits.system/buster :bits.assets/config)
-(s/def :bits.system/service :bits.next/config)
+(s/def :bits.system/service :bits.service/config)
 
 (s/def :bits.system/config
   (s/keys :req-un [:bits.system/buster

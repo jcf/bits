@@ -3,11 +3,11 @@
    [bits.brotli :as brotli]
    [bits.crypto :as crypto]
    [bits.html :as html]
+   [bits.spec]
    [buddy.core.bytes :as buddy.bytes]
    [buddy.core.codecs :as buddy.codecs]
    [buddy.core.hash :as buddy.hash]
    [clojure.core.async :as a]
-   [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [io.pedestal.log :as log]
    [org.httpkit.server :as server]
@@ -187,12 +187,7 @@
 ;;; Action registry
 ;;;
 ;;; Actions are normalized once at load time, not per-request.
-
-(s/def ::handler fn?)
-(s/def ::params vector?)
-(s/def ::action-map (s/keys :req-un [::handler] :opt-un [::params]))
-(s/def ::action (s/or :fn fn? :map ::action-map))
-(s/def ::actions (s/map-of qualified-keyword? ::action))
+;;; Specs are in bits.spec to avoid cyclic dependencies.
 
 (defn- normalize-entry
   [entry]
