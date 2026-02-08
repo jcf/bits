@@ -167,3 +167,56 @@ defined as pure data; execution should happen in separate functions.
   result directly (or nil) instead of a set
 - Use `(pull ?e [...])` to get maps with exact keys — no post-processing
 - Keep I/O functions minimal — just execute the query
+
+### Coercion at Boundaries
+
+Use middleware coercion to convert external representations at system boundaries.
+Keep internal code working with native types (keywords, not strings).
+
+```clojure
+;; Good: Coercion in middleware, handler receives keyword
+["/action"
+ {:post {:parameters {:form {:action :keyword}}
+         :handler    (action-handler actions)}}]
+
+(defn action-handler [actions]
+  (fn [request]
+    (let [action (get-in request [:parameters :form :action])]
+      (get actions action))))
+
+;; Bad: Manual string→keyword conversion in handler
+(defn action-handler [actions]
+  (fn [request]
+    (let [action-str (get-in request [:params "action"])
+          action     (keyword action-str)]
+      (get actions action))))
+```
+
+**Rationale:**
+
+- **Separation of concerns** — Parsing/coercion happens once at the boundary
+- **Cleaner handlers** — Business logic works with native types
+- **Declarative** — Parameter specs document the expected types
+
+### HTTP Headers
+
+Use **lowercase** for all header names and Ring utilities for access.
+
+```clojure
+;; Good: lowercase headers, Ring utilities
+(response/get-header request "content-type")
+{:headers {"content-type" "text/html"}}
+
+;; Bad: Camel-Case headers, direct map access
+(get-in request [:headers "Content-Type"])
+{:headers {"Content-Type" "text/html"}}
+```
+
+- `ring.util.response/get-header` — case-insensitive read
+- `ring.util.response/update-header` — case-insensitive update
+
+**Rationale:**
+
+- **Consistency** — Ring normalizes request headers to lowercase; match this for responses
+- **Case-insensitive access** — Ring utilities handle case variations safely
+- **HTTP spec compliance** — Header names are case-insensitive per RFC 7230
