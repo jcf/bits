@@ -2,6 +2,7 @@
   (:require
    [bits.auth :as auth]
    [bits.html :as html]
+   [bits.middleware :as mw]
    [bits.morph :as morph]
    [bits.ui :as ui]
    [clojure.string :as str]))
@@ -60,9 +61,9 @@
    [:path {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]])
 
 (defn counter-view
-  [_request]
+  [request]
   (list
-   (ui/nav-header "/")
+   (ui/nav-header request "/")
    (ui/page-center {:class "space-y-2"}
                    [:header
                     (ui/page-title {}
@@ -73,17 +74,17 @@
                     (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
 
 (defn email-view
-  ([_request] (email-view _request {}))
-  ([_request form-state]
+  ([request] (email-view request {}))
+  ([request form-state]
    (list
-    (ui/nav-header "/email")
+    (ui/nav-header request "/email")
     (ui/page-center {}
                     (email-form form-state)))))
 
 (defn redirect-view
-  [_request]
+  [request]
   (list
-   (ui/nav-header "/redirect")
+   (ui/nav-header request "/redirect")
    (ui/page-center {}
                    (redirect-demo))))
 
@@ -110,8 +111,8 @@
   (nth cursor-colors (mod (hash channel-id) (count cursor-colors))))
 
 (defn cursor-styles
-  [cursors]
-  [:style {:id "cursor-positions"}
+  [request cursors]
+  [:style {:id "cursor-positions" :nonce (mw/request->nonce request)}
    (html/raw
     (str/join "\n"
               (for [[channel-id [x y _]] cursors]
@@ -127,15 +128,15 @@
       short-id]]))
 
 (defn cursors-view
-  [_request]
+  [request]
   (let [cursors @!cursors]
     (list
-     (ui/nav-header "/cursors")
+     (ui/nav-header request "/cursors")
      [:div {:id               "cursor-container"
             :class            "relative min-h-screen"
             :data-track-mouse "cursor/move"}
 
-      (cursor-styles cursors)
+      (cursor-styles request cursors)
 
       (for [[cid _] cursors]
         (cursor-label cid))

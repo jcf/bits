@@ -1,5 +1,6 @@
 (ns bits.form
   (:require
+   [bits.middleware :as mw]
    [bits.string :as string]
    [bits.tailwind :as tw]))
 
@@ -14,7 +15,7 @@
 (defn form
   [request action-kw & body]
   (let [[opts & children] (tw/normalize-hiccup body)
-        csrf            (:bits.morph/csrf request)
+        csrf            (::mw/csrf request)
         attrs           (-> default-attrs
                             (update :class tw/merge-classes (:class opts))
                             (merge (dissoc opts :class)))]

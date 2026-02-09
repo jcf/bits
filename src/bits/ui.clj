@@ -1,5 +1,6 @@
 (ns bits.ui
   (:require
+   [bits.form :as form]
    [bits.tailwind :as tw]))
 
 ;; TODO: I18n - user-facing strings need locale-aware source
@@ -102,23 +103,41 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Navigation
 
-(def nav-links
+(def ^:private nav-links
   [["/"         "Counter"]
    ["/cursors"  "Cursors"]
    ["/email"    "Email"]
-   ["/login"    "Login"]
    ["/redirect" "Redirect"]])
 
 (defn nav-header
-  [current-path]
-  [:nav {:class "flex gap-4 p-4 bg-neutral-100 dark:bg-neutral-800"}
-   (for [[path label] nav-links]
-     [:a {:href  path
-          :class (str "text-sm font-medium "
-                      (if (= path current-path)
-                        "text-indigo-600 dark:text-indigo-400"
-                        "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"))}
-      label])])
+  [request current-path]
+  (let [user (:session/user request)
+        link-class
+        (fn [path]
+          (str "text-sm font-medium "
+               (if (= path current-path)
+                 "text-indigo-600 dark:text-indigo-400"
+                 "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100")))]
+    [:header {:class "flex justify-between"}
+     [:nav {:class "flex gap-4 p-4"}
+      (for [[path label] nav-links]
+        [:a {:href  path
+             :class (link-class path)}
+         label])]
+     [:div {:class "p-4"}
+      (if (:user/id user)
+        (form/action-button :auth/sign-out
+          {:class ["text-sm"
+                   "font-medium"
+                   "text-neutral-600"
+                   "dark:text-neutral-400"
+                   "hover:text-neutral-900"
+                   "dark:hover:text-neutral-100"
+                   "cursor-pointer"]}
+          "Sign out")
+        [:a {:href  "/login"
+             :class (link-class "/login")}
+         "Login"])]]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Layout
