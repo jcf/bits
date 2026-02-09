@@ -1,13 +1,11 @@
 (ns bits.crypto-test
   (:require
    [bits.crypto :as sut]
+   [bits.test.app :as t]
    [clojure.test :refer [deftest is testing]]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; CSRF Tokens
-;;;
-;;; Token generation must be deterministic - same inputs must produce same
-;;; token, otherwise valid requests get rejected as CSRF failures.
 
 (deftest csrf-token-deterministic
   (testing "same secret and session produce identical tokens"
@@ -25,10 +23,9 @@
 
 ;;; ----------------------------------------------------------------------------
 ;;; Session IDs
-;;;
-;;; Session IDs must be unique to prevent session collisions.
 
 (deftest random-sid-uniqueness
-  (testing "generates distinct values"
-    (let [sids (repeatedly 100 sut/random-sid)]
-      (is (= 100 (count (set sids)))))))
+  (t/with-system [{:keys [randomizer]} (t/system)]
+    (testing "generates distinct values"
+      (let [sids (repeatedly 100 #(sut/random-sid randomizer))]
+        (is (= 100 (count (set sids))))))))
