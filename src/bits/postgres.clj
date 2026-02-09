@@ -12,6 +12,7 @@
    [honey.sql.pg-ops]
    [inflections.core :as infl]
    [io.pedestal.log :as log]
+   [lambdaisland.uri :as uri]
    [medley.core :as medley]
    [next.jdbc :as jdbc]
    [next.jdbc.connection :as jdbc.connection]
@@ -47,6 +48,34 @@
 
 (sql/register-op! :<->)
 (sql/register-op! :<#>)
+
+;;; ----------------------------------------------------------------------------
+;;; URLs
+
+(defn dbname
+  [db-url]
+  (subs (:path (uri/uri (str/replace-first db-url #"^jdbc:" ""))) 1))
+
+(defn replace-dbname
+  [db-url db-name]
+  (str "jdbc:"
+       (-> db-url
+           (str/replace-first #"^jdbc:" "")
+           uri/uri
+           (assoc :path (str/replace-first db-name #"^/?" "/")))))
+
+(defn parse-url
+  [db-url]
+  (-> db-url (str/replace-first #"^jdbc:" "") uri/uri))
+
+;;; ----------------------------------------------------------------------------
+;;; Sanitize
+
+(defn strop
+  "Replace `s` and `e` in string `x`. Only for use in trusted operations where
+  prepared statements are not available (i.e. with generated database names."
+  [s x e]
+  (str s (str/replace x (str e) (str e e)) e))
 
 ;;; ------------------------------------------------------------------------------------------------------------------
 ;;; JDBC options
@@ -233,10 +262,10 @@
 ;;; ------------------------------------------------------------------------------------------------------------------
 ;;; Polymorphism
 
-(defn ->conn
-  [connectable]
-  (span/with-span! {:name ::->conn}
-    (or (::conn connectable) (:conn connectable) connectable)))
+(defn ->connectable
+  [x]
+  (span/with-span! {:name ::->connectable}
+    (or (::conn x) (:datasource x) (:conn x) x)))
 
 ;;; ------------------------------------------------------------------------------------------------------------------
 ;;; Execute!
@@ -246,7 +275,7 @@
    (execute! connectable query nil))
   ([connectable query options]
    (span/with-span! {:name ::execute!}
-     (jdbc/execute! (->conn connectable)
+     (jdbc/execute! (->connectable connectable)
                     (span/with-span! {:name ::format} (sql/format query options))
                     (merge defaults options)))))
 
@@ -255,7 +284,7 @@
    (execute-one! connectable query nil))
   ([connectable query options]
    (span/with-span! {:name ::execute-one!}
-     (jdbc/execute-one! (->conn connectable)
+     (jdbc/execute-one! (->connectable connectable)
                         (span/with-span! {:name ::format} (sql/format query options))
                         (merge defaults options)))))
 
@@ -428,7 +457,7 @@
   ;; DANGER: Rollback all migrations!!
   (let [migrations (ragtime.next-jdbc/load-resources "migrations")]
     (ragtime.repl/rollback {:datastore  (ragtime.next-jdbc/sql-database
-                                         (get-datasource {:dbname "lab_dev"})
+                                         (get-datasource {:dbname "bits_dev"})
                                          {:migrations-table "migrations"})
                             :migrations migrations}
                            (count migrations)))
