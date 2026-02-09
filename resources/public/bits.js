@@ -192,7 +192,10 @@
 
   document.addEventListener("submit", (e) => {
     const form = e.target;
-    if (form.action && form.action.endsWith("/action")) {
+    // `form.action` will return an input with name "action", if present. We
+    // want the action attribute on the form element.
+    const formAction = form.getAttribute("action");
+    if (formAction && formAction.endsWith("/action")) {
       e.preventDefault();
       const params = Object.fromEntries(new FormData(form));
       const action = params.action;
