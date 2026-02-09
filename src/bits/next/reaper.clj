@@ -3,9 +3,25 @@
    [bits.auth.rate-limit :as rate-limit]
    [bits.next.session :as session]
    [com.stuartsierra.component :as component]
+   [io.pedestal.log :as log]
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (java.util.concurrent Executors ScheduledExecutorService TimeUnit)))
+
+(defn purge-sessions!
+  [reaper]
+  (let [{:keys [postgres]} reaper]
+    (span/with-span! {:name ::reap}
+      (try
+        (let [sessions-deleted (session/delete-expired-sessions! postgres)
+              attempts-deleted (rate-limit/delete-old-attempts! postgres)]
+          (span/add-span-data! {:attributes {:sessions-deleted sessions-deleted
+                                             :attempts-deleted attempts-deleted}})
+          {:attempts-deleted attempts-deleted
+           :sessions-deleted sessions-deleted})
+        (catch Exception ex
+          (log/warn :msg "Failed to purge sessions?!" :exception ex)
+          (span/add-exception! ex {:escaping? false}))))))
 
 (defrecord Reaper [^ScheduledExecutorService executor
                    interval-hours
@@ -13,20 +29,9 @@
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-reaper}
-      (let [executor (Executors/newSingleThreadScheduledExecutor)
-            task     (fn []
-                       (span/with-span! {:name ::reap}
-                         (try
-                           (let [sessions-deleted (session/delete-expired-sessions! postgres)
-                                 attempts-deleted (rate-limit/delete-old-attempts! postgres)]
-                             (span/add-span-data! {:attributes {:sessions-deleted sessions-deleted
-                                                                :attempts-deleted attempts-deleted}}))
-                           (catch Exception e
-                             (span/add-exception! e {:escaping? false})))))]
-        (.scheduleAtFixedRate executor task
-                              0
-                              interval-hours
-                              TimeUnit/HOURS)
+      (let [executor (Executors/newSingleThreadScheduledExecutor)]
+        (.scheduleAtFixedRate executor purge-sessions!
+                              0 interval-hours TimeUnit/HOURS)
         (assoc this :executor executor))))
 
   (stop [this]
