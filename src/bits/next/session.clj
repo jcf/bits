@@ -60,10 +60,10 @@
 (defn rotate-session!
   "Create new session with user-id, delete old session. Returns new sid.
    Prevents session fixation attacks. Runs in a transaction."
-  [pool old-sid user-id idle-timeout-days]
+  [postgres old-sid user-id idle-timeout-days]
   (span/with-span! {:name ::rotate-session!}
     (let [new-sid (crypto/random-sid)]
-      (jdbc/with-transaction [tx (:datasource pool)]
+      (jdbc/with-transaction [tx (:datasource postgres)]
         (postgres/execute-one! tx
                                {:insert-into :sessions
                                 :values      [{:sid        new-sid
@@ -109,7 +109,7 @@
 ;;; Component (implements Ring SessionStore)
 
 (defrecord SessionStore [idle-timeout-days
-                         pool]
+                         postgres]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-session-store}
@@ -120,7 +120,7 @@
 
   session.store/SessionStore
   (read-session [_ sid]
-    (when-let [session (some-> sid (->> (get-session pool)))]
+    (when-let [session (some-> sid (->> (get-session postgres)))]
       (assoc (:data session)
              :sid     sid
              :user-id (:user-id session))))
@@ -134,13 +134,13 @@
                           (and new-sid (not= new-sid sid)) new-sid
                           (some? sid)                      sid
                           :else                            (crypto/random-sid))]
-      (if (get-session pool effective-sid)
-        (update-session! pool effective-sid data idle-timeout-days)
-        (create-session! pool effective-sid idle-timeout-days))
+      (if (get-session postgres effective-sid)
+        (update-session! postgres effective-sid data idle-timeout-days)
+        (create-session! postgres effective-sid idle-timeout-days))
       effective-sid))
 
   (delete-session [_ sid]
-    (some-> sid (->> (delete-session! pool)))
+    (some-> sid (->> (delete-session! postgres)))
     nil))
 
 (defn make-session-store

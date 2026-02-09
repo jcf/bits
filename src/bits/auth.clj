@@ -67,7 +67,7 @@
   (datahike/q datahike credential/user-by-email-query email))
 
 (defn authenticate
-  "Login action. Requires :keymaster, :datahike, and :pool in request."
+  "Login action. Requires :keymaster, :datahike, and :postgres in request."
   [request]
   (span/with-span! {:name ::authenticate}
     (let [params     (get-in request [:parameters :form])
@@ -76,8 +76,8 @@
           ip-address (request/remote-addr request)
           keymaster  (mw/request->keymaster request)
           datahike   (mw/request->datahike request)
-          pool       (mw/request->pool request)]
-      (jdbc/with-transaction [tx (:datasource pool)]
+          postgres   (mw/request->postgres request)]
+      (jdbc/with-transaction [tx (:datasource postgres)]
         (let [rate-check (rate-limit/check tx {:email      email-str
                                                :ip-address ip-address})]
           (if (anom/anomaly? rate-check)
@@ -94,7 +94,7 @@
               (if password-ok?
                 (let [old-sid (get-in request [:session :sid])
                       timeout (:idle-timeout-days keymaster)
-                      new-sid (session/rotate-session! pool old-sid (:user/id user) timeout)]
+                      new-sid (session/rotate-session! postgres old-sid (:user/id user) timeout)]
                   (morph/redirect "/" {:session {:sid     new-sid
                                                  :user-id (:user/id user)}}))
                 (morph/respond (login-view request {:error "Invalid email or password."}))))))))))
@@ -103,10 +103,10 @@
   "Sign out action. Clears user from session."
   [request]
   (span/with-span! {:name ::sign-out}
-    (let [pool      (mw/request->pool request)
+    (let [postgres  (mw/request->postgres request)
           keymaster (mw/request->keymaster request)
           sid       (get-in request [:session :sid])
           timeout   (:idle-timeout-days keymaster)]
       (when sid
-        (session/clear-user! pool sid timeout))
+        (session/clear-user! postgres sid timeout))
       (morph/redirect "/"))))

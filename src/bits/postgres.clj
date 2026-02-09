@@ -381,12 +381,12 @@
   (map->Migrator config))
 
 ;;; ----------------------------------------------------------------------------
-;;; Pool
+;;; Postgres
 
-(defrecord Pool [crypto database-url datasource]
+(defrecord Postgres [crypto database-url datasource]
   component/Lifecycle
   (start [this]
-    (span/with-span! {:name ::start-pool}
+    (span/with-span! {:name ::start-postgres}
       (let [ds (jdbc.connection/->pool HikariDataSource {:jdbcUrl database-url})]
         (span/with-span! {:name ::verify-connection}
           (with-open [conn (get-connection ds)]
@@ -395,7 +395,7 @@
             (.close ^java.sql.Connection conn)))
         (assoc this :datasource ds))))
   (stop [this]
-    (span/with-span! {:name ::stop-pool}
+    (span/with-span! {:name ::stop-postgres}
       (when-let [ds (:datasource this)]
         (log/trace :msg          "Shutting down connection pool..."
                    :database-url database-url)
@@ -406,10 +406,10 @@
   (get-connection [this opts]
     (jdbc/get-connection (:datasource this) opts)))
 
-(defn make-pool
+(defn make-postgres
   [config]
   {:pre [(s/valid? ::config config)]}
-  (map->Pool config))
+  (map->Postgres config))
 
 (defn release!
   [^java.sql.Connection conn]

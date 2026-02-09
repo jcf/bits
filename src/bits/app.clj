@@ -57,7 +57,7 @@
                                          :memory      (* 64 1024)
                                          :parallelism 1}
                      :idle-timeout-days 30}
-     :pool          {:database-url database-url}
+     :postgres      {:database-url database-url}
      :reaper        {:interval-hours 1}
      :service       {:actions          next/actions
                      :cookie-name      "__Host-bits"
@@ -79,17 +79,17 @@
    :buster        (assets/make-buster         (:buster config))
    :datahike      (datahike/make-database     (:datahike config))
    :keymaster     (crypto/make-keymaster      (:keymaster config))
-   :migrator      (postgres/make-migrator     (:pool config))
-   :pool          (postgres/make-pool         (:pool config))
+   :migrator      (postgres/make-migrator     (:postgres config))
+   :postgres      (postgres/make-postgres     (:postgres config))
    :reaper        (reaper/make-reaper         (:reaper config))
    :service       (service/make-service       (:service config))
    :session-store (session/make-session-store (:session-store config))})
 
 (def dependencies
-  {:pool          [:migrator]
-   :reaper        [:pool]
-   :service       [:bootstrapper :buster :datahike :keymaster :pool :session-store]
-   :session-store [:pool]})
+  {:postgres      [:migrator]
+   :reaper        [:postgres]
+   :service       [:bootstrapper :buster :datahike :keymaster :postgres :session-store]
+   :session-store [:postgres]})
 
 (defn system
   ([]

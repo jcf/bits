@@ -101,7 +101,7 @@
                     http-port
                     keymaster
                     max-refresh-ms
-                    pool
+                    postgres
                     refresh-ch
                     refresh-mult
                     routes

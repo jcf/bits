@@ -27,9 +27,9 @@
   [request]
   (get-state request :keymaster))
 
-(defn request->pool
+(defn request->postgres
   [request]
-  (get-state request :pool))
+  (get-state request :postgres))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Secure headers

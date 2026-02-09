@@ -9,7 +9,7 @@
 
 (defrecord Reaper [^ScheduledExecutorService executor
                    interval-hours
-                   pool]
+                   postgres]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-reaper}
@@ -17,8 +17,8 @@
             task     (fn []
                        (span/with-span! {:name ::reap}
                          (try
-                           (let [sessions-deleted (session/delete-expired-sessions! pool)
-                                 attempts-deleted (rate-limit/delete-old-attempts! pool)]
+                           (let [sessions-deleted (session/delete-expired-sessions! postgres)
+                                 attempts-deleted (rate-limit/delete-old-attempts! postgres)]
                              (span/add-span-data! {:attributes {:sessions-deleted sessions-deleted
                                                                 :attempts-deleted attempts-deleted}}))
                            (catch Exception e
