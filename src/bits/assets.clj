@@ -151,7 +151,7 @@
 
 (defmethod print-method Buster
   [_ ^java.io.Writer w]
-  (.write w "#<Buster %s>"))
+  (.write w "#<Buster>"))
 
 (defn make-buster
   [config]
