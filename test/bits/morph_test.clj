@@ -1,6 +1,5 @@
 (ns bits.morph-test
   (:require
-   [bits.crypto :as crypto]
    [bits.morph :as morph]
    [clojure.core.async :as a]
    [clojure.test :refer [deftest is testing]]
@@ -29,51 +28,6 @@
     (let [event1 (morph/morph-event "<div>a</div>")
           event2 (morph/morph-event "<div>b</div>")]
       (is (not= event1 event2)))))
-
-;;; ----------------------------------------------------------------------------
-;;; CSRF
-
-(defn- make-csrf-handler
-  []
-  (morph/wrap-csrf
-   (fn [_] {:status 200 :body "ok"})
-   {:cookie-name "csrf" :secret "test-secret"}))
-
-(deftest csrf-rejects-invalid-token
-  (let [handler  (make-csrf-handler)
-        response (handler {:request-method :post
-                           :session        {:sid "session"}
-                           :params         {"csrf" "wrong-token"}})]
-    (is (match? {:status 403} response))))
-
-(deftest csrf-rejects-missing-token
-  (let [handler  (make-csrf-handler)
-        response (handler {:request-method :post
-                           :session        {:sid "session"}
-                           :params         {}})]
-    (is (match? {:status 403} response))))
-
-(deftest csrf-accepts-valid-token
-  (let [handler  (make-csrf-handler)
-        sid      "test-session-id"
-        token    (crypto/csrf-token "test-secret" sid)
-        response (handler {:request-method :post
-                           :session        {:sid sid}
-                           :params         {"csrf" token}})]
-    (is (match? {:status 200} response))))
-
-(deftest csrf-allows-safe-methods-without-token
-  (let [handler (make-csrf-handler)]
-    (doseq [method [:get :head :options]]
-      (let [response (handler {:request-method method :params {}})]
-        (is (match? {:status 200} response))))))
-
-(deftest csrf-allows-sse-requests-without-token
-  (let [handler  (make-csrf-handler)
-        response (handler {:request-method :post
-                           :params         {}
-                           :headers        {"accept" "text/event-stream"}})]
-    (is (match? {:status 200} response))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions

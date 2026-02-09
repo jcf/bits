@@ -2,14 +2,16 @@
   (:require
    [bits.brotli :as brotli]
    [bits.crypto :as crypto]
+   [bits.data :as data]
    [bits.html :as html]
    [bits.spec]
-   [buddy.core.bytes :as buddy.bytes]
+   [bits.string :as string]
    [buddy.core.codecs :as buddy.codecs]
    [buddy.core.hash :as buddy.hash]
    [clojure.core.async :as a]
    [clojure.string :as str]
    [io.pedestal.log :as log]
+   [medley.core :as medley]
    [org.httpkit.server :as server]
    [ring.util.response :as response])
   (:import
@@ -121,20 +123,24 @@
   ([view-fn] (render-handler view-fn {}))
   ([view-fn {:keys [on-close]}]
    (fn [request]
-     (let [channels     (::channels request)
-           channel-id   (crypto/random-sid)
+     (let [randomizer   (get-in request [:bits.middleware/state :randomizer])
+           channels     (::channels request)
+           channel-id   (crypto/random-sid randomizer)
            refresh-mult (::refresh-mult request)
            <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
            <cancel      (a/chan)
            last-id      (response/get-header request "last-event-id")
            sid          (get-in request [:session :sid])
-           user-id      (get-in request [:session :user-id])
+           user-id      (get-in request [:session :user/id])
            request      (assoc request ::channel-id channel-id)]
        (a/>!! <refresh :init)
        (server/as-channel request
                           {:on-open
                            (fn [ch]
-                             (log/debug :msg "Channel opened" :channel-id channel-id :sid sid)
+                             (log/debug :msg        "Channel opened"
+                                        :channel-id channel-id
+                                        :sid        sid
+                                        :user/id    user-id)
                              (Thread/startVirtualThread
                               (bound-fn []
                                 (with-open [ba-out (brotli/byte-array-out-stream)
@@ -179,7 +185,7 @@
 
                            :on-close
                            (fn [_ch _status]
-                             (log/debug :msg "Channel closed" :channel-id channel-id :sid sid)
+                             (log/trace :msg "Channel closed" :channel-id channel-id :sid sid)
                              (swap! channels dissoc channel-id)
                              (when on-close (on-close channel-id))
                              (a/>!! <cancel :stop)
@@ -204,13 +210,21 @@
 
 (defn actions->schema
   "Build a Malli multi schema from a normalized actions registry.
-   Uses safe whitelist lookup for both dispatch and coercion."
+   Uses safe whitelist lookup for coercion."
   [actions]
-  (let [str->kw     (into {} (map (fn [k] [(subs (str k) 1) k])) (keys actions))
-        action-type [:fn {:decode/string (fn [s] (get str->kw s))} keyword?]]
-    (into [:multi {:dispatch (fn [m] (get str->kw (:action m)))}]
+  (let [valid-actions   (data/keyset actions)
+        string->keyword (medley/index-by string/keyword->string valid-actions)
+        ;; Dispatch runs on raw input before transformation
+        dispatch        (fn dispatch-action
+                          [m]
+                          (or (get string->keyword (:action m))
+                              (:action m)))
+        ;; Malli requires a fn, not a map (:malli.transform/invalid-transformer)
+        decode-action   #(get string->keyword %)
+        action-schema   [:fn {:decode/string decode-action} valid-actions]]
+    (into [:multi {:dispatch dispatch}]
           (for [[action {:keys [params]}] actions]
-            [action (into [:map [:action action-type]]
+            [action (into [:map [:action action-schema]]
                           (or params []))]))))
 
 (defn action-handler
@@ -260,50 +274,6 @@
     (handler (assoc request
                     ::refresh-ch   refresh-ch
                     ::refresh-mult refresh-mult))))
-
-(def ^:private safe-methods
-  "HTTP methods that don't require CSRF validation."
-  #{:get :head :options})
-
-(defn- sse-request?
-  "Returns true if request is for SSE stream (read-only, no CSRF needed)."
-  [request]
-  (some-> (response/get-header request "accept")
-          (str/includes? "text/event-stream")))
-
-(defn- csrf-equals?
-  "Constant-time comparison of CSRF tokens to prevent timing attacks."
-  [expected actual]
-  (and (some? expected)
-       (some? actual)
-       (buddy.bytes/equals? (.getBytes ^String expected "UTF-8")
-                            (.getBytes ^String actual "UTF-8"))))
-
-(defn wrap-csrf
-  "Adds CSRF token to request, validates on unsafe methods, sets CSRF cookie.
-   Generates sid for anonymous users, ensuring CSRF works from first request.
-   Only sets cookie when token changes (new session or rotation)."
-  [handler {:keys [cookie-name secret]}]
-  (fn [request]
-    (let [sid            (or (get-in request [:session :sid])
-                             (crypto/random-sid))
-          expected       (crypto/csrf-token secret sid)
-          actual         (get-in request [:params "csrf"])
-          current-cookie (get-in request [:cookies cookie-name :value])
-          safe?          (or (contains? safe-methods (:request-method request))
-                             (sse-request? request))
-          valid?         (or safe? (csrf-equals? expected actual))]
-      (if valid?
-        (cond-> (-> (handler (assoc request ::csrf expected))
-                    (update :session (fnil assoc {}) :sid sid))
-          (not= expected current-cookie)
-          (assoc-in [:cookies cookie-name] {:value     expected
-                                            :http-only false
-                                            :path      "/"
-                                            :same-site :lax
-                                            :secure    true}))
-        {:status 403
-         :body   "Invalid CSRF token"}))))
 
 (defn wrap-channels
   "Injects channels atom into request."

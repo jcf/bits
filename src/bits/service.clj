@@ -23,13 +23,13 @@
 (defn- coercion-error-handler
   [status]
   (fn [exception request]
-    (let [data       (ex-data exception)
-          action     (get-in data [:value :action])
-          message    (if action
-                       (str "Unknown action: " action)
-                       "Invalid request parameters")
+    (let [data        (ex-data exception)
+          action      (get-in data [:value :action])
+          message     (if action
+                        (str "Unknown action: " action)
+                        "Invalid request parameters")
           remote-addr (:remote-addr request)]
-      (log/warn :msg message :action action :remote-addr remote-addr)
+      (log/warn :msg message :action action :remote-addr remote-addr :errors data)
       {:status status
        :body   message})))
 
@@ -69,6 +69,7 @@
         [[morph/wrap-refresh refresh-ch refresh-mult]
          [morph/wrap-channels channels]
          [mw/wrap-state service]
+         [mw/wrap-datahike]
          [middleware.params/wrap-params]
          [middleware.cookies/wrap-cookies]
          [middleware.session/wrap-session {:cookie-attrs {:http-only true
@@ -76,8 +77,10 @@
                                                           :secure    true}
                                            :cookie-name  cookie-name
                                            :store        session-store}]
-         [morph/wrap-csrf {:cookie-name csrf-cookie-name
-                           :secret      csrf-secret}]
+         [mw/wrap-ensure-session]
+         [mw/wrap-csrf {:cookie-name csrf-cookie-name
+                        :secret      csrf-secret}]
+         [mw/wrap-user]
          [mw/wrap-secure-headers]]]
     (ring/ring-handler
      (ring/router routes
@@ -137,6 +140,10 @@
       (when-let [ch (:refresh-ch this)]
         (a/close! ch))
       (assoc this :channels nil :refresh-ch nil :refresh-mult nil :stop-fn nil))))
+
+(defmethod print-method Service
+  [_ ^java.io.Writer w]
+  (.write w "#<Service>"))
 
 (defn make-service
   [config]
