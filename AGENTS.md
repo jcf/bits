@@ -109,6 +109,31 @@ async fn test_behavior() {
 
 ## Clojure
 
+### Docstrings
+
+Don't add redundant docstrings that just describe what's obvious from the name.
+
+```clojure
+;; Bad: Redundant docstring
+(defn redirect
+  "Redirect to URL. Options can include :session for session data."
+  [url]
+  ...)
+
+;; Good: No docstring needed - the name says it all
+(defn redirect
+  [url]
+  ...)
+
+;; Good: Docstring adds non-obvious information
+(defn random-sid
+  "160-bit (20 byte) secure random, URL-safe base64 encoded."
+  []
+  ...)
+```
+
+If you need to document parameter shapes or return values, use specs.
+
 ### Configuration Lives in bits.app
 
 All configuration originates in `bits.app/read-config`. This is the single source
@@ -450,3 +475,26 @@ gets one keyword, used everywhere in the codebase.
 - For domain entities shared across namespaces
 - For specs that should be reused
 - For anything you'd want to grep for across the codebase
+
+### Dev Namespace Conventions
+
+Functions in `dev/` namespaces that are internal helpers should be private (`defn-`).
+Keep I/O in the REPL comment block, not in functions.
+
+```clojure
+;; Good: Private helper builds pure data, I/O in comment block
+(defn- user-txes
+  [email password-hash]
+  [{:db/id "user" :user/id (random-uuid) ...}
+   {:email/address email :email/user "user"}])
+
+(comment
+  (datahike/transact! (:datahike system) (user-txes "dev@bits.page" hash)))
+
+;; Bad: Function takes system map and does I/O
+(defn create-user! [system email password]
+  (let [hash (crypto/derive (:keymaster system) ...)]
+    (datahike/transact! (:datahike system) ...)))
+```
+
+**Never pass the system map to a function.** Keep I/O at the call site.
