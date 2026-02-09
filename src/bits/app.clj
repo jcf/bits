@@ -28,7 +28,7 @@
   [k default]
   `(or (env ~k) ~default))
 
-(defn ^:private normalize-database-url
+(defn- normalize-database-url
   ([s]
    (normalize-database-url s "postgresql"))
   ([s adapter]
@@ -43,15 +43,14 @@
 
 (defn read-config
   []
-  (let [database-url (normalize-database-url
-                      (env-or :database-url "postgres://bits:please@localhost:5432/bits_dev"))]
+  (let [database-url (-> :database-url env normalize-database-url)]
     {:buster        {:resources #{"public/Inter-Bold.woff2"
                                   "public/Inter-Medium.woff2"
                                   "public/Inter-Regular.woff2"
                                   "public/JetBrainsMono-Bold.woff2"
                                   "public/JetBrainsMono-Regular.woff2"
                                   "public/app.css"}}
-     :datahike      {:store (datahike/jdbc-url->store database-url)}
+     :datahike      {:database-url database-url}
      :keymaster     {:argon             {:alg         :argon2id
                                          :iterations  3
                                          :memory      (* 64 1024)
@@ -81,14 +80,21 @@
    :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:postgres config))
    :postgres      (postgres/make-postgres     (:postgres config))
+   :randomizer    (crypto/make-randomizer     (:randomizer config))
    :reaper        (reaper/make-reaper         (:reaper config))
    :service       (service/make-service       (:service config))
    :session-store (session/make-session-store (:session-store config))})
 
 (def dependencies
-  {:postgres      [:migrator]
+  {:postgres      [:migrator :randomizer]
    :reaper        [:postgres]
-   :service       [:bootstrapper :buster :datahike :keymaster :postgres :session-store]
+   :service       [:bootstrapper
+                   :buster
+                   :datahike
+                   :keymaster
+                   :postgres
+                   :randomizer
+                   :session-store]
    :session-store [:postgres]})
 
 (defn system

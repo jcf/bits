@@ -86,7 +86,7 @@
                    :bits.datahike/table]))
 
 (s/def :bits.datahike/config
-  (s/keys :req-un [:bits.datahike/store]))
+  (s/keys :req-un [:bits.datahike/database-url]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Crypto

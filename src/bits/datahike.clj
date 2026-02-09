@@ -14,7 +14,7 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Store config
 
-(defn jdbc-url->store
+(defn- jdbc-url->store
   "Convert a JDBC URL to a Datahike store config."
   ([jdbc-url]
    (jdbc-url->store jdbc-url {}))
@@ -59,22 +59,14 @@
 ;;; Connection
 
 (defn connect
-  [config]
-  {:pre [(s/valid? ::config config)]}
+  [store]
   (span/with-span! {:name ::connect}
-    (let [store           (:store config)
-          datahike-config {:store store}]
-      (log/info :msg "Creating Datahike database..." :config datahike-config)
-      (try
-        (d/create-database datahike-config)
-        (catch clojure.lang.ExceptionInfo e
-          (when-not (= :db-already-exists (:type (ex-data e)))
-            (throw e))
-          (log/debug :msg "Database already exists")))
-      (log/info :msg "Connecting to Datahike...")
-      (let [conn (d/connect datahike-config)]
-        (log/info :msg "Connected to Datahike")
-        conn))))
+    (try
+      (d/create-database {:store store})
+      (catch clojure.lang.ExceptionInfo e
+        (when-not (= :db-already-exists (:type (ex-data e)))
+          (throw e))))
+    (d/connect {:store store})))
 
 (defn disconnect
   [conn]
@@ -84,23 +76,27 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Component
 
-(defrecord Database [store conn]
+(defrecord Database [database-url conn]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-database}
-      (let [conn (connect this)]
+      (let [store (jdbc-url->store database-url)
+            conn  (connect store)]
         (ensure-schema! conn)
         (assoc this :conn conn))))
   (stop [this]
     (span/with-span! {:name ::stop-database}
-      (when conn
-        (disconnect conn))
+      (some-> conn disconnect)
       (assoc this :conn nil))))
 
 (defn make-database
   [config]
   {:pre [(s/valid? ::config config)]}
   (map->Database config))
+
+(defmethod print-method Database
+  [_ ^java.io.Writer w]
+  (.write w "#<datahike.Database>"))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Query helpers
@@ -119,6 +115,7 @@
   (span/with-span! {:name ::pull}
     (d/pull (db datahike) selector eid)))
 
+;; TODO Remove this generated garbage.
 (defn q
   [datahike query & inputs]
   (span/with-span! {:name ::q}
