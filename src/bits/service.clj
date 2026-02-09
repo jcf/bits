@@ -5,14 +5,40 @@
    [bits.morph :as morph]
    [clojure.core.async :as a]
    [com.stuartsierra.component :as component]
+   [io.pedestal.log :as log]
    [org.httpkit.server :as server]
+   [reitit.coercion :as coercion]
    [reitit.coercion.malli :as coercion.malli]
    [reitit.ring :as ring]
    [reitit.ring.coercion :as ring.coercion]
+   [reitit.ring.middleware.exception :as exception]
    [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
    [ring.middleware.session :as middleware.session]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
+
+;;; ----------------------------------------------------------------------------
+;;; Exception handling
+
+(defn- coercion-error-handler
+  [status]
+  (fn [exception request]
+    (let [data       (ex-data exception)
+          action     (get-in data [:value :action])
+          message    (if action
+                       (str "Unknown action: " action)
+                       "Invalid request parameters")
+          remote-addr (:remote-addr request)]
+      (log/warn :msg message :action action :remote-addr remote-addr)
+      {:status status
+       :body   message})))
+
+(def exception-middleware
+  (exception/create-exception-middleware
+   (merge
+    exception/default-handlers
+    {::coercion/request-coercion  (coercion-error-handler 400)
+     ::coercion/response-coercion (coercion-error-handler 500)})))
 
 ;;; ----------------------------------------------------------------------------
 ;;; App
@@ -56,7 +82,8 @@
     (ring/ring-handler
      (ring/router routes
                   {:data {:coercion   coercion.malli/coercion
-                          :middleware [ring.coercion/coerce-request-middleware]}})
+                          :middleware [exception-middleware
+                                       ring.coercion/coerce-request-middleware]}})
      (ring/routes
       (ring/create-resource-handler {:path "/"}))
      {:middleware middleware})))

@@ -10,8 +10,10 @@
    [bits.postgres :as postgres]
    [bits.service :as service]
    [bits.spec]
+   [bits.string :as string]
    [camel-snake-kebab.core :as csk]
    [com.stuartsierra.component :as component]
+   [lambdaisland.uri :as uri]
    [medley.core :as medley]))
 
 ;;; ----------------------------------------------------------------------------
@@ -24,19 +26,25 @@
 
 (defmacro ^:private env-or
   [k default]
-  `(or (env k) ~default))
+  `(or (env ~k) ~default))
 
-(defn- parse-pedestal-env
-  [s]
-  (-> {"dev"  :dev
-       "test" :test
-       "prod" :prod}
-      (get s "prod")
-      keyword))
+(defn ^:private normalize-database-url
+  ([s]
+   (normalize-database-url s "postgresql"))
+  ([s adapter]
+   (let [url                     (uri/uri (string/remove-prefix s "jdbc:"))
+         query                   (uri/query-string->map (:query url))
+         {:keys [user password]} (merge (select-keys url [:user :password]) query)]
+     (str (assoc url
+                 :password nil
+                 :query    (uri/map->query-string {:user user :password password})
+                 :scheme   (str "jdbc:" adapter)
+                 :user     nil)))))
 
 (defn read-config
   []
-  (let [database-url (env-or :database-url "jdbc:postgresql://localhost:5432/bits_dev?user=bits&password=please")]
+  (let [database-url (normalize-database-url
+                      (env-or :database-url "postgres://bits:please@localhost:5432/bits_dev"))]
     {:buster        {:resources #{"public/Inter-Bold.woff2"
                                   "public/Inter-Medium.woff2"
                                   "public/Inter-Regular.woff2"

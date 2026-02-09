@@ -85,8 +85,10 @@
   {::respond content})
 
 (defn redirect
-  [url]
-  {::redirect url})
+  ([url]
+   {::redirect url})
+  ([url opts]
+   (assoc opts ::redirect url)))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Handlers
@@ -201,12 +203,15 @@
   (into {} (map (fn [[k v]] [k (normalize-entry v)])) actions))
 
 (defn actions->schema
-  "Build a Malli multi schema from a normalized actions registry."
+  "Build a Malli multi schema from a normalized actions registry.
+   Uses safe whitelist lookup for both dispatch and coercion."
   [actions]
-  (into [:multi {:dispatch :action}]
-        (for [[action {:keys [params]}] actions]
-          [action (into [:map [:action [:= action]]]
-                        (or params []))])))
+  (let [str->kw     (into {} (map (fn [k] [(subs (str k) 1) k])) (keys actions))
+        action-type [:fn {:decode/string (fn [s] (get str->kw s))} keyword?]]
+    (into [:multi {:dispatch (fn [m] (get str->kw (:action m)))}]
+          (for [[action {:keys [params]}] actions]
+            [action (into [:map [:action action-type]]
+                          (or params []))]))))
 
 (defn action-handler
   "Dispatches actions from a normalized registry. Actions return:
@@ -225,9 +230,11 @@
             result
 
             (::redirect result)
-            {:status  200
-             :headers {"location" (::redirect result)}
-             :body    ""}
+            (-> result
+                (dissoc ::redirect)
+                (assoc :status 200
+                       :headers {"location" (::redirect result)}
+                       :body ""))
 
             (::respond result)
             {:status  200

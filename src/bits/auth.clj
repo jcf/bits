@@ -25,55 +25,49 @@
   (let [{:keys [error]} options]
     (list
      (ui/nav-header "/login")
-     [:div {:class ["min-h-screen" "flex" "flex-col" "justify-center"
-                    "px-6" "py-12" "lg:px-8"]}
-      [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-       [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
-                     "tracking-tight" "text-neutral-900" "dark:text-white"]}
-        "Sign in to your account"]]
-      [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-       (when error
-         (ui/alert-error error))
-       (form/form request :auth/login
-         [:div
-          (ui/input-top {:type        "email"
-                         :name        "email"
-                         :placeholder "Email address"
-                         :required    true
-                         :autofocus   true})
-          (ui/input-bottom {:type        "password"
-                            :name        "password"
-                            :placeholder "Password"
-                            :required    true})]
-         [:div {:class "mt-6"}
-          (ui/button-primary {} "Sign in")])]])))
+     (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
+                     [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+                      [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
+                                    "tracking-tight" "text-neutral-900" "dark:text-white"]}
+                       "Sign in to your account"]]
+                     [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+                      (when error
+                        (ui/alert-error error))
+                      (form/form request :auth/login
+                        [:div
+                         (ui/input-top {:type        "email"
+                                        :name        "email"
+                                        :placeholder "Email address"
+                                        :required    true
+                                        :autofocus   true})
+                         (ui/input-bottom {:type        "password"
+                                           :name        "password"
+                                           :placeholder "Password"
+                                           :required    true})]
+                        [:div {:class "mt-6"}
+                         (ui/button-primary {} "Sign in")])]))))
 
 (defn authenticated-view
   [request]
   (let [user-id (get-in request [:session :user-id])]
     (list
      (ui/nav-header "/")
-     [:div {:class ["min-h-screen" "flex" "flex-col" "justify-center"
-                    "items-center" "space-y-4"]}
-      [:h1 {:class ["text-2xl" "font-bold" "dark:text-white"]}
-       "Welcome!"]
-      [:p {:class ["text-neutral-600" "dark:text-neutral-400"]}
-       (str "Signed in as user " user-id)]
-      (form/form request :auth/sign-out
-        (ui/button-secondary {} "Sign out"))])))
+     (ui/page-center {:class "space-y-4"}
+                     (ui/page-title {:class "text-2xl"} "Welcome!")
+                     (ui/text-muted {} (str "Signed in as user " user-id))
+                     (form/form request :auth/sign-out
+                       (ui/button-secondary {} "Sign out"))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
 
 (defn- find-user-by-email
   "Look up user by email. Returns {:user/id :user/password-hash} or nil."
-  [database email]
-  (datahike/q credential/user-by-email-query
-              (datahike/db database)
-              email))
+  [datahike email]
+  (datahike/q datahike credential/user-by-email-query email))
 
 (defn authenticate
-  "Login action. Requires :keymaster, :database, and :pool in request."
+  "Login action. Requires :keymaster, :datahike, and :pool in request."
   [request]
   (span/with-span! {:name ::authenticate}
     (let [params     (get-in request [:parameters :form])
@@ -81,14 +75,14 @@
           email-str  (cryptex/reveal email)
           ip-address (request/remote-addr request)
           keymaster  (mw/request->keymaster request)
-          database   (mw/request->database request)
+          datahike   (mw/request->datahike request)
           pool       (mw/request->pool request)]
       (jdbc/with-transaction [tx (:datasource pool)]
         (let [rate-check (rate-limit/check tx {:email      email-str
                                                :ip-address ip-address})]
           (if (anom/anomaly? rate-check)
             (morph/respond (login-view request {:error (::anom/message rate-check)}))
-            (let [user         (find-user-by-email database email-str)
+            (let [user         (find-user-by-email datahike email-str)
                   has-user?    (some? user)
                   password-ok? (if has-user?
                                  (:valid (crypto/verify keymaster password (:user/password-hash user)))
@@ -101,10 +95,8 @@
                 (let [old-sid (get-in request [:session :sid])
                       timeout (:idle-timeout-days keymaster)
                       new-sid (session/rotate-session! pool old-sid (:user/id user) timeout)]
-                  {:status  200
-                   :headers {"Location" "/"}
-                   :session {:sid     new-sid
-                             :user-id (:user/id user)}})
+                  (morph/redirect "/" {:session {:sid     new-sid
+                                                 :user-id (:user/id user)}}))
                 (morph/respond (login-view request {:error "Invalid email or password."}))))))))))
 
 (defn sign-out
