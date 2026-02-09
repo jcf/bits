@@ -12,6 +12,7 @@
    [bits.next.session :as session]
    [bits.request :as request]
    [bits.ui :as ui]
+   [io.pedestal.log :as log]
    [next.jdbc :as jdbc]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
@@ -24,7 +25,7 @@
   [request options]
   (let [{:keys [error]} options]
     (list
-     (ui/nav-header "/login")
+     (ui/nav-header request "/login")
      (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
                      [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
                       [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
@@ -49,9 +50,9 @@
 
 (defn authenticated-view
   [request]
-  (let [user-id (get-in request [:session :user-id])]
+  (let [user-id (get-in request [:session :user/id])]
     (list
-     (ui/nav-header "/")
+     (ui/nav-header request "/")
      (ui/page-center {:class "space-y-4"}
                      (ui/page-title {:class "text-2xl"} "Welcome!")
                      (ui/text-muted {} (str "Signed in as user " user-id))
@@ -70,18 +71,21 @@
   "Login action. Requires :keymaster, :datahike, and :postgres in request."
   [request]
   (span/with-span! {:name ::authenticate}
-    (let [params     (get-in request [:parameters :form])
+    (let [{:keys [datahike keymaster postgres]} (mw/request->state request)
+
+          params                   (get-in request [:parameters :form])
           {:keys [email password]} params
-          email-str  (cryptex/reveal email)
-          ip-address (request/remote-addr request)
-          keymaster  (mw/request->keymaster request)
-          datahike   (mw/request->datahike request)
-          postgres   (mw/request->postgres request)]
+          email-str                (cryptex/reveal email)
+          ip-address               (request/remote-addr request)]
       (jdbc/with-transaction [tx (:datasource postgres)]
         (let [rate-check (rate-limit/check tx {:email      email-str
                                                :ip-address ip-address})]
           (if (anom/anomaly? rate-check)
-            (morph/respond (login-view request {:error (::anom/message rate-check)}))
+            (do
+              (log/info :msg        "Rate limited."
+                        :email      email-str
+                        :ip-address ip-address)
+              (morph/respond (login-view request {:error (::anom/message rate-check)})))
             (let [user         (find-user-by-email datahike email-str)
                   has-user?    (some? user)
                   password-ok? (if has-user?
@@ -92,21 +96,26 @@
                                               :ip-address ip-address
                                               :success    password-ok?})
               (if password-ok?
-                (let [old-sid (get-in request [:session :sid])
-                      timeout (:idle-timeout-days keymaster)
-                      new-sid (session/rotate-session! postgres old-sid (:user/id user) timeout)]
-                  (morph/redirect "/" {:session {:sid     new-sid
-                                                 :user-id (:user/id user)}}))
+                (let [old-sid    (get-in request [:session :sid])
+                      timeout    (:idle-timeout-days keymaster)
+                      new-sid    (session/rotate-session! postgres old-sid (:user/id user) timeout)
+                      randomizer (mw/request->randomizer request)]
+                  (log/debug :msg     "Redirecting user..."
+                             :user/id (:user/id user))
+                  (morph/redirect "/" {:session (assoc (session/new-session randomizer)
+                                                       :sid     new-sid
+                                                       :user/id (:user/id user))}))
                 (morph/respond (login-view request {:error "Invalid email or password."}))))))))))
 
 (defn sign-out
   "Sign out action. Clears user from session."
   [request]
   (span/with-span! {:name ::sign-out}
-    (let [postgres  (mw/request->postgres request)
-          keymaster (mw/request->keymaster request)
-          sid       (get-in request [:session :sid])
-          timeout   (:idle-timeout-days keymaster)]
+    (let [postgres   (mw/request->postgres request)
+          randomizer (mw/request->randomizer request)
+          keymaster  (mw/request->keymaster request)
+          sid        (get-in request [:session :sid])
+          timeout    (:idle-timeout-days keymaster)]
       (when sid
         (session/clear-user! postgres sid timeout))
-      (morph/redirect "/"))))
+      (morph/redirect "/" {:session (session/new-session randomizer)}))))
