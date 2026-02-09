@@ -3,11 +3,9 @@ FROM docker.io/library/clojure:temurin-21-tools-deps-bookworm-slim AS build
 
 WORKDIR /build
 
-COPY deps.edn ./
+COPY deps.edn build.clj ./
 RUN clojure -P
-RUN clojure -T:build -P
-
-COPY build.clj ./
+RUN clojure -P -A:build
 COPY src/ src/
 COPY resources/ resources/
 RUN clojure -T:build uber
