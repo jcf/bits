@@ -4,6 +4,31 @@
 
 Do not include `Co-Authored-By` trailers in commit messages.
 
+## Running Commands
+
+Use `just` for all common tasks (not `bin/*` scripts):
+
+- `just test` - Run all tests
+- `just test :e2e` - Run E2E tests only
+- `just lint` - Run linting
+- `just fmt` - Format code
+- `just check` - Run all quality checks
+
+See `just --list` for all available commands.
+
+## Clojure
+
+**Claude Code Restriction**: Do not write new Clojure implementations. Claude may:
+
+- Suggest code examples in conversation
+- Suggest plans and architectural approaches
+- Research supporting technologies (libraries, patterns)
+- Explain existing code and answer questions
+- Identify files that need modification
+- Perform mechanical transformations (renames, deletes, moves)
+
+But Claude must not use Edit or Write tools to write new Clojure logic, functions, or implementations. All new Clojure code must be written by the user.
+
 ## Rust
 
 ### Imports
