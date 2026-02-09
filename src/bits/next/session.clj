@@ -2,6 +2,8 @@
   (:require
    [bits.crypto :as crypto]
    [bits.postgres :as postgres]
+   [bits.postgres.session :as postgres.session]
+   [clojure.spec.alpha :as s]
    [com.stuartsierra.component :as component]
    [next.jdbc :as jdbc]
    [ring.middleware.session.store :as session.store]
@@ -10,9 +12,15 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Session operations
 
+(defn new-session
+  [randomizer]
+  {:nonce (crypto/random-nonce randomizer)
+   :sid   (crypto/random-sid randomizer)})
+
 (defn get-session
   "Fetch session by sid. Returns nil if not found or expired."
   [connectable sid]
+  {:post [(s/valid? (s/nilable ::postgres.session/persisted) %)]}
   (span/with-span! {:name ::get-session}
     (postgres/execute-one! connectable
                            {:select [:sid :user-id :created-at :data]
@@ -23,11 +31,12 @@
 
 (defn create-session!
   "Create session, handling race conditions with ON CONFLICT."
-  [connectable sid idle-timeout-days]
+  [connectable sid data idle-timeout-days]
   (span/with-span! {:name ::create-session!}
     (postgres/execute-one! connectable
                            {:insert-into :sessions
                             :values      [{:sid        sid
+                                           :data       [:lift data]
                                            :expires-at [:+ [:now]
                                                         [:raw (str "INTERVAL '" idle-timeout-days " days'")]]}]
                             :on-conflict [:sid]
@@ -62,7 +71,7 @@
    Prevents session fixation attacks. Runs in a transaction."
   [postgres old-sid user-id idle-timeout-days]
   (span/with-span! {:name ::rotate-session!}
-    (let [new-sid (crypto/random-sid)]
+    (let [new-sid (crypto/random-sid (:randomizer postgres))]
       (jdbc/with-transaction [tx (:datasource postgres)]
         (postgres/execute-one! tx
                                {:insert-into :sessions
@@ -120,10 +129,10 @@
 
   session.store/SessionStore
   (read-session [_ sid]
-    (when-let [session (some-> sid (->> (get-session postgres)))]
-      (assoc (:data session)
+    (when-let [session (some->> sid (get-session postgres))]
+      (assoc (::postgres.session/data session)
              :sid     sid
-             :user-id (:user-id session))))
+             :user/id (::postgres.session/user-id session))))
 
   (write-session [_ sid data]
     ;; If data contains :sid different from current, this is a session
@@ -133,10 +142,10 @@
           effective-sid (cond
                           (and new-sid (not= new-sid sid)) new-sid
                           (some? sid)                      sid
-                          :else                            (crypto/random-sid))]
+                          :else                            (crypto/random-sid (:randomizer postgres)))]
       (if (get-session postgres effective-sid)
         (update-session! postgres effective-sid data idle-timeout-days)
-        (create-session! postgres effective-sid idle-timeout-days))
+        (create-session! postgres effective-sid data idle-timeout-days))
       effective-sid))
 
   (delete-session [_ sid]
