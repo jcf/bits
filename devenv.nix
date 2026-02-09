@@ -43,20 +43,9 @@
     };
   };
 in {
-  claude.code = {
-    enable = true;
-
-    mcpServers = {
-      devenv = {
-        type = "stdio";
-        command = "devenv";
-        args = ["mcp"];
-        env = {
-          DEVENV_ROOT = root;
-        };
-      };
-    };
-  };
+  imports = [
+    ./nix/modules/claude-code.nix
+  ];
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
