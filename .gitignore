@@ -13,6 +13,9 @@
 .terraform.lock.hcl
 .terraform.lock.hcl
 .terraformrc
+/.claude/agents/
+/.claude/commands/
+/.claude/plans/
 /.claude/settings.json
 /.clj-kondo/.cache
 /.cpcache
