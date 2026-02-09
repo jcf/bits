@@ -1,15 +1,18 @@
 (ns bits.dev
   (:require
    [bits.app :as app]
-   [bits.morph :as morph]
-   [bits.next :as next]
-   [bits.service :as service]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [set-init start stop system]]
+   [datahike.core]
    [io.pedestal.log :as log]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
-(set-init (fn [_system] (app/system)))
+;;; ----------------------------------------------------------------------------
+;;; System
+
+(set-init
+ (fn [_system]
+   (span/with-span! {:name ::initialize} (app/system))))
 
 (defn before-refresh
   []
@@ -32,27 +35,3 @@
         (log/debug :in  ::after-refresh
                    :msg "Stopping broken system...")
         (component/stop-system system)))))
-
-(set-init
- (fn [_system]
-   (span/with-span! {:name ::initialize} (app/system))))
-
-(comment
-  (com.stuartsierra.component.repl/reset)
-  (com.stuartsierra.component.repl/stop)
-
-  (service/stats (:service system))
-
-  (def channels (deref (:channels (:service system))))
-  (def send! (:send! (-> channels vals first)))
-
-  (send! (morph/title-event "Hello from the server!"))
-  (send! (morph/title-event "Bits"))
-
-  (do
-    (reset! next/!cursors {})
-    (service/refresh! (:service system)))
-
-  (do
-    (swap! next/!state update :count * 2)
-    (service/refresh! (:service system))))
