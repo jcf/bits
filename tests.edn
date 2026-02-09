@@ -1,9 +1,16 @@
 #kaocha/v1
- {:plugins  [:kaocha.plugin/hooks
-             :kaocha.plugin/profiling
-             :kaocha.plugin/randomize]
+ {:plugins
+  [:kaocha.plugin/hooks
+   :kaocha.plugin/profiling
+   :kaocha.plugin/randomize]
 
   :reporter kaocha.report.progress/report
 
-  :tests    [{:id                  :unit
-              :kaocha.hooks/before [bits.test.hooks/pre-suite]}]}
+  :tests
+  [{:id                       :unit
+    :kaocha.filter/skip-meta  [:e2e]
+    :kaocha.hooks/before      [bits.test.hooks/pre-suite]}
+
+   {:id                       :e2e
+    :kaocha.filter/focus-meta [:e2e]
+    :kaocha.hooks/before      [bits.test.hooks/pre-suite]}]}
