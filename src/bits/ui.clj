@@ -119,3 +119,75 @@
                         "text-indigo-600 dark:text-indigo-400"
                         "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900"))}
       label])])
+
+;;; ----------------------------------------------------------------------------
+;;; Layout
+
+(def ^:private page-center-base
+  ["min-h-screen" "flex" "flex-col" "justify-center" "items-center"])
+
+(defn page-center
+  [attrs & children]
+  (into [:div (update attrs :class #(tw/merge-classes page-center-base %))]
+        children))
+
+;;; ----------------------------------------------------------------------------
+;;; Cards
+
+(def ^:private card-base
+  ["p-6" "rounded-lg" "shadow" "max-w-sm"
+   "bg-white" "dark:bg-neutral-900"])
+
+(defn card
+  [attrs & children]
+  (into [:div (update attrs :class #(tw/merge-classes card-base %))]
+        children))
+
+(defn card-title
+  [& children]
+  (into [:h3 {:class "text-lg font-semibold mb-4 text-neutral-900 dark:text-white"}]
+        children))
+
+;;; ----------------------------------------------------------------------------
+;;; Typography
+
+(defn page-title
+  [attrs & children]
+  (into [:h1 (update attrs :class #(tw/merge-classes
+                                    ["text-4xl" "font-bold"
+                                     "text-neutral-900" "dark:text-neutral-100"]
+                                    %))]
+        children))
+
+(defn text-muted
+  [attrs & children]
+  (into [:p (update attrs :class #(tw/merge-classes
+                                   ["text-neutral-500" "dark:text-neutral-400"]
+                                   %))]
+        children))
+
+(defn text-error
+  [& children]
+  (into [:p {:class "text-sm text-red-600 dark:text-red-400"}]
+        children))
+
+(defn text-success
+  [& children]
+  (into [:p {:class "text-sm text-green-600 dark:text-green-400"}]
+        children))
+
+;;; ----------------------------------------------------------------------------
+;;; Icon buttons
+
+(def ^:private icon-button-base
+  ["rounded-full" "p-2" "text-white" "shadow-xs"
+   "bg-indigo-600" "hover:bg-indigo-500"
+   "focus-visible:outline-2" "focus-visible:outline-offset-2" "focus-visible:outline-indigo-600"
+   "dark:bg-indigo-500" "dark:shadow-none" "dark:hover:bg-indigo-400" "dark:focus-visible:outline-indigo-500"])
+
+(defn icon-button
+  [attrs & children]
+  (into [:button (-> attrs
+                     (assoc :type "button")
+                     (update :class #(tw/merge-classes icon-button-base %)))]
+        children))
