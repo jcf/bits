@@ -39,10 +39,13 @@
 (defn- qs [s] (format "'%s'" s))
 
 (defn policy
-  []
-  {:default-src    (qs "self")
-   :img-src        (qs "self")
-   :object-src     (qs "none")
-   :script-src     (qs "self")
-   :style-src      (qs "self")
-   :style-src-attr (qs "none")})
+  ([]
+   (policy nil))
+  ([nonce]
+   {:default-src    (qs "self")
+    :img-src        (qs "self")
+    :object-src     (qs "none")
+    :script-src     (qs "self")
+    :style-src      (cond-> (qs "self")
+                      (some? nonce) (str " " (qs (str "nonce-" nonce))))
+    :style-src-attr (qs "none")}))
