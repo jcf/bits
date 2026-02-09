@@ -1,11 +1,13 @@
-{:lint-as {clojure.test.check.clojure-test/defspec clojure.test/deftest
-           clojure.test.check.properties/for-all   clojure.core/let
-           bits.test.app/with-system               clojure.core/let}
+{:lint-as {bits.test.app/with-system               clojure.core/let
+           bits.test.browser/with-driver           clojure.core/with-open
+           clojure.test.check.clojure-test/defspec clojure.test/deftest
+           clojure.test.check.properties/for-all   clojure.core/let}
 
  :linters
  {:consistent-alias
-  {:aliases {clojure.spec.alpha    s
-             iv.interceptor        i
+  {:aliases {bits.test.app         t
+             clojure.spec.alpha    s
+             etaoin.api            e
              reitit.coercion.malli coercion.malli
              reitit.ring.coercion  ring.coercion}}
 

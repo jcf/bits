@@ -70,6 +70,10 @@ in {
     tree
     zsh
 
+    # Browsers
+    chromedriver
+    geckodriver
+
     # SSL
     mkcert
     nss.tools
@@ -233,6 +237,7 @@ in {
 
     initialScript = ''
       ALTER USER bits CREATEDB;
+      ALTER DATABASE bits_test OWNER TO bits;
     '';
   };
 }
