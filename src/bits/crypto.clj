@@ -49,18 +49,48 @@
                     (:idle-timeout-days keymaster))))
 
 ;;; ----------------------------------------------------------------------------
-;;; Session crypto
+;;; Randomizer
 
-(defn random-sid
-  "160-bit (20 byte) secure random, URL-safe base64 encoded."
-  []
-  (-> (nonce/random-bytes 20)
-      (codecs/bytes->b64 true)
-      codecs/bytes->str))
+(defprotocol Randomize
+  (random-bytes [this size]))
+
+(defrecord Randomizer []
+  Randomize
+  (random-bytes [_this size]
+    (nonce/random-bytes size)))
+
+(defmethod print-method Randomizer
+  [_ ^java.io.Writer w]
+  (.write w "#<Randomizer>"))
+
+(defn make-randomizer
+  [config]
+  (map->Randomizer config))
+
+;;; ----------------------------------------------------------------------------
+;;; CSRF token
 
 (defn csrf-token
-  "Compute HMAC-SHA256 of data with secret, URL-safe base64 encoded."
   [secret data]
-  (-> (mac/hash data {:key secret :alg :hmac+sha256})
-      (codecs/bytes->b64 true)
-      codecs/bytes->str))
+  (span/with-span! {:name ::csrf-token}
+    (-> (mac/hash data {:key secret :alg :hmac+sha256})
+        (codecs/bytes->b64 true)
+        codecs/bytes->str)))
+
+;;; ----------------------------------------------------------------------------
+;;; Session ID
+
+(defn random-sid
+  [randomizer]
+  (span/with-span! {:name ::random-sid}
+    (-> (random-bytes randomizer 20)
+        (codecs/bytes->b64 true)
+        codecs/bytes->str)))
+
+;;; ----------------------------------------------------------------------------
+;;; Nonce
+
+(defn random-nonce
+  [randomizer]
+  (span/with-span! {:name ::random-nonce}
+    (codecs/bytes->b64-str (random-bytes randomizer 16) true)))
