@@ -29,81 +29,63 @@
 
 (defn email-form
   [{:keys [email error success]}]
-  [:div#email-demo {:class "p-6 bg-white dark:bg-neutral-900 rounded-lg shadow max-w-sm"}
-   [:h3 {:class "text-lg font-semibold mb-4 dark:text-white"} "Email Validation"]
-   [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
-    (when error
-      [:p {:class "text-sm text-red-600 dark:text-red-400"} error])
-    (when success
-      [:p {:class "text-sm text-green-600 dark:text-green-400"} success])
-    [:input {:type        "email"
-             :name        "email"
-             :value       (or email "")
-             :placeholder "you@example.com"
-             :class       "w-full px-3 py-2 border rounded-md dark:bg-neutral-800 dark:border-neutral-700 dark:text-white"}]
-    [:button {:type        "button"
-              :data-action "email/validate"
-              :class       "w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"}
-     "Submit"]]])
+  (ui/card {:id "email-demo"}
+           (ui/card-title "Email Validation")
+           [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
+            (when error (ui/text-error error))
+            (when success (ui/text-success success))
+            (ui/input {:type        "email"
+                       :name        "email"
+                       :value       (or email "")
+                       :class       "rounded-md"
+                       :placeholder "you@example.com"})
+            (ui/button-primary {:type        "button"
+                                :data-action "email/validate"}
+                               "Submit")]))
 
 (defn redirect-demo
   []
-  [:div {:class "p-6 bg-white dark:bg-neutral-900 rounded-lg shadow max-w-sm"}
-   [:h3 {:class "text-lg font-semibold mb-4 dark:text-white"} "Redirect Demo"]
-   [:button {:type        "button"
-             :data-action "demo/redirect"
-             :class       "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-500"}
-    "Go to example.com"]])
+  (ui/card {}
+           (ui/card-title "Redirect Demo")
+           (ui/button-primary {:type        "button"
+                               :data-action "demo/redirect"}
+                              "Go to example.com")))
+
+(def ^:private plus-icon
+  [:svg {:viewBox "0 0 20 20" :fill "currentColor" :aria-hidden "true" :class "size-5"}
+   [:path {:d "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"}]])
+
+(def ^:private minus-icon
+  [:svg {:viewBox "0 0 20 20" :fill "currentColor" :aria-hidden "true" :class "size-5"}
+   [:path {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]])
 
 (defn counter-view
   [_request]
   (list
    (ui/nav-header "/")
-   [:div {:class "min-h-screen flex flex-col justify-center items-center space-y-2"}
-    [:header
-     [:h1 {:class "text-4xl dark:text-neutral-100"}
-      "Count: "
-      [:span {:class "font-bold"} (:count @!state)]]]
-    [:section {:class "flex space-x-2"}
-     [:button
-      {:type        "button"
-       :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-       :data-action "counter/inc"}
-      [:svg
-       {:viewBox     "0 0 20 20"
-        :fill        "currentColor"
-        :data-slot   "icon"
-        :aria-hidden "true"
-        :class       "size-5"}
-       [:path
-        {:d "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"}]]]
-     [:button
-      {:type        "button"
-       :class       "rounded-full bg-indigo-600 p-2 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-       :data-action "counter/dec"}
-      [:svg
-       {:viewBox     "0 0 20 20"
-        :fill        "currentColor"
-        :data-slot   "icon"
-        :aria-hidden "true"
-        :class       "size-5"}
-       [:path
-        {:d "M4.75 9.25a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H4.75Z"}]]]]]))
+   (ui/page-center {:class "space-y-2"}
+                   [:header
+                    (ui/page-title {}
+                                   "Count: "
+                                   [:span {:class "font-bold"} (:count @!state)])]
+                   [:section {:class "flex space-x-2"}
+                    (ui/icon-button {:data-action "counter/inc"} plus-icon)
+                    (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
 
 (defn email-view
   ([_request] (email-view _request {}))
   ([_request form-state]
    (list
     (ui/nav-header "/email")
-    [:div {:class "min-h-screen flex flex-col justify-center items-center"}
-     (email-form form-state)])))
+    (ui/page-center {}
+                    (email-form form-state)))))
 
 (defn redirect-view
   [_request]
   (list
    (ui/nav-header "/redirect")
-   [:div {:class "min-h-screen flex flex-col justify-center items-center"}
-    (redirect-demo)]))
+   (ui/page-center {}
+                   (redirect-demo))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Demo: Cursors
@@ -158,10 +140,10 @@
       (for [[cid _] cursors]
         (cursor-label cid))
 
-      [:div {:class "flex flex-col justify-center items-center min-h-screen"}
-       [:h1 {:class "text-4xl font-bold dark:text-white"} "Presence Cursors"]
-       [:p {:class "text-neutral-500 mt-4"}
-        (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")]]])))
+      (ui/page-center {}
+                      (ui/page-title {} "Presence Cursors")
+                      (ui/text-muted {:class "mt-4"}
+                                     (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")))])))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
