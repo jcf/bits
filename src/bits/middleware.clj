@@ -19,7 +19,7 @@
   {:post [(some? %)]}
   (get-in request [::state k]))
 
-(defn request->database
+(defn request->datahike
   [request]
   (get-state request :datahike))
 

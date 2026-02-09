@@ -106,20 +106,20 @@
 ;;; Query helpers
 
 (defn db
-  [database]
-  @(:conn database))
+  [datahike]
+  @(:conn datahike))
 
 (defn transact!
-  [database tx-data]
+  [datahike tx-data]
   (span/with-span! {:name ::transact!}
-    (d/transact (:conn database) {:tx-data tx-data})))
+    (d/transact (:conn datahike) {:tx-data tx-data})))
 
 (defn pull
-  [database selector eid]
+  [datahike selector eid]
   (span/with-span! {:name ::pull}
-    (d/pull (db database) selector eid)))
+    (d/pull (db datahike) selector eid)))
 
 (defn q
-  [query & inputs]
+  [datahike query & inputs]
   (span/with-span! {:name ::q}
-    (apply d/q query inputs)))
+    (apply d/q query (db datahike) inputs)))
