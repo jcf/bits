@@ -10,7 +10,9 @@
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
    [datahike.core]
-   [hato.client :as http]))
+   [hato.client :as http])
+  (:import
+   (java.net CookieManager CookiePolicy)))
 
 (defn- system-ex-info
   [cause]
@@ -47,6 +49,9 @@
         {:keys [ephemeral-url
                 template-name]} (test.postgres/ephemerize database-url)
         config                  (-> config
+                                    (assoc-in [:service :cookie-name] "bits")
+                                    (assoc-in [:service :cookie-secure] false)
+                                    (assoc-in [:service :csrf-cookie-name] "bits-csrf")
                                     (assoc-in [:service :http-port] 0)
                                     (assoc-in [:postgres :database-url] ephemeral-url)
                                     (assoc-in [:datahike :database-url] ephemeral-url))
@@ -94,8 +99,14 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Request
 
-(def ^:private http-client
-  (http/build-http-client {:connect-timeout 100}))
+(defn cookie-manager
+  []
+  (CookieManager. nil CookiePolicy/ACCEPT_ALL))
+
+(defn http-client
+  ([] (http-client {}))
+  ([options]
+   (http/build-http-client (merge {:connect-timeout 100} options))))
 
 (defn- cleanup-hato-response
   [response]
@@ -105,8 +116,8 @@
 
 (defn request
   [service request-options]
-  (-> (merge {:throw-exceptions? false} request-options)
-      (assoc :http-client http-client)
+  (-> (merge {:http-client       (http-client)
+              :throw-exceptions? false} request-options)
       (update :url #(service-url service %))
       http/request
       cleanup-hato-response))
