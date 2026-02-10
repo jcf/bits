@@ -50,6 +50,18 @@
 (sql/register-op! :<#>)
 
 ;;; ----------------------------------------------------------------------------
+;;; Intervals
+
+(sql/register-fn!
+ :make-interval
+ (fn [_ args]
+   (let [pairs (for [[unit value] (partition 2 args)
+                     :let         [[sql & params] (sql/format-expr [:cast value :integer])]]
+                 [(str (name unit) " => " sql) params])]
+     (into [(str "make_interval(" (str/join ", " (map first pairs)) ")")]
+           (mapcat second pairs)))))
+
+;;; ----------------------------------------------------------------------------
 ;;; URLs
 
 (defn dbname

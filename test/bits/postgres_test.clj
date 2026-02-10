@@ -2,7 +2,8 @@
   (:require
    [bits.postgres :as sut]
    [bits.test.app :as t]
-   [clojure.test :refer [deftest is]]))
+   [clojure.test :refer [deftest is]]
+   [honey.sql :as sql]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; URLs
@@ -23,6 +24,13 @@
 (deftest strop
   (is (= "\"\"\"foobar\"\"\""
          (sut/strop \" "\"foobar\"" \"))))
+
+;;; ----------------------------------------------------------------------------
+;;; Intervals
+
+(deftest make-interval
+  (is (= ["make_interval(days => CAST(? AS INTEGER))" 30]
+         (sql/format [:make-interval :days 30]))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Qualify
