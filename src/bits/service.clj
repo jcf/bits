@@ -90,7 +90,13 @@
                           :middleware [exception-middleware
                                        ring.coercion/coerce-request-middleware]}})
      (ring/routes
-      (ring/create-resource-handler {:path "/"}))
+      (ring/create-resource-handler {:path "/"})
+      (ring/create-default-handler
+       {:not-found (fn [_request]
+                     ;; TODO Improve 404 response
+                     {:status  404
+                      :headers {"content-type" "text/plain"}
+                      :body    "Not found.\n"})}))
      {:middleware middleware})))
 
 ;;; ----------------------------------------------------------------------------

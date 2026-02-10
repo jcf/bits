@@ -6,9 +6,9 @@
    [matcher-combinators.test]))
 
 ;;; ----------------------------------------------------------------------------
-;;; Secure headers
+;;; Utils
 
-(defn csp
+(defn- csp
   [nonce]
   (str/join "; "
             ["default-src 'self'"
@@ -17,6 +17,18 @@
              (format "style-src 'self' 'nonce-%s'" nonce)
              "style-src-attr 'none'"
              "img-src 'self'"]))
+
+(defn- extract-csrf-token
+  [response]
+  (let [cookies (get-in response [:headers "set-cookie"])]
+    (some->> (if (string? cookies) [cookies] cookies)
+             (filter #(str/starts-with? % "bits-csrf="))
+             first
+             (re-find #"bits-csrf=([^;]+)")
+             second)))
+
+;;; ----------------------------------------------------------------------------
+;;; Secure headers
 
 (deftest secure-headers
   (let [source (constantly (.getBytes "abc"))]
@@ -36,16 +48,28 @@
              (:headers (t/request service request))))))))
 
 ;;; ----------------------------------------------------------------------------
-;;; CSRF
+;;; Errors
 
-(defn- extract-csrf-token
-  [response]
-  (let [cookies (get-in response [:headers "set-cookie"])]
-    (some->> (if (string? cookies) [cookies] cookies)
-             (filter #(str/starts-with? % "bits-csrf="))
-             first
-             (re-find #"bits-csrf=([^;]+)")
-             second)))
+(deftest unknown-route-returns-404
+  (t/with-system [{:keys [service]} (t/system)]
+    (is (match?
+         {:status 404}
+         (t/request service {:request-method :get :url "/nonexistent"})))))
+
+(deftest invalid-action-returns-400
+  (t/with-system [{:keys [service]} (t/system)]
+    (let [client   (t/http-client {:cookie-handler (t/cookie-manager)})
+          home     (t/request service {:http-client client :request-method :get :url "/"})
+          token    (extract-csrf-token home)
+          response (t/request service {:http-client    client
+                                       :request-method :post
+                                       :url            "/action"
+                                       :form-params    {:csrf   token
+                                                        :action "not/real"}})]
+      (is (match? {:status 400} response)))))
+
+;;; ----------------------------------------------------------------------------
+;;; CSRF
 
 (deftest csrf
   (t/with-system [{:keys [service]} (t/system)]
@@ -62,7 +86,7 @@
              {:status 200}
              (t/request service
                         {:http-client http-client
-                         :method      :post
+                         :request-method      :post
                          :url         "/action"
                          :form-params {:csrf   token
                                        :action "auth/sign-out"}})))
@@ -71,6 +95,39 @@
              {:status 403}
              (t/request service
                         {:http-client http-client
-                         :method      :post
+                         :request-method      :post
                          :url         "/action"
                          :form-params {:action "auth/sign-out"}})))))))
+
+;;; ----------------------------------------------------------------------------
+;;; Session
+
+(deftest session-persists-across-requests
+  (t/with-system [{:keys [service]} (t/system)]
+    (let [client (t/http-client {:cookie-handler (t/cookie-manager)})
+          first  (t/request service {:http-client client :request-method :get :url "/"})
+          second (t/request service {:http-client client :request-method :get :url "/"})]
+      (is (nil? (get-in second [:headers "set-cookie"]))))))
+
+(deftest session-cookie-attributes
+  (t/with-system [{:keys [service]} (t/system)]
+    (let [response (t/request service {:request-method :get :url "/"})
+          cookie   (get-in response [:headers "set-cookie"])]
+      (is (str/includes? cookie "HttpOnly"))
+      (is (str/includes? cookie "SameSite=Lax"))
+      (is (str/includes? cookie "Path=/")))))
+
+;;; ----------------------------------------------------------------------------
+;;; Auth
+
+(deftest sign-out-clears-session
+  (t/with-system [{:keys [service]} (t/system)]
+    (let [client   (t/http-client {:cookie-handler (t/cookie-manager)})
+          home     (t/request service {:http-client client :request-method :get :url "/"})
+          token    (extract-csrf-token home)
+          response (t/request service {:http-client    client
+                                       :request-method :post
+                                       :url            "/action"
+                                       :form-params    {:csrf   token
+                                                        :action "auth/sign-out"}})]
+      (is (match? {:status 200} response)))))
