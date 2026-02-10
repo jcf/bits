@@ -49,7 +49,7 @@
                           [:not :success]
                           [:> :attempted-at
                            [:- [:now]
-                            [:raw (str "INTERVAL '" window-minutes " minutes'")]]]]})]
+                            [:make-interval :mins window-minutes]]]]})]
     (or (:n result) 0)))
 
 (defn check
@@ -81,5 +81,5 @@
           (postgres/execute! connectable
                              {:delete-from :authentication-attempts
                               :where       [:< :attempted-at
-                                            [:- [:now] [:raw "INTERVAL '24 hours'"]]]})]
+                                            [:- [:now] [:make-interval :hours 24]]]})]
       (or update-count 0))))

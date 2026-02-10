@@ -41,7 +41,7 @@
                               :values      [{:sid        sid
                                              :data       [:lift data]
                                              :expires-at [:+ [:now]
-                                                          [:raw (str "INTERVAL '" idle-timeout-days " days'")]]}]
+                                                          [:make-interval :days idle-timeout-days]]}]
                               :on-conflict [:sid]
                               :do-nothing  true
                               :returning   [:sid :user-id :created-at :data]}))))
@@ -55,7 +55,7 @@
                              {:update :sessions
                               :set    {:accessed-at [:now]
                                        :expires-at  [:+ [:now]
-                                                     [:raw (str "INTERVAL '" idle-timeout-days " days'")]]}
+                                                     [:make-interval :days idle-timeout-days]]}
                               :where  [:= :sid sid]}))))
 
 (defn update-session!
@@ -68,7 +68,7 @@
                               :set    {:data        [:lift data]
                                        :accessed-at [:now]
                                        :expires-at  [:+ [:now]
-                                                     [:raw (str "INTERVAL '" idle-timeout-days " days'")]]}
+                                                     [:make-interval :days idle-timeout-days]]}
                               :where  [:= :sid sid]}))))
 
 (defn rotate-session!
@@ -84,7 +84,7 @@
                                 :values      [{:sid        new-sid
                                                :user-id    user-id
                                                :expires-at [:+ [:now]
-                                                            [:raw (str "INTERVAL '" idle-timeout-days " days'")]]}]})
+                                                            [:make-interval :days idle-timeout-days]]}]})
         (postgres/execute! tx
                            {:delete-from :sessions
                             :where       [:= :sid old-sid]}))
@@ -100,7 +100,7 @@
                               :set    {:user-id     nil
                                        :accessed-at [:now]
                                        :expires-at  [:+ [:now]
-                                                     [:raw (str "INTERVAL '" idle-timeout-days " days'")]]}
+                                                     [:make-interval :days idle-timeout-days]]}
                               :where  [:= :sid sid]}))))
 
 (defn delete-session!
