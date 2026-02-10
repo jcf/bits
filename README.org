@@ -110,28 +110,33 @@ just --list
 #+results:
 #+begin_example
 Available recipes:
+    [build]
+    build                              # Build an AOT-compiled uberjar
+    docker-build tag="bits:latest"     # Build the Docker image
+    docker-run tag="bits:latest" *args # Run the Docker image against the local devenv database
+
     [dev]
-    fmt              # Format project files
-    lint             # Run lints
-    market           # Run the marketing site
-    mkcert           # Create self-signed SSL certificates via mkcert
+    fmt                                # Format project files
+    lint                               # Run lints
+    market                             # Run the marketing site
+    mkcert                             # Create self-signed SSL certificates via mkcert
     nrepl *args
-    setup            # Setup a local development environment
-    tailwind         # Watch source code for Tailwind classes
-    test             # Run tests
+    setup                              # Setup a local development environment
+    tailwind                           # Watch source code for Tailwind classes
+    test *args                         # Run tests
 
     [docs]
-    decide +title    # Create a new decision record
+    decide +title                      # Create a new decision record
 
     [iac]
-    apply dir        # Apply one or all Terraform projects
-    init dir *args   # Initialize one or all Terraform projects
-    output dir *args # Interact with outputs one or all Terraform projects
-    plan dir         # Plan one or all Terraform projects
+    apply dir                          # Apply one or all Terraform projects
+    init dir *args                     # Initialize one or all Terraform projects
+    output dir *args                   # Interact with outputs one or all Terraform projects
+    plan dir                           # Plan one or all Terraform projects
 
     [postgres]
-    migration name   # Create a new migration
-    psql *args       # Start an interactive psql session connected to the local development database
+    migration name                     # Create a new migration
+    psql *args                         # Start an interactive psql session connected to the local development database
 #+end_example
 
 ** SLOC
@@ -147,29 +152,32 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- Clojure                  28         2800         2250          195          355
- CSS                       2            6            6            0            0
- Edn                       1           94           82            3            9
+ Clojure                  51         4279         3348          320          611
+ CSS                       2           13           12            0            1
+ Dockerfile                1           72           50            6           16
+ Edn                       2          115           99            3           13
  HCL                      12          389          323           13           53
- JavaScript                5          195          150           13           32
+ JavaScript                5          297          242           20           35
  JSON                      4           58           58            0            0
- Just                      1          182          111           41           30
+ Just                      1          200          122           44           34
  MDX                       1           56            0           39           17
- Nix                       1          255          209            8           38
+ Nix                       2          390          326            9           55
  Org                      10         1621         1465            4          152
- TOML                      1           36           32            0            4
+ SQL                       4           35           29            0            6
+ TOML                      1           46           41            0            5
  TypeScript                3           36           30            1            5
  XML                       1           18           14            1            3
  YAML                      3         5053         3968            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1           36            0           23           13
+ Markdown                  1          267            0          173           94
+ |- Clojure                1          190          123           39           28
  |- Rust                   1           68           49           10            9
- (Total)                              104           49           33           22
+ (Total)                              525          172          222          131
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                    84        11068         8886          351         1831
+ Total                   114        13368        10438          682         2248
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-9ed5dcb @ 2026/02/06 16:31
+6307310 @ 2026/02/10 00:42
 #+end_example
 
 ** TODOs
