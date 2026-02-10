@@ -183,6 +183,43 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 b9b86c8 @ 2026/02/10 22:28
 #+end_example
 
+* Prompts
+We maintain version-controlled prompt docs that describe sessions with language
+models where we plan, generate, and review functionality.
+
+** =TODO=
+#+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
+fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
+  title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
+  st=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
+  date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
+  [[ $st = "DONE" ]] || echo -e "=$st=\t=$date=\t[[file:$file][$title]]" || true
+done
+#+end_src
+
+#+results:
+| Status | Date         | Title                |
+|--------+--------------+----------------------|
+| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]      |
+| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]      |
+| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]] |
+| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]        |
+
+** =DONE=
+#+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
+fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
+  title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
+  st=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
+  date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
+  [[ $st = "DONE" ]] && echo -e "=$st=\t=$date=\t[[file:$file][$title]]" || true
+done
+#+end_src
+
+#+results:
+| Status | Date         | Title           |
+|--------+--------------+-----------------|
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220001-prompt-workflow.org][Prompt Workflow]] |
+
 ** TODOs
 #+begin_src sh :results output verbatim :exports results
 rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort

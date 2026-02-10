@@ -1,6 +1,6 @@
 #+title:    Prompt Workflow
 #+date:     2026-02-10
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal
@@ -80,7 +80,7 @@ The ~.claude/commands/~ directory is Nix-managed (symlinks to store).
 Project-specific slash commands go in ~.claude/skills/~.
 
 * Verification
-- [ ] ~just prompt "Test prompt"~ creates ~.claude/prompts/{timestamp}-test-prompt.org~
-- [ ] ~just execute~ opens fzf selector (outside Claude)
-- [ ] ~/prompt Test prompt~ works inside Claude session
-- [ ] ~/execute~ lists prompts interactively (inside Claude)
+- [X] ~just prompt "Test prompt"~ creates ~.claude/prompts/{timestamp}-test-prompt.org~
+- [X] ~just execute~ opens fzf selector (outside Claude)
+- [X] ~/prompt Test prompt~ works inside Claude session
+- [X] ~/execute~ lists prompts interactively (inside Claude)
