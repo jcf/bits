@@ -136,28 +136,47 @@ async fn test_behavior() {
 
 ### Docstrings
 
-Don't add redundant docstrings that just describe what's obvious from the name.
+Docstrings should elucidate, not take up space. Omit them when the function name
+already communicates the intent.
+
+**Never include:**
+
+- Parameter lists or option descriptions (use specs)
+- Return value descriptions for obvious returns (use specs)
+- Restatements of the function name in sentence form
+
+**Good reasons for a docstring:**
+
+- Non-obvious algorithm or data format (e.g., "BLAKE3-256 hash, 64 hex chars")
+- Security context that explains why (e.g., "Constant-time to prevent timing attacks")
+- Important caveats or side effects not evident from the name
+- Dependencies or preconditions that aren't obvious
 
 ```clojure
-;; Bad: Redundant docstring
+;; Bad: Restates the function name
+(defn delete-session!
+  "Delete a session by sid."
+  [store sid] ...)
+
+;; Bad: Lists parameters/options (use specs instead)
 (defn redirect
   "Redirect to URL. Options can include :session for session data."
-  [url]
-  ...)
+  [url] ...)
 
-;; Good: No docstring needed - the name says it all
-(defn redirect
-  [url]
-  ...)
+;; Good: No docstring needed - name says it all
+(defn delete-session!
+  [store sid] ...)
 
-;; Good: Docstring adds non-obvious information
+;; Good: Adds non-obvious information
 (defn random-sid
   "160-bit (20 byte) secure random, URL-safe base64 encoded."
-  []
-  ...)
-```
+  [] ...)
 
-If you need to document parameter shapes or return values, use specs.
+;; Good: Security context explains the why
+(defn secure-compare
+  "Constant-time comparison to prevent timing attacks."
+  [a b] ...)
+```
 
 ### Configuration Lives in bits.app
 
