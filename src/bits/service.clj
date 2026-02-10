@@ -50,6 +50,7 @@
   (let [{:keys [actions
                 channels
                 cookie-name
+                cookie-secure
                 csrf-cookie-name
                 csrf-secret
                 refresh-ch
@@ -74,12 +75,13 @@
          [middleware.cookies/wrap-cookies]
          [middleware.session/wrap-session {:cookie-attrs {:http-only true
                                                           :same-site :lax
-                                                          :secure    true}
+                                                          :secure    cookie-secure}
                                            :cookie-name  cookie-name
                                            :store        session-store}]
          [mw/wrap-ensure-session]
-         [mw/wrap-csrf {:cookie-name csrf-cookie-name
-                        :secret      csrf-secret}]
+         [mw/wrap-csrf {:cookie-name   csrf-cookie-name
+                        :cookie-secure cookie-secure
+                        :secret        csrf-secret}]
          [mw/wrap-user]
          [mw/wrap-secure-headers]]]
     (ring/ring-handler
@@ -97,6 +99,7 @@
 (defrecord Service [actions
                     channels
                     cookie-name
+                    cookie-secure
                     csrf-cookie-name
                     csrf-secret
                     datahike

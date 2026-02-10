@@ -135,7 +135,7 @@
                             (.getBytes ^String actual "UTF-8"))))
 
 (defn wrap-csrf
-  [handler {:keys [cookie-name secret]}]
+  [handler {:keys [cookie-name cookie-secure secret]}]
   (fn [request]
     (let [sid            (get-in request [:session :sid])
           token          (crypto/csrf-token secret sid)
@@ -155,6 +155,6 @@
                                             :http-only false
                                             :path      "/"
                                             :same-site :lax
-                                            :secure    true}))
+                                            :secure    cookie-secure}))
         {:status 403
          :body   "Invalid CSRF token"}))))

@@ -60,6 +60,7 @@
      :reaper        {:interval-hours 1}
      :service       {:actions          next/actions
                      :cookie-name      "__Host-bits"
+                     :cookie-secure    true
                      :csrf-cookie-name "__Host-bits-csrf"
                      :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
                      :http-host        "0.0.0.0"
