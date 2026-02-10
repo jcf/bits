@@ -164,7 +164,7 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Just                      1          327          208           61           58
  MDX                       1           56            0           39           17
  Nix                       2          410          338           13           59
- Org                      10         1632         1475            4          153
+ Org                      10         1669         1507            4          158
  SQL                       4           35           29            0            6
  TOML                      1           46           41            0            5
  TypeScript                3           36           30            1            5
@@ -177,10 +177,10 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  |- Rust                   1           68           49           10            9
  (Total)                              578          187          242          149
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   115        13675        10627          733         2315
+ Total                   115        13712        10659          733         2320
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-b9b86c8 @ 2026/02/10 22:28
+d24e910 @ 2026/02/10 22:34
 #+end_example
 
 * Prompts
@@ -227,5 +227,10 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 
 #+results:
 : src/bits/assets.clj:;; TODO Make content-type explicit or more intelligent.
-: src/bits/service.clj:                    ;; TODO Bring back sessions
-: src/bits/session.clj:;; TODO Improve these names.
+: src/bits/auth.clj:;; TODO: I18n - user-facing strings need locale-aware source
+: src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
+: src/bits/datahike.clj:;; TODO Remove this generated garbage.
+: src/bits/domain.clj:;; TODO Combine with bits.schema.
+: src/bits/service.clj:                     ;; TODO Improve 404 response
+: src/bits/ui.clj:  ;; TODO: I18n - error presentation
+: src/bits/ui.clj:;; TODO: I18n - user-facing strings need locale-aware source
