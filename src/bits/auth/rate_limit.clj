@@ -25,7 +25,6 @@
 ;;; Recording
 
 (defn record-attempt!
-  "Record an authentication attempt."
   [connectable params]
   (let [{:keys [email ip-address success]} params]
     (span/with-span! {:name ::record-attempt!}

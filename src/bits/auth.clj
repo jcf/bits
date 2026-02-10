@@ -107,7 +107,6 @@
                 (morph/respond (login-view request {:error "Invalid email or password."}))))))))))
 
 (defn sign-out
-  "Sign out action. Clears user from session."
   [request]
   (span/with-span! {:name ::sign-out}
     (let [session-store (mw/request->session-store request)

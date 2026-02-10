@@ -51,19 +51,16 @@
   (sse-event "morph" (content-hash html-str) html-str))
 
 (defn title-event
-  "Update document.title."
   [title]
   {:pre [(string? title)]}
   (sse-event "title" (content-hash title) title))
 
 (defn redirect-event
-  "Navigate to URL."
   [url]
   {:pre [(string? url)]}
   (sse-event "redirect" (content-hash url) url))
 
 (defn reload-event
-  "Force full page reload."
   []
   (sse-event "reload" (content-hash "reload") ""))
 
@@ -268,7 +265,6 @@
 ;;; Middleware
 
 (defn wrap-refresh
-  "Injects refresh channels into request for handlers."
   [handler refresh-ch refresh-mult]
   (fn [request]
     (handler (assoc request
@@ -276,7 +272,6 @@
                     ::refresh-mult refresh-mult))))
 
 (defn wrap-channels
-  "Injects channels atom into request."
   [handler channels]
   (fn [request]
     (handler (assoc request ::channels channels))))

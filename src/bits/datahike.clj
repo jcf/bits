@@ -14,8 +14,7 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Store config
 
-(defn- jdbc-url->store
-  "Convert a JDBC URL to a Datahike store config."
+(defn jdbc-url->store
   ([jdbc-url]
    (jdbc-url->store jdbc-url {}))
   ([jdbc-url options]
@@ -41,10 +40,9 @@
       :table    table})))
 
 (defn memory-store
-  "Create an in-memory store config for development/testing."
   []
-  {:backend :memory
-   :id      (random-uuid)})
+  {:backend :mem
+   :id      (str (random-uuid))})
 
 ;;; ----------------------------------------------------------------------------
 ;;; Schema
@@ -76,12 +74,11 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Component
 
-(defrecord Database [database-url conn]
+(defrecord Database [conn store]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-database}
-      (let [store (jdbc-url->store database-url)
-            conn  (connect store)]
+      (let [conn  (connect store)]
         (ensure-schema! conn)
         (assoc this :conn conn))))
   (stop [this]
@@ -89,14 +86,14 @@
       (some-> conn disconnect)
       (assoc this :conn nil))))
 
+(defmethod print-method Database
+  [_ ^java.io.Writer w]
+  (.write w "#<datahike.Database>"))
+
 (defn make-database
   [config]
   {:pre [(s/valid? ::config config)]}
   (map->Database config))
-
-(defmethod print-method Database
-  [_ ^java.io.Writer w]
-  (.write w "#<datahike.Database>"))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Query helpers

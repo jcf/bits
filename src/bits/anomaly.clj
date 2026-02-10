@@ -31,12 +31,10 @@
 ;;; Predicates
 
 (defn anomaly?
-  "Returns true if x is an anomaly."
   [x]
   (and (map? x) (contains? x ::category)))
 
 (defn retryable?
-  "Returns true if the anomaly suggests retry may succeed."
   [x]
   (contains? #{::busy ::unavailable ::interrupted} (::category x)))
 

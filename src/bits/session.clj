@@ -104,7 +104,6 @@
                               :where  [:= :sid sid]}))))
 
 (defn delete-session!
-  "Delete a session by sid."
   [store sid]
   (span/with-span! {:name ::delete-session!}
     (postgres/execute! (:postgres store)

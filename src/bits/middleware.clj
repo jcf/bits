@@ -13,7 +13,6 @@
 ;;; State injection
 
 (defn wrap-state
-  "Injects service state into request for handlers."
   [handler service]
   (fn [request]
     (handler (assoc request ::state service))))
