@@ -1,7 +1,7 @@
-(ns bits.next.reaper
+(ns bits.reaper
   (:require
    [bits.auth.rate-limit :as rate-limit]
-   [bits.next.session :as session]
+   [bits.session :as session]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
    [steffan-westcott.clj-otel.api.trace.span :as span])

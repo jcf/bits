@@ -1,4 +1,4 @@
-(ns bits.next.session
+(ns bits.session
   (:require
    [bits.crypto :as crypto]
    [bits.postgres :as postgres]

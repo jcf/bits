@@ -4,8 +4,8 @@
    [bits.cryptex :as cryptex]
    [bits.crypto :as crypto]
    [bits.datahike :as datahike]
-   [bits.next.reaper :as reaper]
    [bits.postgres :as postgres]
+   [bits.reaper :as reaper]
    [com.stuartsierra.component.repl :refer [system]]
    [datahike.core]))
 
