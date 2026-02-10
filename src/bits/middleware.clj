@@ -42,6 +42,10 @@
   [request]
   (get-state request :randomizer))
 
+(defn request->session-store
+  [request]
+  (get-state request :session-store))
+
 (defn request->state
   [request]
   (::state request))

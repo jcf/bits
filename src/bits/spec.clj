@@ -92,10 +92,15 @@
 ;;; Crypto
 
 (s/def :bits.crypto/argon map?)
-(s/def :bits.crypto/idle-timeout-days pos-int?)
 (s/def :bits.crypto/config
-  (s/keys :req-un [:bits.crypto/argon
-                   :bits.crypto/idle-timeout-days]))
+  (s/keys :req-un [:bits.crypto/argon]))
+
+;;; ----------------------------------------------------------------------------
+;;; Session
+
+(s/def :bits.session/idle-timeout-days pos-int?)
+(s/def :bits.session/config
+  (s/keys :req-un [:bits.session/idle-timeout-days]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Postgres
