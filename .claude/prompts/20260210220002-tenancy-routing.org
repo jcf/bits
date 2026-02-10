@@ -1,0 +1,56 @@
+#+title:    Tenancy Routing
+#+date:     2026-02-10
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Resolve the current creator from the request Host header and inject into the
+request map as ~:session/creator~.
+
+* Design
+** Domain model
+- ~:session/creator~ — Creator data from subdomain resolution
+- Creator entity holds both ~:creator/*~ and ~:tenant/*~ attributes
+- No separate "realm" abstraction needed
+
+** Flow
+1. Middleware extracts Host header
+2. Parse subdomain: ~jcf.bits.page.test~ → ~jcf~
+3. Query Datahike for creator by handle
+4. Inject result into request as ~:session/creator~
+5. Downstream handlers use ~(:session/creator request)~
+
+* Files
+** src/bits/tenant.clj (new)
+- ~parse-subdomain~ — Extract handle from host string
+- ~find-creator-by-handle~ — Query (pure data) + I/O wrapper
+- ~wrap-creator~ — Middleware
+
+** Query pattern
+#+begin_src clojure
+;; Pure query data
+(def creator-by-handle-query
+  '[:find (pull ?c [:creator/handle :creator/display-name :creator/bio
+                    :creator/avatar-url :creator/banner-url
+                    {:creator/links [:link/label :link/url :link/icon]}
+                    :tenant/id :tenant/purpose]) .
+    :in $ ?handle
+    :where [?c :creator/handle ?handle]])
+
+;; I/O function
+(defn find-creator-by-handle [db handle]
+  (d/q creator-by-handle-query db handle))
+#+end_src
+
+** src/bits/app.clj
+Wire ~wrap-creator~ into middleware stack, after ~wrap-datahike~.
+
+** test/bits/tenant_test.clj
+- Test ~parse-subdomain~ with various host formats
+- Test ~find-creator-by-handle~ returns expected data
+
+* Verification
+- [ ] Request to ~jcf.bits.page.test~ has ~:session/creator~ with creator data
+- [ ] Request to unknown subdomain returns nil (for 404 handling)
+- [ ] Unit tests pass
+- [ ] Simple page showing creator handle works at ~/~
