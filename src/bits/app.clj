@@ -50,7 +50,7 @@
                                   "public/JetBrainsMono-Bold.woff2"
                                   "public/JetBrainsMono-Regular.woff2"
                                   "public/app.css"}}
-     :datahike      {:database-url database-url}
+     :datahike      {:store (datahike/jdbc-url->store database-url)}
      :keymaster     {:argon {:alg         :argon2id
                              :iterations  3
                              :memory      (* 64 1024)

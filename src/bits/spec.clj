@@ -2,6 +2,7 @@
   (:require
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
+   [datahike-jdbc.core]
    [ring.core.spec]))
 
 ;;; ----------------------------------------------------------------------------
@@ -64,29 +65,22 @@
 (s/def :bits.datahike/jdbc-url
   (s/and string? #(str/starts-with? % "jdbc:")))
 
-(s/def :bits.datahike/backend keyword?)
-(s/def :bits.datahike/id uuid?)
-(s/def :bits.datahike/dbtype string?)
-(s/def :bits.datahike/host string?)
-(s/def :bits.datahike/port pos-int?)
-(s/def :bits.datahike/dbname string?)
-(s/def :bits.datahike/user string?)
-(s/def :bits.datahike/password string?)
-(s/def :bits.datahike/table string?)
+(defmulti store-type :backend)
+(defmethod store-type :mem [_] :datahike.store/mem)
+(defmethod store-type :jdbc [_]
+  (s/keys :req-un [:datahike.store.jdbc/backend
+                   :datahike.store.jdbc/dbtype
+                   :datahike.store.jdbc/host
+                   :datahike.store.jdbc/dbname]
+          :opt-un [:datahike.store.jdbc/port
+                   :datahike.store.jdbc/user
+                   :datahike.store.jdbc/password
+                   :datahike.store.jdbc/table]))
 
-(s/def :bits.datahike/store
-  (s/keys :req-un [:bits.datahike/backend]
-          :opt-un [:bits.datahike/id
-                   :bits.datahike/dbtype
-                   :bits.datahike/host
-                   :bits.datahike/port
-                   :bits.datahike/dbname
-                   :bits.datahike/user
-                   :bits.datahike/password
-                   :bits.datahike/table]))
+(s/def :bits.datahike/store (s/multi-spec store-type :backend))
 
 (s/def :bits.datahike/config
-  (s/keys :req-un [:bits.datahike/database-url]))
+  (s/keys :req-un [:bits.datahike/store]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Crypto

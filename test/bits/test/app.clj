@@ -49,12 +49,12 @@
         {:keys [ephemeral-url
                 template-name]} (test.postgres/ephemerize database-url)
         config                  (-> config
+                                    (assoc-in [:datahike :store] (datahike/memory-store))
+                                    (assoc-in [:postgres :database-url] ephemeral-url)
                                     (assoc-in [:service :cookie-name] "bits")
                                     (assoc-in [:service :cookie-secure] false)
                                     (assoc-in [:service :csrf-cookie-name] "bits-csrf")
-                                    (assoc-in [:service :http-port] 0)
-                                    (assoc-in [:postgres :database-url] ephemeral-url)
-                                    (assoc-in [:datahike :database-url] ephemeral-url))
+                                    (assoc-in [:service :http-port] 0))
         ephemeron               (test.postgres/make-ephemeron {:database-url  ephemeral-url
                                                                :template-name template-name})
         deps                    (-> app/dependencies
