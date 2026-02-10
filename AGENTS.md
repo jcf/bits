@@ -542,3 +542,37 @@ Keep I/O in the REPL comment block, not in functions.
 ```
 
 **Never pass the system map to a function.** Keep I/O at the call site.
+
+## Org-mode
+
+### Whitespace
+
+Minimal spacing. No blank line after heading before content. Blank line between
+sibling sections only when needed for visual separation.
+
+```org
+* Heading
+** Subheading
+Some text here.
+
+** Another heading
+Some more text.
+
+* Next section
+Foobar.
+```
+
+Not:
+
+```org
+* Heading
+
+** Subheading
+
+Some text here.
+
+
+** Another heading
+
+Some more text.
+```
