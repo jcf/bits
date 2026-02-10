@@ -127,6 +127,8 @@ Available recipes:
 
     [docs]
     decide +title                      # Create a new decision record
+    execute *args                      # Execute a prompt in a new Claude Code session
+    prompt +title                      # Create a new prompt
 
     [iac]
     apply dir                          # Apply one or all Terraform projects
