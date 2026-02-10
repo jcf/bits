@@ -36,7 +36,7 @@ Commit 2: <message>
 
 - Summary line: imperative mood, capitalised, no trailing period, ~50 chars
 - Blank line, then optional body wrapped at 72 chars
-- Body explains *why*, not *how* — only include when it adds value
+- Body explains _why_, not _how_ — only include when it adds value
 - No Co-Authored-By trailers
 
 Match recent style:

@@ -20,6 +20,7 @@ using Edit or Write tools. These are "our changes."
 !`git diff --stat`
 
 Only consider files that:
+
 - You edited during this session (from step 1)
 - Actually have uncommitted changes (from git status)
 
@@ -48,7 +49,7 @@ Present the plan and ask: "Ready to create these commits?"
 
 - Summary line: imperative mood, capitalised, no trailing period, ~50 chars
 - Blank line, then optional body wrapped at 72 chars
-- Body explains *why*, not *how* — only include when it adds value
+- Body explains _why_, not _how_ — only include when it adds value
 - No Co-Authored-By trailers
 
 Match style of recent commits:
