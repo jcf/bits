@@ -28,6 +28,133 @@ decide +title:
     EOF
     echo "🎯 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
 
+# Create a new prompt
+[group('docs')]
+prompt +title:
+    #!/usr/bin/env zsh
+    timestamp=$(date +%Y%m%d%H%M%S)
+    normalized=$(echo "{{ title }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g' | sed 's/^-\|-$//g')
+    filename=".claude/prompts/${timestamp}-${normalized}.org"
+    mkdir -p .claude/prompts
+    cat > "$filename" <<EOF
+    #+title:    {{ title }}
+    #+date:     $(date +%Y-%m-%d)
+    #+status:   todo
+    #+property: header-args :dir ../..
+    EOF
+    echo "💭 {{ BOLD }}Created \"$filename\"{{ NORMAL }}."
+
+# Execute a prompt in a new Claude Code session
+[group('docs')]
+execute *args:
+    #!/usr/bin/env zsh
+    setopt NULL_GLOB
+    set -e
+
+    # Check for --all flag and extract query
+    show_all=false
+    query_args="{{ args }}"
+
+    if [[ "$query_args" == *"--all"* ]]; then
+        show_all=true
+        query_args="${query_args//--all/}"
+        # Clean up extra whitespace
+        query_args="${query_args## }"
+        query_args="${query_args%% }"
+    fi
+
+    get_status_indicator() {
+        local prompt_status="$1"
+        case "$prompt_status" in
+            done) echo "[✓]" ;;
+            doing) echo "[~]" ;;
+            todo) echo "[ ]" ;;
+            *) echo "[ ]" ;;
+        esac
+    }
+
+    prompt_list=""
+    for file in .claude/prompts/*.org(N); do
+        [[ ! -f "$file" ]] && continue
+
+        basename=$(basename "$file" .org)
+        title=$(grep '^#+title:' "$file" | sed 's/#+title: *//' | xargs)
+        prompt_status=$(grep '^#+status:' "$file" | sed 's/#+status: *//' | xargs)
+        [[ -z "$prompt_status" ]] && prompt_status="todo"
+
+        # Skip completed prompts unless --all is passed
+        [[ "$prompt_status" == "done" && "$show_all" == "false" ]] && continue
+
+        # Extract date from filename (YYYYMMDDHHMMSS format)
+        timestamp="${basename:0:14}"
+        year="${timestamp:0:4}"
+        month="${timestamp:4:2}"
+        day="${timestamp:6:2}"
+        hour="${timestamp:8:2}"
+        min="${timestamp:10:2}"
+        sec="${timestamp:12:2}"
+        date_formatted="${year}/${month}/${day} ${hour}:${min}:${sec}"
+
+        indicator=$(get_status_indicator "$prompt_status")
+        prompt_list+="${indicator}  ${date_formatted}  ${title}  ${basename}\n"
+    done
+
+    if [[ -z "$prompt_list" ]]; then
+        echo >&2 "No prompts found in .claude/prompts/"
+        exit 1
+    fi
+
+    # Build fzf arguments array
+    fzf_args=(
+        --height=40%
+        --reverse
+        --with-nth=1,2,3
+        --delimiter='  '
+        --prompt="Select prompt: "
+        --preview='cat .claude/prompts/{-1}.org'
+        --preview-window=right:60%:wrap
+    )
+
+    # Add query if provided
+    if [[ -n "$query_args" ]]; then
+        fzf_args+=(--query="$query_args")
+    fi
+
+    selected=$(printf "%b" "$prompt_list" | fzf "${fzf_args[@]}")
+
+    prompt_slug=$(echo "$selected" | awk -F'  ' '{print $NF}')
+    prompt_file=".claude/prompts/${prompt_slug}.org"
+    title=$(grep '^#+title:' "$prompt_file" | sed 's/#+title: *//')
+
+    echo >&2 "{{ BOLD }}Executing {{ YELLOW }}\"${title}\"...{{ NORMAL }}"
+
+    message="
+    # $title
+
+    Please read the prompt document at '$prompt_file', review the plan, and
+    formulate a suitable plan to execute.
+
+    ## Process
+
+    1. Read the prompt - Understand goals and success criteria
+    2. Consider improvements - Better approaches? Edge cases?
+    3. Derisk assumptions - What could go wrong?
+    4. Formulate a plan - Concrete steps with checkpoints
+    5. Present the plan - Show your approach before executing
+    6. Execute - Implement changes systematically
+    7. Verify - Run tests to confirm success
+
+    ## Important
+
+    - Follow all guidelines in CLAUDE.md
+    - Run tests after changes
+    - Keep commits focused
+    - Update the prompt doc with important changes and on-going status
+
+    Ready to begin?"
+
+    exec claude "$message"
+
 # ------------------------------------------------------------------------------
 # Development
 
