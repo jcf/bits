@@ -58,6 +58,47 @@
     :db/cardinality :db.cardinality/one}])
 
 ;;; ----------------------------------------------------------------------------
+;;; Creator
+
+(def creator-schema
+  [{:db/ident       :creator/handle
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/unique      :db.unique/identity}
+
+   {:db/ident       :creator/display-name
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :creator/bio
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :creator/avatar-url
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :creator/banner-url
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :creator/links
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/many}
+
+   {:db/ident       :link/label
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :link/url
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :link/icon
+    :db/valueType   :db.type/keyword
+    :db/cardinality :db.cardinality/one}])
+
+;;; ----------------------------------------------------------------------------
 ;;; Membership
 
 (def membership-schema
@@ -85,4 +126,5 @@
   (vec (concat user-schema
                tenant-schema
                domain-schema
+               creator-schema
                membership-schema)))
