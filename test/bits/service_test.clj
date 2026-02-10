@@ -105,7 +105,7 @@
 (deftest session-persists-across-requests
   (t/with-system [{:keys [service]} (t/system)]
     (let [client (t/http-client {:cookie-handler (t/cookie-manager)})
-          first  (t/request service {:http-client client :request-method :get :url "/"})
+          _first (t/request service {:http-client client :request-method :get :url "/"})
           second (t/request service {:http-client client :request-method :get :url "/"})]
       (is (nil? (get-in second [:headers "set-cookie"]))))))
 
