@@ -9,33 +9,17 @@
     :db/cardinality :db.cardinality/one
     :db/unique      :db.unique/identity}
 
+   {:db/ident       :user/email
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/unique      :db.unique/identity}
+
    {:db/ident       :user/password-hash
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one}
 
    {:db/ident       :user/created-at
     :db/valueType   :db.type/instant
-    :db/cardinality :db.cardinality/one}])
-
-;;; ----------------------------------------------------------------------------
-;;; Email
-
-(def email-schema
-  [{:db/ident       :email/address
-    :db/valueType   :db.type/string
-    :db/cardinality :db.cardinality/one
-    :db/unique      :db.unique/identity}
-
-   {:db/ident       :email/user
-    :db/valueType   :db.type/ref
-    :db/cardinality :db.cardinality/one}
-
-   {:db/ident       :email/verified-at
-    :db/valueType   :db.type/instant
-    :db/cardinality :db.cardinality/one}
-
-   {:db/ident       :email/preferred?
-    :db/valueType   :db.type/boolean
     :db/cardinality :db.cardinality/one}])
 
 ;;; ----------------------------------------------------------------------------
@@ -99,7 +83,6 @@
 
 (def schema
   (vec (concat user-schema
-               email-schema
                tenant-schema
                domain-schema
                membership-schema)))

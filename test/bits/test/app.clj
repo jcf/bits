@@ -9,7 +9,6 @@
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
-   [datahike.core]
    [hato.client :as http])
   (:import
    (java.net CookieManager CookiePolicy)))
@@ -127,14 +126,10 @@
 
 (defn- user-txes
   [email password-hash]
-  (let [tempid (datahike.core/tempid :db.part/ignored)]
-    [{:db/id              tempid
-      :user/id            (random-uuid)
-      :user/password-hash password-hash
-      :user/created-at    (java.util.Date.)}
-     {:email/address    email
-      :email/user       tempid
-      :email/preferred? true}]))
+  [{:user/id            (random-uuid)
+    :user/email         email
+    :user/password-hash password-hash
+    :user/created-at    (java.util.Date.)}])
 
 (defn- hash-password
   [keymaster password]

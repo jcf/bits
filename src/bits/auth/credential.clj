@@ -4,5 +4,4 @@
   '[:find (pull ?u [:user/id :user/password-hash]) .
     :in $ ?email
     :where
-    [?e :email/address ?email]
-    [?e :email/user ?u]])
+    [?u :user/email ?email]])

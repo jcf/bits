@@ -6,19 +6,14 @@
    [bits.datahike :as datahike]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
-   [com.stuartsierra.component.repl :refer [system]]
-   [datahike.core]))
+   [com.stuartsierra.component.repl :refer [system]]))
 
 (defn- user-txes
   [email password-hash]
-  (let [tempid (datahike.core/tempid :db.part/ignored)]
-    [{:db/id              tempid
-      :user/id            (random-uuid)
-      :user/password-hash password-hash
-      :user/created-at    (java.util.Date.)}
-     {:email/address    email
-      :email/user       tempid
-      :email/preferred? true}]))
+  [{:user/id            (random-uuid)
+    :user/email         email
+    :user/password-hash password-hash
+    :user/created-at    (java.util.Date.)}])
 
 (comment
   (let [keymaster (:keymaster system)
