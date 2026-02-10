@@ -51,11 +51,10 @@
                                   "public/JetBrainsMono-Regular.woff2"
                                   "public/app.css"}}
      :datahike      {:database-url database-url}
-     :keymaster     {:argon             {:alg         :argon2id
-                                         :iterations  3
-                                         :memory      (* 64 1024)
-                                         :parallelism 1}
-                     :idle-timeout-days 30}
+     :keymaster     {:argon {:alg         :argon2id
+                             :iterations  3
+                             :memory      (* 64 1024)
+                             :parallelism 1}}
      :postgres      {:database-url database-url}
      :reaper        {:interval-hours 1}
      :service       {:actions          next/actions
@@ -88,7 +87,7 @@
 
 (def dependencies
   {:postgres      [:migrator :randomizer]
-   :reaper        [:postgres]
+   :reaper        [:postgres :session-store]
    :service       [:bootstrapper
                    :buster
                    :datahike
@@ -96,7 +95,7 @@
                    :postgres
                    :randomizer
                    :session-store]
-   :session-store [:postgres]})
+   :session-store [:postgres :randomizer]})
 
 (defn system
   ([]

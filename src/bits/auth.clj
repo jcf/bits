@@ -96,13 +96,12 @@
                                               :ip-address ip-address
                                               :success    password-ok?})
               (if password-ok?
-                (let [old-sid    (get-in request [:session :sid])
-                      timeout    (:idle-timeout-days keymaster)
-                      new-sid    (session/rotate-session! postgres old-sid (:user/id user) timeout)
-                      randomizer (mw/request->randomizer request)]
+                (let [session-store (mw/request->session-store request)
+                      old-sid       (get-in request [:session :sid])
+                      new-sid       (session/rotate-session! session-store old-sid (:user/id user))]
                   (log/debug :msg     "Redirecting user..."
                              :user/id (:user/id user))
-                  (morph/redirect "/" {:session (assoc (session/new-session randomizer)
+                  (morph/redirect "/" {:session (assoc (session/new-session session-store)
                                                        :sid     new-sid
                                                        :user/id (:user/id user))}))
                 (morph/respond (login-view request {:error "Invalid email or password."}))))))))))
@@ -111,11 +110,8 @@
   "Sign out action. Clears user from session."
   [request]
   (span/with-span! {:name ::sign-out}
-    (let [postgres   (mw/request->postgres request)
-          randomizer (mw/request->randomizer request)
-          keymaster  (mw/request->keymaster request)
-          sid        (get-in request [:session :sid])
-          timeout    (:idle-timeout-days keymaster)]
+    (let [session-store (mw/request->session-store request)
+          sid           (get-in request [:session :sid])]
       (when sid
-        (session/clear-user! postgres sid timeout))
-      (morph/redirect "/" {:session (session/new-session randomizer)}))))
+        (session/clear-user! session-store sid))
+      (morph/redirect "/" {:session (session/new-session session-store)}))))

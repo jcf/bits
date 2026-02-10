@@ -10,10 +10,10 @@
 
 (defn purge-sessions!
   [reaper]
-  (let [{:keys [postgres]} reaper]
+  (let [{:keys [postgres session-store]} reaper]
     (span/with-span! {:name ::reap}
       (try
-        (let [sessions-deleted (session/delete-expired-sessions! postgres)
+        (let [sessions-deleted (session/delete-expired-sessions! session-store)
               attempts-deleted (rate-limit/delete-old-attempts! postgres)]
           (span/add-span-data! {:attributes {:sessions-deleted sessions-deleted
                                              :attempts-deleted attempts-deleted}})
@@ -25,7 +25,8 @@
 
 (defrecord Reaper [^ScheduledExecutorService executor
                    interval-hours
-                   postgres]
+                   postgres
+                   session-store]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-reaper}
