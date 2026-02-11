@@ -9,7 +9,9 @@
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
-   [hato.client :as http])
+   [hato.client :as http]
+   [java-time.api :as time]
+   [ring.util.response :as response])
   (:import
    (java.net CookieManager CookiePolicy)))
 
@@ -87,13 +89,17 @@
 
 (defn service-url
   [service path]
-  (let [port (service-port service)
-        ;; http-kit always binds to the configured host, defaulting to "0.0.0.0"
-        ;; For test URLs, always use localhost
-        host "localhost"]
-    (str "http://" host
+  (let [port (service-port service)]
+    (str "http://localhost"
          (when port (str ":" port))
          (str/replace-first path #"^/?" "/"))))
+
+;;; ----------------------------------------------------------------------------
+;;; Hosts
+
+(defn host
+  [request host]
+  (response/header request "host" host))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Request
@@ -129,7 +135,7 @@
   [{:user/id            (random-uuid)
     :user/email         email
     :user/password-hash password-hash
-    :user/created-at    (java.util.Date.)}])
+    :user/created-at    (time/java-date)}])
 
 (defn- hash-password
   [keymaster password]

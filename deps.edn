@@ -38,6 +38,7 @@
   org.tcrawley/conformity                  {:mvn/version "0.6.0"}
   ring/ring-core                           {:mvn/version "2.0.0-alpha1"}
   ring/ring-headers                        {:mvn/version "0.4.0"}
+  ring/ring-mock                           {:mvn/version "0.6.2"}
   ring/ring-spec                           {:mvn/version "0.0.4"}}
 
  ;; lacinia-pedestal depends on proxy-plus from Red Planet Labs, which in turn
@@ -83,7 +84,10 @@
     refactor-nrepl/refactor-nrepl {:mvn/version "3.11.0"}}}
 
   :test
-  {:extra-paths ["test" "test-resources"]
+  {;; We need to send requests with custom `Host` headers to test realms, and by
+   ;; default the JDK does not allow one to set this header.
+   :jvm-opts    ["-Djdk.httpclient.allowRestrictedHeaders=host"]
+   :extra-paths ["test" "test-resources"]
    :extra-deps
    {etaoin/etaoin              {:mvn/version "1.1.43"}
     invetica/spec              {:mvn/version "0.5.0"}

@@ -1,6 +1,8 @@
 (ns bits.service-test
   (:require
+   [bits.datahike :as datahike]
    [bits.test.app :as t]
+   [bits.test.fixture :as fixture]
    [clojure.string :as str]
    [clojure.test :refer [deftest is]]
    [matcher-combinators.test]))
@@ -33,6 +35,7 @@
 (deftest secure-headers
   (let [source (constantly (.getBytes "abc"))]
     (t/with-system [{:keys [service]} (t/replace-random-bytes (t/system) source)]
+      (datahike/transact! (:datahike service) (fixture/realm-txes))
       (let [request {:request-method :get
                      :url            "/"}]
         (is (match?
@@ -52,12 +55,14 @@
 
 (deftest unknown-route-returns-404
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (is (match?
          {:status 404}
          (t/request service {:request-method :get :url "/nonexistent"})))))
 
 (deftest invalid-action-returns-400
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (let [client   (t/http-client {:cookie-handler (t/cookie-manager)})
           home     (t/request service {:http-client client :request-method :get :url "/"})
           token    (extract-csrf-token home)
@@ -73,6 +78,7 @@
 
 (deftest csrf
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (let [http-client (t/http-client {:cookie-handler (t/cookie-manager)})
           request     {:http-client    http-client
                        :request-method :get
@@ -104,6 +110,7 @@
 
 (deftest session-persists-across-requests
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (let [client (t/http-client {:cookie-handler (t/cookie-manager)})
           _first (t/request service {:http-client client :request-method :get :url "/"})
           second (t/request service {:http-client client :request-method :get :url "/"})]
@@ -111,6 +118,7 @@
 
 (deftest session-cookie-attributes
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (let [response (t/request service {:request-method :get :url "/"})
           cookie   (get-in response [:headers "set-cookie"])]
       (is (str/includes? cookie "HttpOnly"))
@@ -122,6 +130,7 @@
 
 (deftest sign-out-clears-session
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (let [client   (t/http-client {:cookie-handler (t/cookie-manager)})
           home     (t/request service {:http-client client :request-method :get :url "/"})
           token    (extract-csrf-token home)
@@ -131,3 +140,15 @@
                                        :form-params    {:csrf   token
                                                         :action "auth/sign-out"}})]
       (is (match? {:status 200} response)))))
+
+;;; ----------------------------------------------------------------------------
+;;; Realm
+
+(deftest realm
+  (t/with-system [{:keys [service]} (t/system)]
+    (let [request (t/host {:request-method :get
+                           :url            "/"}
+                          "foo.bits.page.test")]
+      (is (match?
+           {:status 404}
+           (t/request service request))))))

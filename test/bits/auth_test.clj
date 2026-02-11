@@ -1,12 +1,15 @@
 (ns ^:e2e bits.auth-test
   (:require
    [bits.auth]
+   [bits.datahike :as datahike]
    [bits.test.app :as t]
    [bits.test.browser :as browser]
+   [bits.test.fixture :as fixture]
    [clojure.test :refer [deftest is]]))
 
 (deftest login
   (t/with-system [{:keys [service]} (t/system)]
+    (datahike/transact! (:datahike service) (fixture/realm-txes))
     (let [email    "bits@example.com"
           password "password"]
       (t/create-user! service email password)
