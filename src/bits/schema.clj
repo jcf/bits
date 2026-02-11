@@ -38,7 +38,11 @@
 
    {:db/ident       :tenant/created-at
     :db/valueType   :db.type/instant
-    :db/cardinality :db.cardinality/one}])
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :tenant/domains
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/many}])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Domain
@@ -47,15 +51,7 @@
   [{:db/ident       :domain/name
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db/unique      :db.unique/identity}
-
-   {:db/ident       :domain/tenant
-    :db/valueType   :db.type/ref
-    :db/cardinality :db.cardinality/one}
-
-   {:db/ident       :domain/added-by
-    :db/valueType   :db.type/ref
-    :db/cardinality :db.cardinality/one}])
+    :db/unique      :db.unique/identity}])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Creator
