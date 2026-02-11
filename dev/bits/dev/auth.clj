@@ -6,14 +6,15 @@
    [bits.datahike :as datahike]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
-   [com.stuartsierra.component.repl :refer [system]]))
+   [com.stuartsierra.component.repl :refer [system]]
+   [java-time.api :as time]))
 
 (defn- user-txes
   [email password-hash]
   [{:user/id            (random-uuid)
     :user/email         email
     :user/password-hash password-hash
-    :user/created-at    (java.util.Date.)}])
+    :user/created-at    (time/java-date)}])
 
 (comment
   (let [keymaster (:keymaster system)
