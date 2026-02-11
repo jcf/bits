@@ -548,6 +548,33 @@ key with a sentence-style message.
 Use three literal period characters (`. . .`), not a horizontal ellipsis (`…`).
 Use `?!` (question mark then exclamation), not a literal interrobang (`‽`).
 
+### Transaction Function Naming
+
+Functions that return transaction data use suffix conventions:
+
+- **`-tx`** — Returns a single transaction map
+- **`-txes`** — Returns a vector of transaction maps (plural)
+
+```clojure
+;; -tx: Returns one map
+(defn domain-tx
+  [name]
+  {:domain/name name})
+
+;; -txes: Returns a vector of maps
+(defn realm-txes
+  []
+  [{:db/id        "tenant"
+    :tenant/id    (random-uuid)
+    :tenant/domains ["domain"]}
+   {:db/id       "domain"
+    :domain/name "bits.page.test"}])
+
+;; Usage: transact! expects a vector
+(datahike/transact! db [(domain-tx "example.com")])  ; wrap -tx in vector
+(datahike/transact! db (realm-txes))                 ; -txes already a vector
+```
+
 ### Dev Namespace Conventions
 
 Functions in `dev/` namespaces that are internal helpers should be private (`defn-`).
