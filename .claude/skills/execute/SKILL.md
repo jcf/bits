@@ -32,6 +32,7 @@ Skip prompts with status `done` unless `--all` was specified.
 ### Step 3: Read and Parse
 
 Read the selected prompt file. Note the:
+
 - Title (`#+title:`)
 - Status (`#+status:` - todo, doing, done)
 - Goals and success criteria
@@ -51,6 +52,7 @@ Follow this process:
 ### Step 5: Update Status
 
 As work progresses, update the prompt's `#+status:` field:
+
 - `todo` - Not started
 - `doing` - In progress
 - `done` - Completed
