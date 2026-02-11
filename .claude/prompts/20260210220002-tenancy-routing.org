@@ -1,56 +1,99 @@
 #+title:    Tenancy Routing
 #+date:     2026-02-10
-#+status:   todo
+#+status:   in-progress
 #+property: header-args :dir ../..
 
 * Goal
-Resolve the current creator from the request Host header and inject into the
-request map as ~:session/creator~.
+Resolve the current realm from the request Host header and inject into the
+request map as ~:session/realm~.
 
 * Design
 ** Domain model
-- ~:session/creator~ — Creator data from subdomain resolution
-- Creator entity holds both ~:creator/*~ and ~:tenant/*~ attributes
-- No separate "realm" abstraction needed
+- *Realm*: An entity with attributes from multiple namespaces (~:tenant/*~,
+  ~:creator/*~) representing a tenant's public-facing identity
+- *Domain*: Separate entity for uniqueness constraint, referenced by realm via
+  ~:tenant/domains~
+- ~:session/realm~ — Realm data or anomaly from domain resolution
+
+** Host header handling
+Parse the Host header to extract hostname and optional port:
+- No port → lookup hostname as-is
+- Port 443 + HTTPS → strip port, lookup hostname
+- Port 80 + HTTP → strip port, lookup hostname
+- Non-default port → anomaly (~::anomaly/incorrect~, "unexpected port")
 
 ** Flow
-1. Middleware extracts Host header
-2. Parse subdomain: ~jcf.bits.page.test~ → ~jcf~
-3. Query Datahike for creator by handle
-4. Inject result into request as ~:session/creator~
-5. Downstream handlers use ~(:session/creator request)~
+#+begin_example
+Request
+  │
+  ▼
+wrap-realm
+  ├─ Extract Host header
+  ├─ Parse hostname (validate port if present)
+  ├─ Query: find realm by domain
+  └─ Inject :session/realm (realm map OR anomaly)
+  │
+  ▼
+wrap-require-realm (guard)
+  ├─ Realm? → continue to handler
+  └─ Anomaly? → short-circuit with error page
+      ├─ ::not-found → 404 page
+      └─ ::incorrect → 400 page
+#+end_example
 
-* Files
-** src/bits/tenant.clj (new)
-- ~parse-subdomain~ — Extract handle from host string
-- ~find-creator-by-handle~ — Query (pure data) + I/O wrapper
-- ~wrap-creator~ — Middleware
+** Error pages
+Full HTML pages with layout and bits.js loaded. Not plain text responses.
+Different messages for different anomaly categories.
 
-** Query pattern
+* Schema change
+** Remove from domain-schema
+- ~:domain/tenant~ (ref pointing wrong direction)
+- ~:domain/added-by~ (not needed yet)
+
+** Add to tenant-schema
 #+begin_src clojure
-;; Pure query data
-(def creator-by-handle-query
-  '[:find (pull ?c [:creator/handle :creator/display-name :creator/bio
-                    :creator/avatar-url :creator/banner-url
-                    {:creator/links [:link/label :link/url :link/icon]}
-                    :tenant/id :tenant/purpose]) .
-    :in $ ?handle
-    :where [?c :creator/handle ?handle]])
-
-;; I/O function
-(defn find-creator-by-handle [db handle]
-  (d/q creator-by-handle-query db handle))
+{:db/ident       :tenant/domains
+ :db/valueType   :db.type/ref
+ :db/cardinality :db.cardinality/many}
 #+end_src
 
-** src/bits/app.clj
-Wire ~wrap-creator~ into middleware stack, after ~wrap-datahike~.
+* Files
+** src/bits/schema.clj
+Schema changes as described above. Edit in place, no migration.
 
-** test/bits/tenant_test.clj
-- Test ~parse-subdomain~ with various host formats
-- Test ~find-creator-by-handle~ returns expected data
+** dev/bits/dev/database.clj (new)
+- ~reset!~ — Stop system, delete database, restart
+
+** src/bits/middleware.clj
+- ~parse-host~ — Extract hostname, validate port against scheme
+- ~realm-by-domain-query~ — Pure query data
+- ~find-realm-by-domain~ — Returns realm or anomaly
+- ~wrap-realm~ — Resolve and inject realm
+- ~wrap-require-realm~ — Guard middleware, renders error pages
+
+** src/bits/service.clj
+Wire middleware after ~wrap-datahike~:
+#+begin_src clojure
+[mw/wrap-realm]
+[mw/wrap-require-realm]
+#+end_src
+
+** test/bits/realm_test.clj (new)
+- ~parse-host~ with various formats (no port, default port, weird port)
+- Domain lookup returns realm
+- Unknown domain returns ~::anomaly/not-found~
+- Guard middleware short-circuits on anomaly
 
 * Verification
-- [ ] Request to ~jcf.bits.page.test~ has ~:session/creator~ with creator data
-- [ ] Request to unknown subdomain returns nil (for 404 handling)
+- [ ] Request to ~jcf.bits.page.test~ has ~:session/realm~ with realm data
+- [ ] Request to unknown domain shows 404 page (with layout)
+- [ ] Request with non-default port shows 400 page
 - [ ] Unit tests pass
-- [ ] Simple page showing creator handle works at ~/~
+- [ ] ~just check~ passes
+
+* Parked
+- Fallback realm for self-hosted single-tenant mode (not needed for demo)
+
+* Status
+** DONE Planning complete
+Refined design through discussion. Ready for implementation.
