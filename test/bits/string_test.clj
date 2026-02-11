@@ -24,6 +24,14 @@
     (= suffix (sut/remove-prefix (str prefix suffix) prefix))))
 
 ;;; ----------------------------------------------------------------------------
+;;; remove-prefix
+
+(defspec remove-suffix-removes-exact-suffix 100
+  (prop/for-all [prefix gen-lowercase
+                 suffix gen-lowercase]
+    (= prefix (sut/remove-suffix (str prefix suffix) suffix))))
+
+;;; ----------------------------------------------------------------------------
 ;;; keyword->string
 
 (defspec keyword->string-round-trip 100
