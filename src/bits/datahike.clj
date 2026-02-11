@@ -51,7 +51,7 @@
   [conn]
   (span/with-span! {:name ::ensure-schema!}
     (d/transact conn {:tx-data schema/schema})
-    (log/info :msg "Schema installed")))
+    (log/info :msg "Schema installed.")))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Connection
