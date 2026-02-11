@@ -8,6 +8,7 @@
   },
   "packageManager": "pnpm@10.18.0",
   "devDependencies": {
+    "prettier": "^3.8.1",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwindcss": "catalog:"
