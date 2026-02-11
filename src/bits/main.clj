@@ -12,6 +12,7 @@
   (when (some #{"--warmup"} args)
     (log/info :msg "System initialized. Exiting.")
     (System/exit 0))
-  (let [system (-> (app/system) component/start)]
-    (log/info :msg "Your Bits are ready.")
-    @(promise)))
+
+  (component/start (app/system))
+  (log/info :msg "Your Bits are ready.")
+  @(promise))

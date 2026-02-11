@@ -134,10 +134,6 @@
        (server/as-channel request
                           {:on-open
                            (fn [ch]
-                             (log/debug :msg        "Channel opened"
-                                        :channel-id channel-id
-                                        :sid        sid
-                                        :user/id    user-id)
                              (Thread/startVirtualThread
                               (bound-fn []
                                 (with-open [ba-out (brotli/byte-array-out-stream)
@@ -182,7 +178,6 @@
 
                            :on-close
                            (fn [_ch _status]
-                             (log/trace :msg "Channel closed" :channel-id channel-id :sid sid)
                              (swap! channels dissoc channel-id)
                              (when on-close (on-close channel-id))
                              (a/>!! <cancel :stop)
