@@ -64,9 +64,13 @@
 ;;; ----------------------------------------------------------------------------
 ;;; URLs
 
+(defn parse-url
+  [db-url]
+  (-> db-url (str/replace-first #"^jdbc:" "") uri/uri))
+
 (defn dbname
   [db-url]
-  (subs (:path (uri/uri (str/replace-first db-url #"^jdbc:" ""))) 1))
+  (subs (:path (parse-url db-url)) 1))
 
 (defn replace-dbname
   [db-url db-name]
@@ -75,10 +79,6 @@
            (str/replace-first #"^jdbc:" "")
            uri/uri
            (assoc :path (str/replace-first db-name #"^/?" "/")))))
-
-(defn parse-url
-  [db-url]
-  (-> db-url (str/replace-first #"^jdbc:" "") uri/uri))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Sanitize
