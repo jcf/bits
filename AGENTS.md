@@ -520,6 +520,34 @@ gets one keyword, used everywhere in the codebase.
 - For specs that should be reused
 - For anything you'd want to grep for across the codebase
 
+### Logging
+
+Use `clojure.tools.logging` with structured key-value pairs. Always include a `:msg`
+key with a sentence-style message.
+
+**Punctuation rules:**
+
+- **Work in progress** — End with three periods: `"Applying migrations..."`
+- **Completed/status** — End with full stop: `"Server running."`
+- **Exceptional/unusual** — End with interrobang: `"Unknown action?!"`
+
+```clojure
+;; Good: Work in progress (something is about to happen)
+(log/info :msg "Applying migrations..." :count (count migrations))
+(log/debug :msg "Redirecting user..." :user/id user-id)
+
+;; Good: Status/completion (stating a fact)
+(log/info :msg "Schema installed.")
+(log/info :msg "Your Bits are ready.")
+
+;; Good: Exceptional (something unexpected happened)
+(log/warn :msg "Unable to find resource?!" :path path)
+(log/warn :msg "Migration error?!" :id migration-id)
+```
+
+Use three literal period characters (`. . .`), not a horizontal ellipsis (`…`).
+Use `?!` (question mark then exclamation), not a literal interrobang (`‽`).
+
 ### Dev Namespace Conventions
 
 Functions in `dev/` namespaces that are internal helpers should be private (`defn-`).
