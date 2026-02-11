@@ -11,7 +11,7 @@ Seed data for three demo creators to test the profile pages.
 #+begin_src clojure
 {:tenant/id            (random-uuid)
  :tenant/purpose       :purpose/creator
- :tenant/created-at    (java.util.Date.)
+ :tenant/created-at    (time/java-date)
  :creator/handle       "jcf"
  :creator/display-name "James"
  :creator/bio          "Building Bits — censorship-resistant infrastructure for creator sovereignty. Former CTO. Open source. Self-hostable. If it's consensual, you should be able to monetise it."
@@ -25,7 +25,7 @@ Seed data for three demo creators to test the profile pages.
 #+begin_src clojure
 {:tenant/id            (random-uuid)
  :tenant/purpose       :purpose/creator
- :tenant/created-at    (java.util.Date.)
+ :tenant/created-at    (time/java-date)
  :creator/handle       "jimmy"
  :creator/display-name "Jimmy"
  :creator/bio          "Handcrafted leather goods from the heart of the English countryside. Belts, wallets, bags — each piece tells a story. 30 years of traditional craftsmanship."
@@ -38,7 +38,7 @@ Seed data for three demo creators to test the profile pages.
 #+begin_src clojure
 {:tenant/id            (random-uuid)
  :tenant/purpose       :purpose/creator
- :tenant/created-at    (java.util.Date.)
+ :tenant/created-at    (time/java-date)
  :creator/handle       "charlie"
  :creator/display-name "Charles Montgomery"
  :creator/bio          "Border Collie. Countryside explorer. Treat connoisseur. Special ball enthusiast. Professional sheep starer."
