@@ -82,6 +82,7 @@
          [mw/wrap-csrf {:cookie-name   csrf-cookie-name
                         :cookie-secure cookie-secure
                         :secret        csrf-secret}]
+         [mw/wrap-realm]
          [mw/wrap-user]
          [mw/wrap-secure-headers]]]
     (ring/ring-handler

@@ -1,12 +1,13 @@
 (ns bits.middleware
   (:require
+   [bits.anomaly :as anom]
    [bits.crypto :as crypto]
    [bits.csp :as csp]
    [bits.datahike :as datahike]
+   [bits.request :as request]
    [buddy.core.bytes :as buddy.bytes]
    [clojure.string :as str]
    [datahike.api :as d]
-   [io.pedestal.log :as log]
    [ring.util.response :as response]))
 
 ;;; ----------------------------------------------------------------------------
@@ -81,7 +82,6 @@
           request    (assoc-in request [:session :sid] sid)
           request    (assoc-in request [:session :nonce] nonce)
           response   (handler request)]
-      (log/debug :msg "Ensuring session..." :sid sid :nonce nonce)
       (when response
         (update response :session #(merge session {:sid sid :nonce nonce} %))))))
 
@@ -97,6 +97,35 @@
                          db
                          user-id))]
       (handler (cond-> request (some? user) (assoc :session/user user))))))
+
+;;; ----------------------------------------------------------------------------
+;;; Realm
+
+(def ^:private realm-by-domain-query
+  '[:find (pull ?r [:creator/bio
+                    :creator/display-name
+                    :creator/handle
+                    :tenant/id
+                    :creator/avatar-url
+                    :creator/banner-url
+                    {:creator/links [:link/icon
+                                     :link/label
+                                     :link/url]}]) .
+    :in $ ?domain
+    :where
+    [?d :domain/name ?domain]
+    [?r :tenant/domains ?d]])
+
+(defn wrap-realm
+  [handler]
+  (fn [request]
+    (let [db               (request->db request)
+          domain           (request/domain request)
+          realm            (d/q realm-by-domain-query db domain)
+          realm-or-anomaly (or realm
+                               (anom/not-found {:msg    "No realm with the given domain?!"
+                                                :domain domain}))]
+      (handler (assoc request :session/realm realm-or-anomaly)))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Secure headers
@@ -147,10 +176,6 @@
           safe?          (or (contains? safe-methods (:request-method request))
                              (sse-request? request))
           valid?         (or safe? (csrf-equals? token actual))]
-      (log/debug :msg    "Guarding against CSRF..."
-                 :sid    sid
-                 :safe?  safe?
-                 :tokens [token actual])
       (if valid?
         (cond-> (handler (assoc request ::csrf token))
           (not= token current-cookie)
