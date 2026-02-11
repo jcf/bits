@@ -210,3 +210,19 @@
                      (assoc :type "button")
                      (update :class #(tw/merge-classes icon-button-base %)))]
         children))
+
+;;; ----------------------------------------------------------------------------
+;;; Layout
+
+(defn layout
+  [_request & content]
+  [:html {:class "min-h-screen" :lang "en"}
+   [:head
+    [:meta {:name "viewport" :content "width=device-width"}]
+    [:title "Bits"]
+    [:link {:rel "icon" :href "data:,"}]
+    [:link {:rel "stylesheet" :href "/app.css"}]
+    [:script {:src "/idiomorph@0.7.4.min.js"}]
+    [:script {:src "/bits.js"}]]
+   [:body {:class "min-h-screen bg-white dark:bg-neutral-950"}
+    (into [:main#morph {:class "min-h-screen"}] content)]])

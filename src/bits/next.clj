@@ -1,27 +1,12 @@
 (ns bits.next
   (:require
+   [bits.anomaly :as anom]
    [bits.auth :as auth]
    [bits.html :as html]
    [bits.middleware :as mw]
    [bits.morph :as morph]
    [bits.ui :as ui]
    [clojure.string :as str]))
-
-;;; ----------------------------------------------------------------------------
-;;; Layout
-
-(defn layout
-  [_request & content]
-  [:html {:class "min-h-screen" :lang "en"}
-   [:head
-    [:meta {:name "viewport" :content "width=device-width"}]
-    [:title "Bits"]
-    [:link {:rel "icon" :href "data:,"}]
-    [:link {:rel "stylesheet" :href "/app.css"}]
-    [:script {:src "/idiomorph@0.7.4.min.js"}]
-    [:script {:src "/bits.js"}]]
-   [:body {:class "min-h-screen bg-white dark:bg-neutral-950"}
-    (into [:main#morph {:class "min-h-screen"}] content)]])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Demo: Counter
@@ -183,25 +168,46 @@
                          (update-cursor! channel-id x y))))})
 
 ;;; ----------------------------------------------------------------------------
+;;; Realm
+
+(defn realm-not-found-view
+  [_request]
+  (ui/page-center
+   {}
+   (ui/page-title {} "Realm not found")
+   (ui/text-muted {:class "mt-4"}
+                  "Want your own Bits? We want to hear from you!")))
+
+;;; ----------------------------------------------------------------------------
 ;;; Routes
 
 (defn- login-view-wrapper
   [request]
   (auth/login-view request {}))
 
+(defn morphable
+  ([layout-fn view-fn]
+   (morphable layout-fn view-fn {}))
+  ([layout-fn view-fn options]
+   (let [wrapped (fn [request]
+                   (cond
+                     (anom/anomaly? (:session/realm request))
+                     (realm-not-found-view request)
+                     :else
+                     (view-fn request)))]
+     {:get  (fn realm-aware-page-handler
+              [request]
+              (let [respond (morph/page-handler layout-fn wrapped)]
+                (if (anom/anomaly? (:session/realm request))
+                  {:status  404
+                   :headers {"content-type" "text/html; charset=utf-8"}
+                   :body    (html/html (layout-fn request (realm-not-found-view request)))}
+                  (respond request))))
+      :post (morph/render-handler wrapped options)})))
+
 (def routes
-  [["/"
-    {:get  (morph/page-handler layout counter-view)
-     :post (morph/render-handler counter-view)}]
-   ["/cursors"
-    {:get  (morph/page-handler layout cursors-view)
-     :post (morph/render-handler cursors-view {:on-close remove-cursor!})}]
-   ["/email"
-    {:get  (morph/page-handler layout email-view)
-     :post (morph/render-handler email-view)}]
-   ["/login"
-    {:get  (morph/page-handler layout login-view-wrapper)
-     :post (morph/render-handler login-view-wrapper)}]
-   ["/redirect"
-    {:get  (morph/page-handler layout redirect-view)
-     :post (morph/render-handler redirect-view)}]])
+  [["/"         (morphable ui/layout counter-view)]
+   ["/cursors"  (morphable ui/layout cursors-view {:on-close remove-cursor!})]
+   ["/email"    (morphable ui/layout email-view)]
+   ["/login"    (morphable ui/layout login-view-wrapper)]
+   ["/redirect" (morphable ui/layout redirect-view)]])
