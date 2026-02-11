@@ -20,7 +20,7 @@ Execute a prompt from `.claude/prompts/`.
 
 List available prompts:
 
-!`ls -1 .claude/prompts/*.org 2>/dev/null | while read f; do status=$(grep -m1 '^#+status:' "$f" | sed 's/#+status: *//'); title=$(grep -m1 '^#+title:' "$f" | sed 's/#+title: *//'); basename=$(basename "$f" .org); echo "[$status] $title ($basename)"; done`
+!`ls -1 .claude/prompts/*.org 2>/dev/null | while read f; do st=$(grep -m1 '^#+status:' "$f" | sed 's/#+status: *//'); title=$(grep -m1 '^#+title:' "$f" | sed 's/#+title: *//'); base=$(basename "$f" .org); echo "[$st] $title ($base)"; done`
 
 ### Step 2: Select Prompt
 
