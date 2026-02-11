@@ -47,7 +47,7 @@
                 db-after))))))
 
 (deftest creators
-  (t/with-system [{:keys [keymaster datahike]} (t/system)]
+  (t/with-system [{:keys [datahike]} (t/system)]
     (let [creator-txes
           [{:creator/bio          "Charlie likes treats and special ball."
             :creator/display-name "Charles Montgomery"
