@@ -118,7 +118,7 @@
     (list
      (ui/nav-header request "/cursors")
      [:div {:id               "cursor-container"
-            :class            "relative min-h-screen"
+            :class            "relative flex-1 flex flex-col"
             :data-track-mouse "cursor/move"}
 
       (cursor-styles request cursors)

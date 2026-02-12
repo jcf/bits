@@ -142,7 +142,7 @@
 ;;; Layout
 
 (def ^:private page-center-base
-  ["min-h-screen" "flex" "flex-col" "justify-center" "items-center"])
+  ["flex-1" "flex" "flex-col" "justify-center" "items-center"])
 
 (defn page-center
   [attrs & children]
@@ -224,4 +224,4 @@
       [:script {:src (asset-path "/idiomorph@0.7.4.min.js")}]
       [:script {:src (asset-path "/bits.js")}]]
      [:body {:class "min-h-screen bg-surface text-primary font-sans"}
-      (into [:main#morph {:class "min-h-screen"}] content)]]))
+      (into [:main#morph {:class "min-h-screen flex flex-col"}] content)]]))
