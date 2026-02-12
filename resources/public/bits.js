@@ -137,6 +137,14 @@
     reload: () => {
       window.location.reload();
     },
+    stylesheet: (data) => {
+      const links = document.querySelectorAll('link[rel="stylesheet"]');
+      if (links.length !== 1) {
+        log.warn("Expected exactly one stylesheet. Found:", links);
+        return;
+      }
+      links[0].href = data;
+    },
     "push-url": (data) => {
       history.pushState(null, "", data);
     },

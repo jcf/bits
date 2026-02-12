@@ -41,6 +41,14 @@
      ::coercion/response-coercion (coercion-error-handler 500)})))
 
 ;;; ----------------------------------------------------------------------------
+;;; Broadcast
+
+(defn broadcast!
+  [service event]
+  (doseq [[_ {:keys [send!]}] @(:channels service)]
+    (send! event)))
+
+;;; ----------------------------------------------------------------------------
 ;;; App
 
 (defn make-app
@@ -83,6 +91,7 @@
                         :cookie-secure cookie-secure
                         :secret        csrf-secret}]
          [mw/wrap-realm]
+         [mw/wrap-assets]
          [mw/wrap-user]
          [mw/wrap-secure-headers]]]
     (ring/ring-handler

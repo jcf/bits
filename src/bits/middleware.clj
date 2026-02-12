@@ -1,11 +1,13 @@
 (ns bits.middleware
   (:require
    [bits.anomaly :as anom]
+   [bits.assets :as assets]
    [bits.crypto :as crypto]
    [bits.csp :as csp]
    [bits.datahike :as datahike]
    [bits.request :as request]
    [buddy.core.bytes :as buddy.bytes]
+   [clojure.java.io :as io]
    [clojure.string :as str]
    [datahike.api :as d]
    [ring.util.response :as response]))
@@ -25,6 +27,10 @@
   [request k]
   {:post [(some? %)]}
   (get-in request [::state k]))
+
+(defn request->buster
+  [request]
+  (get-state request :buster))
 
 (defn request->datahike
   [request]
@@ -186,3 +192,20 @@
                                             :secure    cookie-secure}))
         {:status 403
          :body   "Invalid CSRF token"}))))
+
+;;; ----------------------------------------------------------------------------
+;;; Assets
+
+(defn wrap-assets
+  [handler]
+  (fn [request]
+    (let [buster                (request->buster request)
+          {::assets/keys [content-type
+                          resource]
+           :as           asset} (assets/lookup buster request)]
+      (if (some? asset)
+        {:status  200
+         :headers {"content-type"  content-type
+                   "cache-control" "public, max-age=31536000, immutable"}
+         :body    (io/input-stream resource)}
+        (handler request)))))

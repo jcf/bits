@@ -85,7 +85,11 @@
        ::path          path
        ::prefix        prefix})))
 
-(s/fdef stomach
+(defn stomach
+  [buster]
+  @(:stomach buster))
+
+(s/fdef make-stomach
   :args (s/cat :resources ::resources :options (s/keys :opt-un [::digest-fn]))
   :ret  ::stomach)
 
@@ -98,7 +102,7 @@
                               (if-let [resource (io/resource resource-path)]
                                 (let [{::keys [formatter]
                                        :as    parsed} (parse-path resource-path)
-                                      digest          (codecs/bytes->b64-str (hash/blake2b-128 resource) true)
+                                      digest          (subs (codecs/bytes->hex (hash/blake2b-128 resource)) 0 8)
                                       busted          (format formatter digest)
                                       digested        {::busted   busted
                                                        ::digest   digest
@@ -118,7 +122,7 @@
   [buster request]
   (span/with-span! {:name ::lookup}
     (when (identical? :get (:request-method request))
-      (get (::busted->asset (:stomach buster)) (:uri request)))))
+      (get (::busted->asset (stomach buster)) (:uri request)))))
 
 (s/fdef asset-path
   :args (s/cat :buster (s/keys :req-un [::stomach]) :path ::asset-path)
@@ -127,15 +131,15 @@
 (defn asset-path
   [buster path]
   (span/with-span! {:name ::asset-path}
-    (::busted (get (::asset-path->asset (:stomach buster)) path))))
+    (::busted (get (::asset-path->asset (stomach buster)) path))))
 
 ;;; --------------------------------------------------------------------------------------------------------------------
 ;;; Regurgitate
 
-(defn regurgitate
+(defn regurgitate!
   [buster]
-  (span/with-span! {:name ::regurgitate}
-    (assoc buster :stomach (make-stomach (:resources buster)))))
+  (span/with-span! {:name ::regurgitate!}
+    (swap! (:stomach buster) (fn [_] (make-stomach (:resources buster))))))
 
 ;;; --------------------------------------------------------------------------------------------------------------------
 ;;; Component
@@ -144,7 +148,7 @@
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-buster}
-      (assoc this :stomach (make-stomach resources))))
+      (assoc this :stomach (atom (make-stomach resources)))))
   (stop [this]
     (span/with-span! {:name ::stop-buster}
       (assoc this :stomach nil))))

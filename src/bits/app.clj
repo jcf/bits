@@ -50,7 +50,9 @@
                                   "public/Inter-Regular.woff2"
                                   "public/JetBrainsMono-Bold.woff2"
                                   "public/JetBrainsMono-Regular.woff2"
-                                  "public/app.css"}}
+                                  "public/app.css"
+                                  "public/bits.js"
+                                  "public/idiomorph@0.7.4.min.js"}}
      :datahike      {:store (datahike/jdbc-url->store database-url)}
      :keymaster     {:argon {:alg         :argon2id
                              :iterations  3

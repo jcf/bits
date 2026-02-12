@@ -49,6 +49,11 @@
        "id: " event-id "\n"
        "data: " (str/replace data "\n" "\ndata: ") "\n\n"))
 
+(defn stylesheet-event
+  [url]
+  {:pre [(string? url)]}
+  (sse-event "stylesheet" (content-hash url) url))
+
 (defn morph-event
   "Format HTML as a morph SSE event. Event ID is BLAKE3 hash for change detection."
   [html-str]
