@@ -1,0 +1,62 @@
+#+title:  Vanilla JS over ClojureScript for bits.js
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2026-02-12
+
+* Context
+Bits.js is the client-side library handling SSE connections, DOM morphing via
+Idiomorph, and action dispatch. At 249 lines of vanilla JavaScript, it's
+minimal and focused.
+
+The question arose whether rewriting in ClojureScript with Google Closure
+Compiler's advanced optimizations would provide benefits: better minification,
+obfuscation, or consistency with the Clojure backend.
+
+* Current State
+| Metric              |  Size |
+|---------------------+-------|
+| Raw                 | 7.5KB |
+| Minified (terser)   | 3.4KB |
+| Minified + gzipped  | 1.7KB |
+
+* Options Considered
+** ClojureScript with Closure Compiler
+Pros:
+- Advanced optimizations (dead code elimination, function inlining, property
+  renaming)
+- Same language client and server
+- REPL-driven development
+- Immutable data structures by default
+
+Cons:
+- Runtime overhead of ~90-100KB gzipped minimum
+- Build complexity (shadow-cljs or figwheel-main, JVM dependency)
+- Reduced readability for contributors unfamiliar with ClojureScript
+- Source maps required for debugging
+
+** Keep Vanilla JavaScript
+Pros:
+- Already tiny (1.7KB gzipped)
+- No build step required
+- Readable by any web developer
+- Native browser devtools support
+- Zero dependencies
+
+Cons:
+- No advanced optimization passes
+- Manual consistency with server-side patterns
+
+* Decision
+Keep vanilla JavaScript.
+
+The ClojureScript runtime alone would make the bundle 50-60x larger. Advanced
+optimization shines when there's significant dead code to eliminate—for 249
+lines of focused code, there's nothing to cut.
+
+If obfuscation were truly needed, =terser --mangle-props= achieves similar
+property renaming without runtime cost.
+
+* Consequences
+- bits.js remains dependency-free and trivially auditable
+- No ClojureScript build tooling to maintain
+- Contributors can read and modify without Clojure knowledge
+- Trade-off: manual effort to keep client patterns aligned with server idioms
