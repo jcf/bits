@@ -49,10 +49,19 @@ cat /etc/resolver/test
 : nameserver 10.10.10.254
 
 *** Test
+The marketing site and "catch-all" homepage where we have no realm aren't a
+priority so will return non-200 status codes.
+
 #+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
 urls=(
-  https://www.usebits.app.test
+  # These will not return a 200 response
   https://bits.page.test
+  https://www.usebits.app.test
+
+  # These will work, provided you've applied the seeds in `bits.dev.realm`.
+  http://localhost:3000
+  https://charlie.bits.page.test
+  https://charlie.bits.page.test
   https://jcf.bits.page.test
 )
 
@@ -67,9 +76,12 @@ done
 #+end_src
 
 #+results:
+: ❌ https://bits.page.test (404)
 : ❌ https://www.usebits.app.test (502)
-: ❌ https://bits.page.test (502)
-: ❌ https://jcf.bits.page.test (502)
+: ✅ http://localhost:3000
+: ✅ https://charlie.bits.page.test
+: ✅ https://charlie.bits.page.test
+: ✅ https://jcf.bits.page.test
 
 And with a non-existent tenant, we expect a 404 response:
 
@@ -85,7 +97,7 @@ fi
 #+end_src
 
 #+results:
-: ❌ https://foo.bits.page.test (502)
+: ✅ https://foo.bits.page.test
 
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results
@@ -154,33 +166,33 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- Clojure                  52         4375         3414          330          631
+ Clojure                  55         4582         3572          343          667
  CSS                       2           13           12            0            1
  Dockerfile                1           72           50            6           16
- Edn                       2          115           99            3           13
+ Edn                       2          119          102            4           13
  HCL                      12          389          323           13           53
  JavaScript                5          297          242           20           35
- JSON                      4           58           58            0            0
+ JSON                      4           59           59            0            0
  Just                      1          327          208           61           58
  MDX                       1           56            0           39           17
  Nix                       2          410          338           13           59
- Org                      10         1669         1507            4          158
+ Org                      10         1674         1512            4          158
  SQL                       4           35           29            0            6
  TOML                      1           46           41            0            5
  TypeScript                3           36           30            1            5
  XML                       1           18           14            1            3
- YAML                      3         5053         3968            0         1085
+ YAML                      3         5056         3971            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1          294            0          191          103
- |- Clojure                1          197          126           41           30
+ Markdown                  1          321            0          208          113
+ |- Clojure                1          225          144           47           34
  |- Org                    1           19           12            0            7
  |- Rust                   1           68           49           10            9
- (Total)                              578          187          242          149
+ (Total)                              633          205          265          163
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   115        13712        10659          733         2320
+ Total                   118        13987        10847          770         2370
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-d24e910 @ 2026/02/10 22:34
+8c534b1 @ 2026/02/12 17:31
 #+end_example
 
 * Prompts
@@ -198,12 +210,12 @@ done
 #+end_src
 
 #+results:
-| Status | Date         | Title                |
-|--------+--------------+----------------------|
-| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]      |
-| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]      |
-| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]] |
-| =TODO= | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]        |
+| Status        | Date         | Title                |
+|---------------+--------------+----------------------|
+| =IN-PROGRESS= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]      |
+| =TODO=        | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]      |
+| =TODO=        | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]] |
+| =TODO=        | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]        |
 
 ** =DONE=
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
