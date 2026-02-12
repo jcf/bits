@@ -1,6 +1,10 @@
 (ns bits.dev
   (:require
    [bits.app :as app]
+   [bits.assets :as assets]
+   [bits.dev.watcher :as watcher]
+   [bits.morph :as morph]
+   [bits.service :as service]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [set-init start stop system]]
    [datahike.core]
@@ -10,9 +14,28 @@
 ;;; ----------------------------------------------------------------------------
 ;;; System
 
+(defn- asset-handler
+  [watcher events]
+  (let [{:keys [buster service]} watcher]
+    (log/debug :msg "Recomputing asset hashes...")
+    (assets/regurgitate! buster)
+    (doseq [event events
+            :let  [abs-path (str "/" (:path event))]
+            :when (= "app.css" (:path event))]
+      (log/debug :msg      "Broadcasting stylesheet update..."
+                 :abs-path abs-path)
+      (service/broadcast!
+       service (morph/stylesheet-event (assets/asset-path buster abs-path))))))
+
 (set-init
  (fn [_system]
-   (span/with-span! {:name ::initialize} (app/system))))
+   (span/with-span! {:name ::initialize}
+     (-> (app/system)
+         (assoc ::watcher/watcher (watcher/make-watcher
+                                   {:path    "resources/public"
+                                    :handler asset-handler}))
+         (component/system-using
+          (assoc app/dependencies ::watcher/watcher [:buster :service]))))))
 
 (defn before-refresh
   []
