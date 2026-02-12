@@ -1,6 +1,6 @@
 #+title:    Tenancy Routing
 #+date:     2026-02-10
-#+status:   in-progress
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal
