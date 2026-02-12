@@ -34,6 +34,11 @@
   (-> (buddy.hash/blake3-256 s)
       (buddy.codecs/bytes->hex)))
 
+(defn retry-field
+  [ms]
+  {:pre [(nat-int? ms)]}
+  (str "retry: " ms "\n\n"))
+
 (defn sse-event
   "Format an SSE event. Multi-line data gets prefixed."
   [event-type event-id data]
@@ -127,6 +132,7 @@
            <refresh     (a/tap refresh-mult (a/chan (a/dropping-buffer 1)))
            <cancel      (a/chan)
            last-id      (response/get-header request "last-event-id")
+           reconnect-ms (get-in request [:bits.middleware/state :sse-reconnect-ms])
            sid          (get-in request [:session :sid])
            user-id      (get-in request [:session :user/id])
            request      (assoc request ::channel-id channel-id)]
@@ -151,6 +157,7 @@
                                             :send!        send!
                                             :sid          sid
                                             :user-id      user-id})
+                                    (send! (retry-field reconnect-ms))
                                     (send! (sse-event "channel" channel-id channel-id))
                                     (try
                                       (loop [last-hash last-id]

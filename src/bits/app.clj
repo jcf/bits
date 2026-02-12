@@ -41,6 +41,7 @@
                  :scheme   (str "jdbc:" adapter)
                  :user     nil)))))
 
+;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
 (defn read-config
   []
   (let [database-url (-> :database-url env normalize-database-url)]
@@ -63,10 +64,11 @@
                      :csrf-cookie-name "__Host-bits-csrf"
                      :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
                      :http-host        "0.0.0.0"
-                     :http-port        (env-or :port 3000)
+                     :http-port        (parse-long (env-or :port "3000"))
                      :max-refresh-ms   50
                      :routes           next/routes
-                     :server-name      "Bits"}
+                     :server-name      "Bits"
+                     :sse-reconnect-ms (parse-long (env-or :sse-reconnect-ms "1000"))}
      :session-store {:idle-timeout-days 30}}))
 
 ;;; ----------------------------------------------------------------------------

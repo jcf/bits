@@ -48,6 +48,7 @@
 (s/def :bits.service/http-port (s/or :zero zero? :pos-int pos-int?))
 (s/def :bits.service/routes vector?)
 (s/def :bits.service/server-name string?)
+(s/def :bits.service/sse-reconnect-ms pos-int?)
 
 (s/def :bits.service/config
   (s/keys :req-un [:bits.service/actions
@@ -57,7 +58,8 @@
                    :bits.service/http-host
                    :bits.service/http-port
                    :bits.service/routes
-                   :bits.service/server-name]))
+                   :bits.service/server-name
+                   :bits.service/sse-reconnect-ms]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Datahike

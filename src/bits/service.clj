@@ -120,6 +120,7 @@
                     routes
                     server-name
                     session-store
+                    sse-reconnect-ms
                     stop-fn]
   component/Lifecycle
   (start [this]

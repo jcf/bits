@@ -53,6 +53,7 @@ in {
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
     PLATFORM_DOMAIN = dev.hosts.page.domain;
+    SSE_RECONNECT_MS = "50";
   };
 
   packages = with pkgs; [

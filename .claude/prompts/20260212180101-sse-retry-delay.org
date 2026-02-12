@@ -1,0 +1,120 @@
+#+title:    SSE Retry Delay Configuration
+#+date:     2026-02-12
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Use SSE's native =retry:= field to configure reconnection delay. In development,
+set to 0ms for instant reconnection during live reload. In production, keep the
+current 1000ms base delay with jitter to avoid thundering herd on deployments.
+
+* Background
+The SSE spec includes a =retry:= field that tells clients how long to wait before
+reconnecting:
+
+#+begin_example
+retry: 50
+
+event: channel
+id: abc123
+data: abc123
+
+event: morph
+id: def456
+data: <div>...</div>
+#+end_example
+
+Since we use fetch-based streaming (not native =EventSource=), we parse and honor
+this field ourselves. This is the idiomatic SSE solution - no custom headers or
+data attributes needed.
+
+* Current State
+** Server (bits.morph)
+- =sse-event= formats events with =event:=, =id:=, and =data:= fields
+- No =retry:= field is currently sent
+
+** Client (bits.js)
+- =scheduleReconnect(delay = 1000)= - hardcoded 1000ms default
+- =connect(retryDelay = 1000)= - hardcoded 1000ms default
+- =parseEvent= extracts =event:=, =id:=, =data:= - does not parse =retry:=
+- Jitter is 0-50% of delay, exponential backoff up to 30s
+
+* Implementation
+** Service configuration
+Add =:sse-retry-ms= to the service record and spec. Default to 1000ms for
+production safety.
+
+#+begin_src clojure
+;; bits.spec
+(s/def :bits.service/sse-retry-ms nat-int?)
+
+;; bits.service (record field)
+sse-retry-ms
+
+;; bits.app (dev config)
+:sse-retry-ms 0
+#+end_src
+
+** Server: Send retry field once on connection
+Send =retry:= immediately after the connection opens, before the =channel= event.
+This only needs to be sent once per connection - the client stores the value.
+
+#+begin_src clojure
+;; bits.morph
+(defn retry-field
+  "SSE retry field (milliseconds). Sent once at connection start."
+  [ms]
+  {:pre [(nat-int? ms)]}
+  (str "retry: " ms "\n\n"))
+
+;; In render-handler, after on-open:
+(send! (retry-field sse-retry-ms))
+(send! (sse-event "channel" channel-id channel-id))
+#+end_src
+
+** Client: Parse and store retry value
+#+begin_src javascript
+// bits.js - module-level state
+let retryDelay = 1000;  // Default until server tells us otherwise
+
+// In parseEvent, add retry parsing:
+function parseEvent(block) {
+  const event = { type: "message", data: [] };
+  for (const line of block.split("\n")) {
+    if (line.startsWith("event:")) event.type = line.slice(6).trim();
+    else if (line.startsWith("id:")) event.id = line.slice(3).trim();
+    else if (line.startsWith("data:")) event.data.push(line.slice(5).trimStart());
+    else if (line.startsWith("retry:")) {
+      const ms = parseInt(line.slice(6).trim(), 10);
+      if (!isNaN(ms)) retryDelay = ms;
+    }
+  }
+  event.data = event.data.join("\n");
+  return event;
+}
+
+// Update scheduleReconnect to use stored value:
+function scheduleReconnect(delay = retryDelay) {
+  // ... rest unchanged
+}
+
+// Update connect to use stored value:
+function connect(nextDelay = retryDelay) {
+  // ... rest unchanged
+}
+#+end_src
+
+* Files to Change
+| File                          | Change                              |
+|-------------------------------+-------------------------------------|
+| src/bits/spec.clj             | Add =:bits.service/sse-retry-ms= spec |
+| src/bits/service.clj          | Add =sse-retry-ms= to record        |
+| src/bits/morph.clj            | Add =retry-field= fn, send on open  |
+| src/bits/app.clj              | Set =:sse-retry-ms 0= for dev       |
+| resources/public/bits.js      | Parse =retry:=, use stored value    |
+
+* Verification
+- [ ] Dev: Change a view, browser updates instantly (no 1s+ delay)
+- [ ] Dev: Check console shows "reconnecting in 0ms" (or very small)
+- [ ] Prod config: =:sse-retry-ms= defaults to 1000 or is explicitly set
+- [ ] Multiple browser tabs don't cause issues (each gets its own retry value)

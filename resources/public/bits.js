@@ -4,6 +4,7 @@
   let controller = null;
   let lastEventId = null;
   let channelId = null;
+  let retryDelay = 1000;
 
   const log = {
     info: (msg) =>
@@ -17,7 +18,7 @@
   // ---------------------------------------------------------------------------
   // SSE Connection
 
-  function scheduleReconnect(delay = 1000) {
+  function scheduleReconnect(delay = retryDelay) {
     const jitter = delay * 0.5 * Math.random();
     const wait = Math.round(delay + jitter);
     const next = Math.min(30000, delay * 2);
@@ -25,7 +26,7 @@
     setTimeout(() => connect(next), wait);
   }
 
-  function connect(retryDelay = 1000) {
+  function connect(nextDelay = retryDelay) {
     controller?.abort();
     controller = new AbortController();
 
@@ -103,6 +104,10 @@
       else if (line.startsWith("id:")) event.id = line.slice(3).trim();
       else if (line.startsWith("data:"))
         event.data.push(line.slice(5).trimStart());
+      else if (line.startsWith("retry:")) {
+        const ms = parseInt(line.slice(6).trim(), 10);
+        if (!isNaN(ms)) retryDelay = ms;
+      }
     }
     event.data = event.data.join("\n");
     return event;
