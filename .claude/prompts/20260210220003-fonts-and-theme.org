@@ -1,6 +1,6 @@
 #+title:    Fonts and Theme
 #+date:     2026-02-10
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal
@@ -85,8 +85,8 @@ Custom handler that uses Buster's lookup to serve assets.
 #+end_src
 
 * Verification
-- [ ] Fonts load in browser (Network tab shows 200s)
-- [ ] ~font-serif~, ~bg-surface~, ~text-accent~ work in Tailwind
-- [ ] Asset URLs include hash (~app.abc123.css~)
-- [ ] Cache-Control headers set for busted assets
-- [ ] No inline hex codes or font names in Clojure files
+- [X] Fonts load in browser (Network tab shows 200s)
+- [X] ~font-serif~, ~bg-surface~, ~text-accent~ work in Tailwind
+- [X] Asset URLs include hash (~app.abc123.css~)
+- [X] Cache-Control headers set for busted assets
+- [X] No inline hex codes or font names in Clojure files
