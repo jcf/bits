@@ -13,13 +13,12 @@
 (def ^:private input-base
   ["block" "w-full" "px-3" "py-1.5"
    "text-base" "sm:text-sm/6"
-   "bg-white" "dark:bg-neutral-800"
-   "text-neutral-900" "dark:text-neutral-100"
-   "placeholder:text-neutral-400"
+   "bg-surface-raised" "text-primary"
+   "placeholder:text-muted"
    "outline-1" "-outline-offset-1"
-   "outline-neutral-300" "dark:outline-neutral-600"
+   "outline-border"
    "focus:relative" "focus:outline-2"
-   "focus:-outline-offset-2" "focus:outline-indigo-600"])
+   "focus:-outline-offset-2" "focus:outline-accent"])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Inputs
@@ -43,16 +42,16 @@
 (def ^:private button-primary-base
   ["flex" "w-full" "justify-center"
    "rounded-md" "px-3" "py-1.5"
-   "text-sm/6" "font-semibold" "text-white"
-   "bg-indigo-600" "hover:bg-indigo-500"
+   "text-sm/6" "font-semibold" "text-surface"
+   "bg-accent" "hover:bg-accent-dim"
    "focus-visible:outline-2"
    "focus-visible:outline-offset-2"
-   "focus-visible:outline-indigo-600"])
+   "focus-visible:outline-accent"])
 
 (def ^:private button-secondary-base
   ["rounded-md" "px-3" "py-1.5"
-   "text-sm/6" "font-semibold" "text-white"
-   "bg-neutral-600" "hover:bg-neutral-500"])
+   "text-sm/6" "font-semibold" "text-primary"
+   "bg-surface-hover" "hover:bg-surface-raised"])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Buttons
@@ -118,9 +117,9 @@
         (fn [path]
           (str "text-sm font-medium "
                (if (= path current-path)
-                 "text-indigo-600 dark:text-indigo-400"
-                 "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100")))]
-    [:header {:class "flex justify-between"}
+                 "text-accent"
+                 "text-secondary hover:text-primary")))]
+    [:header {:class "flex justify-between border-b border-border-subtle"}
      [:nav {:class "flex gap-4 p-4"}
       (for [[path label] nav-links]
         [:a {:href  path
@@ -131,10 +130,8 @@
         (form/action-button :auth/sign-out
           {:class ["text-sm"
                    "font-medium"
-                   "text-neutral-600"
-                   "dark:text-neutral-400"
-                   "hover:text-neutral-900"
-                   "dark:hover:text-neutral-100"
+                   "text-secondary"
+                   "hover:text-primary"
                    "cursor-pointer"]}
           "Sign out")
         [:a {:href  "/login"
@@ -157,7 +154,7 @@
 
 (def ^:private card-base
   ["p-6" "rounded-lg" "shadow" "max-w-sm"
-   "bg-white" "dark:bg-neutral-900"])
+   "bg-surface-raised" "border" "border-border-subtle"])
 
 (defn card
   [attrs & children]
@@ -166,7 +163,7 @@
 
 (defn card-title
   [& children]
-  (into [:h3 {:class "text-lg font-semibold mb-4 text-neutral-900 dark:text-white"}]
+  (into [:h3 {:class "text-lg font-semibold mb-4 text-primary"}]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -175,15 +172,14 @@
 (defn page-title
   [attrs & children]
   (into [:h1 (update attrs :class #(tw/merge-classes
-                                    ["text-4xl" "font-bold"
-                                     "text-neutral-900" "dark:text-neutral-100"]
+                                    ["text-4xl" "font-bold" "text-primary"]
                                     %))]
         children))
 
 (defn text-muted
   [attrs & children]
   (into [:p (update attrs :class #(tw/merge-classes
-                                   ["text-neutral-500" "dark:text-neutral-400"]
+                                   ["text-muted"]
                                    %))]
         children))
 
@@ -194,17 +190,16 @@
 
 (defn text-success
   [& children]
-  (into [:p {:class "text-sm text-green-600 dark:text-green-400"}]
+  (into [:p {:class "text-sm text-success"}]
         children))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Icon buttons
 
 (def ^:private icon-button-base
-  ["rounded-full" "p-2" "text-white" "shadow-xs"
-   "bg-indigo-600" "hover:bg-indigo-500"
-   "focus-visible:outline-2" "focus-visible:outline-offset-2" "focus-visible:outline-indigo-600"
-   "dark:bg-indigo-500" "dark:shadow-none" "dark:hover:bg-indigo-400" "dark:focus-visible:outline-indigo-500"])
+  ["rounded-full" "p-2" "text-surface" "shadow-xs"
+   "bg-accent" "hover:bg-accent-dim"
+   "focus-visible:outline-2" "focus-visible:outline-offset-2" "focus-visible:outline-accent"])
 
 (defn icon-button
   [attrs & children]
@@ -228,5 +223,5 @@
       [:link {:rel "stylesheet" :href (asset-path "/app.css")}]
       [:script {:src (asset-path "/idiomorph@0.7.4.min.js")}]
       [:script {:src (asset-path "/bits.js")}]]
-     [:body {:class "min-h-screen bg-white dark:bg-neutral-950"}
+     [:body {:class "min-h-screen bg-surface text-primary font-sans"}
       (into [:main#morph {:class "min-h-screen"}] content)]]))
