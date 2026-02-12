@@ -59,9 +59,10 @@
 
 ;; TODO Make content-type explicit or more intelligent.
 (def ^:private ext->content-type
-  {"css" "text/css"
-   "js"  "text/javascript"
-   "txt" "text/plain"})
+  {"css"   "text/css"
+   "js"    "text/javascript"
+   "txt"   "text/plain"
+   "woff2" "font/woff2"})
 
 ;;; --------------------------------------------------------------------------------------------------------------------
 ;;; Digest
