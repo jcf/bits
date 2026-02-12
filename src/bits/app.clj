@@ -45,8 +45,7 @@
 (defn read-config
   []
   (let [database-url (-> :database-url env normalize-database-url)]
-    {:buster        {:resources #{"public/JetBrainsMono-Bold.woff2"
-                                  "public/JetBrainsMono-Regular.woff2"
+    {:buster        {:resources #{"public/JetBrainsMono.woff2"
                                   "public/app.css"
                                   "public/bits.js"
                                   "public/DMSans.woff2"
