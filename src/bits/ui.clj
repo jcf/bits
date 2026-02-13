@@ -105,10 +105,11 @@
 ;;; Navigation
 
 (def ^:private nav-links
-  [["/"         "Counter"]
-   ["/cursors"  "Cursors"]
-   ["/email"    "Email"]
-   ["/redirect" "Redirect"]])
+  [["/explore"   "Explore"]
+   ["/"          "Counter"]
+   ["/cursors"   "Cursors"]
+   ["/email"     "Email"]
+   ["/redirect"  "Redirect"]])
 
 (defn nav-header
   [request current-path]
