@@ -1,6 +1,6 @@
 #+title:    Creator Profile Page
 #+date:     2026-02-10
-#+status:   todo
+#+status:   in-progress
 #+property: header-args :dir ../..
 
 * Goal
@@ -21,7 +21,7 @@ All components are pure functions taking a single data map.
 #+end_src
 
 * Components
-** src/bits/creator.clj (new namespace)
+** src/bits/ui/creator.clj (new namespace)
 *** Icons
 ~icon-svg~ — Returns SVG hiccup for icon keyword
 
@@ -79,13 +79,16 @@ All components are pure functions taking a single data map.
 #+end_src
 
 * Routing
-Subdomain-based only. When ~:session/creator~ is present (from tenancy
-middleware), render creator profile at ~/~.
+Subdomain-based only. When ~:session/realm~ contains ~:creator/handle~ (from
+~wrap-realm~ middleware), render creator profile at ~/~.
 
 #+begin_src clojure
-;; In service routes, the "/" handler checks :session/creator
-;; If present → creator-profile-view
-;; If absent → platform landing page
+;; In bits.next, the "/" handler checks for creator data
+(defn- creator-realm? [request]
+  (some? (:creator/handle (:session/realm request))))
+
+;; If creator-realm? → creator-profile-view with creator-layout
+;; If not → counter-view (platform landing page TBD)
 #+end_src
 
 * Reference HTML
@@ -97,3 +100,17 @@ Mechanical transformation to Hiccup, using semantic Tailwind classes from the th
 - [ ] Components are pure: same input → same output
 - [ ] All classes use semantic tokens (~bg-surface~, not ~bg-[#0c0c0e]~)
 - [ ] Mobile layout works (sticky CTA, adjusted sizes)
+
+* Implementation Log
+** 2026-02-13: Initial implementation
+- Created ~src/bits/ui/creator.clj~ with all components
+- Updated ~bits.next~ routing to conditionally render creator profile
+- Added ~bg-gradient-banner~ and ~bg-gradient-locked~ to Tailwind template
+- Namespace placed under ~bits.ui.*~ hierarchy (not top-level ~bits.creator~)
+- Creator data sourced from ~:session/realm~ (contains both tenant and creator attrs)
+
+*** TODO
+- Regenerate Tailwind CSS: ~(bits.dev.assets/generate-tailwind-css! (:buster system))~
+- Test at ~https://jcf.bits.page.test/~
+- Wire up real post data from database
+- Wire up real viewer count from presence system
