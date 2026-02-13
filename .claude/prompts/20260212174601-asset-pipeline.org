@@ -1,6 +1,6 @@
 #+title:    Asset Pipeline
 #+date:     2026-02-12
-#+status:   doing
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal
@@ -135,7 +135,7 @@ Watcher uses this to send ~stylesheet~ events with the new busted URL.
 - Add ~stylesheet~ event handler
 
 * Verification
-- [ ] ~/app.abc123.css~ returns CSS with immutable cache headers
-- [ ] Changing Tailwind source triggers CSS hot reload (no full page reload)
-- [ ] Fresh page load gets current busted URLs
-- [ ] ~just check~ passes
+- [x] ~/app.abc123.css~ returns CSS with immutable cache headers
+- [x] Changing Tailwind source triggers CSS hot reload (no full page reload)
+- [x] Fresh page load gets current busted URLs
+- [x] ~just check~ passes

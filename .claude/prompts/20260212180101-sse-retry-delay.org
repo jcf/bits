@@ -1,6 +1,6 @@
 #+title:    SSE Retry Delay Configuration
 #+date:     2026-02-12
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal
@@ -114,7 +114,7 @@ function connect(nextDelay = retryDelay) {
 | resources/public/bits.js      | Parse =retry:=, use stored value    |
 
 * Verification
-- [ ] Dev: Change a view, browser updates instantly (no 1s+ delay)
-- [ ] Dev: Check console shows "reconnecting in 0ms" (or very small)
-- [ ] Prod config: =:sse-retry-ms= defaults to 1000 or is explicitly set
-- [ ] Multiple browser tabs don't cause issues (each gets its own retry value)
+- [x] Dev: Change a view, browser updates instantly (no 1s+ delay)
+- [x] Dev: Check console shows "reconnecting in 0ms" (or very small)
+- [x] Prod config: =:sse-retry-ms= defaults to 1000 or is explicitly set
+- [x] Multiple browser tabs don't cause issues (each gets its own retry value)
