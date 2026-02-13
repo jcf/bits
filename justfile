@@ -79,7 +79,7 @@ execute *args:
 
         basename=$(basename "$file" .org)
         title=$(grep -m1 '^#+title:' "$file" | sed 's/#+title: *//' | xargs)
-        prompt_status=$(grep '^#+status:' "$file" | sed 's/#+status: *//' | xargs)
+        prompt_status=$(grep -m1 '^#+status:' "$file" | sed 's/#+status: *//' | xargs)
         [[ -z "$prompt_status" ]] && prompt_status="todo"
 
         # Skip completed prompts unless --all is passed
