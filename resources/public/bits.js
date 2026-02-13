@@ -78,7 +78,7 @@
       .catch((err) => {
         if (err.name !== "AbortError") {
           log.error("fetch failed: " + err.message);
-          scheduleReconnect(retryDelay);
+          scheduleReconnect(nextDelay);
         }
       });
   }

@@ -123,11 +123,11 @@ in {
       error_log stderr error;
 
       upstream page {
-        server localhost:${toString dev.upstreams.page.port};
+        server localhost:${toString dev.upstreams.page.port} fail_timeout=0;
       }
 
       upstream www {
-        server localhost:${toString dev.upstreams.www.port};
+        server localhost:${toString dev.upstreams.www.port} fail_timeout=0;
       }
 
       # ${dev.hosts.page.domain}
