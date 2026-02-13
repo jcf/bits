@@ -6,6 +6,10 @@
 @import "tailwindcss";
 @source "../src/**/*.clj";
 
+@view-transition {
+  navigation: auto;
+}
+
 {% for font in fonts %}@font-face {
   font-family: '{{font.family}}';
   font-style: {{font.style}};
@@ -21,12 +25,25 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
 {% for color in colors %}  --color-{{color.name}}: {{color.value}};
-{% endfor %}
-}
+{% endfor %}}
 
 @layer components {
   .cursor {
     @apply absolute pointer-events-none z-50;
     transition: left 50ms ease-out, top 50ms ease-out;
+  }
+
+  .bg-gradient-banner {
+    background: linear-gradient(135deg,
+      var(--color-banner-start) 0%,
+      var(--color-banner-mid) 50%,
+      var(--color-surface) 100%);
+  }
+
+  .bg-gradient-locked {
+    background: linear-gradient(135deg,
+      var(--color-locked-start) 0%,
+      var(--color-locked-mid) 50%,
+      var(--color-locked-end) 100%);
   }
 }

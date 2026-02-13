@@ -30,7 +30,13 @@
    {:name "muted"          :value "#636366"}
    {:name "accent"         :value "#c8a2ff"}
    {:name "accent-dim"     :value "#a07ad8"}
-   {:name "success"        :value "#4ade80"}])
+   {:name "success"        :value "#4ade80"}
+   ;; Gradient colors (for banner and locked content)
+   {:name "banner-start"   :value "#1a1028"}
+   {:name "banner-mid"     :value "#0f1729"}
+   {:name "locked-start"   :value "#2a1f3d"}
+   {:name "locked-mid"     :value "#1a1428"}
+   {:name "locked-end"     :value "#141220"}])
 
 (defn theme-context
   [buster]
