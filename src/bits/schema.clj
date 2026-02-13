@@ -82,6 +82,10 @@
     :db/valueType   :db.type/ref
     :db/cardinality :db.cardinality/many}
 
+   {:db/ident       :creator/posts
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/many}
+
    {:db/ident       :link/label
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one}
@@ -92,6 +96,27 @@
 
    {:db/ident       :link/icon
     :db/valueType   :db.type/keyword
+    :db/cardinality :db.cardinality/one}])
+
+;;; ----------------------------------------------------------------------------
+;;; Post
+
+(def post-schema
+  [{:db/ident       :post/id
+    :db/valueType   :db.type/uuid
+    :db/cardinality :db.cardinality/one
+    :db/unique      :db.unique/identity}
+
+   {:db/ident       :post/text
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :post/created-at
+    :db/valueType   :db.type/instant
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :post/image-url
+    :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one}])
 
 ;;; ----------------------------------------------------------------------------
@@ -123,4 +148,5 @@
                tenant-schema
                domain-schema
                creator-schema
+               post-schema
                membership-schema)))
