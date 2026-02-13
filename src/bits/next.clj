@@ -7,10 +7,8 @@
    [bits.morph :as morph]
    [bits.ui :as ui]
    [bits.ui.creator :as ui.creator]
-   [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [datahike.api :as d]
-   [io.pedestal.log :as log]
    [medley.core :as medley]))
 
 ;;; ----------------------------------------------------------------------------
@@ -214,10 +212,6 @@
 
 ;;; ----------------------------------------------------------------------------
 ;;; Realm
-
-(defn- realm-type
-  [request]
-  (-> request :session/realm :realm/type))
 
 (def realms
   (medley/index-by

@@ -10,7 +10,6 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [datahike.api :as d]
-   [io.pedestal.log :as log]
    [ring.util.response :as response]))
 
 ;;; ----------------------------------------------------------------------------
