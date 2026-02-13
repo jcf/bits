@@ -236,6 +236,11 @@ tailwind:
 market:
     pnpm --filter @bits/www dev
 
+# Regenerate Tailwind CSS from template
+[group('dev')]
+css:
+    clojure -M:dev -m bits.dev.assets
+
 # Format project files
 [group('dev')]
 fmt:

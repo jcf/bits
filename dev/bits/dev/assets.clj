@@ -1,6 +1,8 @@
 (ns bits.dev.assets
   (:require
+   [bits.app :as app]
    [bits.assets :as assets]
+   [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [system]]
    [java-time.api :as time]
    [selmer.parser :as template]))
@@ -51,6 +53,16 @@
   (let [ctx (theme-context buster)
         css (template/render-file "templates/tailwind.css.selmer" ctx)]
     (spit "resources/tailwind.css" css)))
+
+(defn -main
+  [& _args]
+  (let [system (-> (app/system)
+                   (component/subsystem #{:buster})
+                   component/start)]
+    (try
+      (generate-tailwind-css! (:buster system))
+      (finally
+        (component/stop system)))))
 
 (comment
   (template/cache-off!)
