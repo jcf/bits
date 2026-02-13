@@ -105,8 +105,8 @@
 ;;; Navigation
 
 (def ^:private nav-links
-  [["/explore"   "Explore"]
-   ["/"          "Counter"]
+  [["/"          "Explore"]
+   ["/counter"   "Counter"]
    ["/cursors"   "Cursors"]
    ["/email"     "Email"]
    ["/redirect"  "Redirect"]])

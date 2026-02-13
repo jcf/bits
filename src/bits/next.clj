@@ -27,7 +27,7 @@
 (defn counter-view
   [request]
   (list
-   (ui/nav-header request "/")
+   (ui/nav-header request "/counter")
    (ui/page-center {:class "space-y-2"}
                    [:header
                     (ui/page-title {}
@@ -77,7 +77,7 @@
                                 :where [?e :creator/handle]]
                               db))]
     (list
-     (ui/nav-header request "/explore")
+     (ui/nav-header request "/")
      (ui/page-center
       {}
       (if-not (seq tenants)
@@ -221,7 +221,7 @@
       :realm/view   ui.creator/creator-profile-view}
      {:realm/layout ui/layout
       :realm/type   :realm.type/platform
-      :realm/view   counter-view}}))
+      :realm/view   explore-view}}))
 
 (defn realm-not-found-view
   [_request]
@@ -274,7 +274,7 @@
 (def routes
   [["/"         (morphable home-layout home-view)]
    ["/cursors"  (morphable ui/layout cursors-view {:on-close remove-cursor!})]
+   ["/counter" (morphable ui/layout counter-view)]
    ["/email"    (morphable ui/layout email-view)]
-   ["/explore"  (morphable ui/layout explore-view)]
    ["/login"    (morphable ui/layout login-view-wrapper)]
    ["/redirect" (morphable ui/layout redirect-view)]])
