@@ -78,7 +78,7 @@ execute *args:
         [[ ! -f "$file" ]] && continue
 
         basename=$(basename "$file" .org)
-        title=$(grep '^#+title:' "$file" | sed 's/#+title: *//' | xargs)
+        title=$(grep -m1 '^#+title:' "$file" | sed 's/#+title: *//' | xargs)
         prompt_status=$(grep '^#+status:' "$file" | sed 's/#+status: *//' | xargs)
         [[ -z "$prompt_status" ]] && prompt_status="todo"
 
@@ -124,7 +124,7 @@ execute *args:
 
     prompt_slug=$(echo "$selected" | awk -F'  ' '{print $NF}')
     prompt_file=".claude/prompts/${prompt_slug}.org"
-    title=$(grep '^#+title:' "$prompt_file" | sed 's/#+title: *//')
+    title=$(grep -m1 '^#+title:' "$prompt_file" | sed 's/#+title: *//')
 
     echo >&2 "{{ BOLD }}Executing {{ YELLOW }}\"${title}\"...{{ NORMAL }}"
 
