@@ -10,6 +10,7 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [datahike.api :as d]
+   [io.pedestal.log :as log]
    [ring.util.response :as response]))
 
 ;;; ----------------------------------------------------------------------------
@@ -55,6 +56,14 @@
 (defn request->state
   [request]
   (::state request))
+
+(defn request->platform-domain
+  [request]
+  (get-state request :platform-domain))
+
+(defn request->realms
+  [request]
+  (get-state request :realms))
 
 (defn request->db
   [request]
@@ -108,30 +117,45 @@
 ;;; Realm
 
 (def ^:private realm-by-domain-query
-  '[:find (pull ?r [:creator/bio
+  '[:find (pull ?r [:creator/avatar-url
+                    :creator/banner-url
+                    :creator/bio
                     :creator/display-name
                     :creator/handle
                     :tenant/id
-                    :creator/avatar-url
-                    :creator/banner-url
                     {:creator/links [:link/icon
                                      :link/label
-                                     :link/url]}]) .
+                                     :link/url]}
+                    {:creator/posts [:post/created-at
+                                     :post/id
+                                     :post/image-url
+                                     :post/text]}]) .
     :in $ ?domain
     :where
     [?d :domain/name ?domain]
     [?r :tenant/domains ?d]])
 
+(defn- platform?
+  [request]
+  (or (request/local? request)
+      (= (request/domain request) (request->platform-domain request))))
+
 (defn wrap-realm
-  [handler]
+  [handler realms]
   (fn [request]
-    (let [db               (request->db request)
-          domain           (request/domain request)
-          realm            (d/q realm-by-domain-query db domain)
-          realm-or-anomaly (or realm
-                               (anom/not-found {:msg    "No realm with the given domain?!"
-                                                :domain domain}))]
-      (handler (assoc request :session/realm realm-or-anomaly)))))
+    (let [{creator-realm  :realm.type/creator
+           platform-realm :realm.type/platform} realms]
+      (if (platform? request)
+        (handler (assoc request :session/realm platform-realm))
+        (let [db               (request->db request)
+              domain           (request/domain request)
+              realm            (d/q realm-by-domain-query db domain)
+              realm-or-anomaly (if realm
+                                 (merge creator-realm realm)
+                                 (anom/not-found {:msg    "No realm with the given domain?!"
+                                                  :domain domain
+                                                  :realms realms}))]
+          (handler (assoc request :session/realm realm-or-anomaly)))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Secure headers

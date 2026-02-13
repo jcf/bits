@@ -3,6 +3,7 @@
    [bits.coerce :as coerce]
    [bits.middleware :as mw]
    [bits.morph :as morph]
+   [bits.response]
    [clojure.core.async :as a]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
@@ -19,6 +20,13 @@
 
 ;;; ----------------------------------------------------------------------------
 ;;; Exception handling
+
+(defn- default-error-handler
+  [exception request]
+  (log/error :msg       "Unhandled exception?!"
+             :uri       (:uri request)
+             :exception exception)
+  bits.response/internal-server-error-response)
 
 (defn- coercion-error-handler
   [status]
@@ -37,7 +45,8 @@
   (exception/create-exception-middleware
    (merge
     exception/default-handlers
-    {::coercion/request-coercion  (coercion-error-handler 400)
+    {::exception/default          default-error-handler
+     ::coercion/request-coercion  (coercion-error-handler 400)
      ::coercion/response-coercion (coercion-error-handler 500)})))
 
 ;;; ----------------------------------------------------------------------------
@@ -61,6 +70,7 @@
                 cookie-secure
                 csrf-cookie-name
                 csrf-secret
+                realms
                 refresh-ch
                 refresh-mult
                 routes
@@ -90,7 +100,7 @@
          [mw/wrap-csrf {:cookie-name   csrf-cookie-name
                         :cookie-secure cookie-secure
                         :secret        csrf-secret}]
-         [mw/wrap-realm]
+         [mw/wrap-realm realms]
          [mw/wrap-assets]
          [mw/wrap-user]
          [mw/wrap-secure-headers]]]
@@ -124,6 +134,7 @@
                     keymaster
                     max-refresh-ms
                     postgres
+                    realms
                     refresh-ch
                     refresh-mult
                     routes

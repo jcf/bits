@@ -66,6 +66,8 @@
                      :http-host        "0.0.0.0"
                      :http-port        (parse-long (env-or :port "3000"))
                      :max-refresh-ms   50
+                     :platform-domain  (env :platform-domain)
+                     :realms           next/realms
                      :routes           next/routes
                      :server-name      "Bits"
                      :sse-reconnect-ms (parse-long (env-or :sse-reconnect-ms "1000"))}

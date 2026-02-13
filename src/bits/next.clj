@@ -6,36 +6,18 @@
    [bits.middleware :as mw]
    [bits.morph :as morph]
    [bits.ui :as ui]
-   [clojure.string :as str]))
+   [bits.ui.creator :as ui.creator]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [datahike.api :as d]
+   [io.pedestal.log :as log]
+   [medley.core :as medley]
+   [medley.core :as medley]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Demo: Counter
 
 (defonce !state (atom {:count 0}))
-
-(defn email-form
-  [{:keys [email error success]}]
-  (ui/card {:id "email-demo"}
-           (ui/card-title "Email Validation")
-           [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
-            (when error (ui/text-error error))
-            (when success (ui/text-success success))
-            (ui/input {:type        "email"
-                       :name        "email"
-                       :value       (or email "")
-                       :class       "rounded-md"
-                       :placeholder "you@example.com"})
-            (ui/button-primary {:type        "button"
-                                :data-action "email/validate"}
-                               "Submit")]))
-
-(defn redirect-demo
-  []
-  (ui/card {}
-           (ui/card-title "Redirect Demo")
-           (ui/button-primary {:type        "button"
-                               :data-action "demo/redirect"}
-                              "Go to example.com")))
 
 (def ^:private plus-icon
   [:svg {:viewBox "0 0 20 20" :fill "currentColor" :aria-hidden "true" :class "size-5"}
@@ -58,6 +40,25 @@
                     (ui/icon-button {:data-action "counter/inc"} plus-icon)
                     (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
 
+;;; ----------------------------------------------------------------------------
+;;; Demo: Email
+
+(defn email-form
+  [{:keys [email error success]}]
+  (ui/card {:id "email-demo"}
+           (ui/card-title "Email Validation")
+           [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
+            (when error (ui/text-error error))
+            (when success (ui/text-success success))
+            (ui/input {:type        "email"
+                       :name        "email"
+                       :value       (or email "")
+                       :class       "rounded-md"
+                       :placeholder "you@example.com"})
+            (ui/button-primary {:type        "button"
+                                :data-action "email/validate"}
+                               "Submit")]))
+
 (defn email-view
   ([request] (email-view request {}))
   ([request form-state]
@@ -65,6 +66,51 @@
     (ui/nav-header request "/email")
     (ui/page-center {}
                     (email-form form-state)))))
+
+;;; ----------------------------------------------------------------------------
+;;; Explore
+
+(defn explore-view
+  [request]
+  (let [db      (mw/request->db request)
+        tenants (sort-by (some-fn :creator/display-name :creator/handle)
+                         (d/q '[:find [(pull ?e [:creator/display-name
+                                                 :creator/handle
+                                                 {:tenant/domains [:domain/name]}]) ...]
+                                :where [?e :creator/handle]]
+                              db))]
+    (list
+     (ui/nav-header request "/explore")
+     (ui/page-center
+      {}
+      (if-not (seq tenants)
+        (list
+         (ui/page-title {} "No tenants found")
+         (ui/text-muted {:class "mt-4"}
+                        "Please create a tenant or two."))
+        [:ul {:class "space-y-2"}
+         (for [{:keys [creator/display-name
+                       tenant/domains
+                       creator/handle]} (sort-by :creator/handle tenants)
+               :let                     [{domain-name :domain/name} (first domains)]]
+           [:li
+            [:a {:href  (str "https://" domain-name "/")
+                 :class "group text-accent space-x-2"}
+             [:span {:class "font-bold group-hover:underline group-hover:decoration-2"}
+              (or display-name handle)]
+             [:span {:class "text-muted"}
+              (str " — " domain-name)]]])])))))
+
+;;; ----------------------------------------------------------------------------
+;;; Demo: Redirect
+
+(defn redirect-demo
+  []
+  (ui/card {}
+           (ui/card-title "Redirect Demo")
+           (ui/button-primary {:type        "button"
+                               :data-action "demo/redirect"}
+                              "Go to example.com")))
 
 (defn redirect-view
   [request]
@@ -170,6 +216,20 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Realm
 
+(defn- realm-type
+  [request]
+  (-> request :session/realm :realm/type))
+
+(def realms
+  (medley/index-by
+   :realm/type
+   #{{:realm/layout ui.creator/creator-layout
+      :realm/type   :realm.type/creator
+      :realm/view   ui.creator/creator-profile-view}
+     {:realm/layout ui/layout
+      :realm/type   :realm.type/platform
+      :realm/view   counter-view}}))
+
 (defn realm-not-found-view
   [_request]
   (ui/page-center
@@ -185,29 +245,43 @@
   [request]
   (auth/login-view request {}))
 
+;;; ----------------------------------------------------------------------------
+;;; Routes
+
 (defn morphable
   ([layout-fn view-fn]
    (morphable layout-fn view-fn {}))
   ([layout-fn view-fn options]
    (let [wrapped (fn [request]
-                   (cond
-                     (anom/anomaly? (:session/realm request))
-                     (realm-not-found-view request)
-                     :else
-                     (view-fn request)))]
-     {:get  (fn realm-aware-page-handler
-              [request]
-              (let [respond (morph/page-handler layout-fn wrapped)]
-                (if (anom/anomaly? (:session/realm request))
+                   (let [realm (:session/realm request)]
+                     (if (anom/anomaly? realm)
+                       (realm-not-found-view request)
+                       (view-fn request))))]
+     {:get  (fn [request]
+              (let [realm (get request :session/realm)]
+                (if (anom/anomaly? realm)
                   {:status  404
                    :headers {"content-type" "text/html; charset=utf-8"}
-                   :body    (html/html (layout-fn request (realm-not-found-view request)))}
-                  (respond request))))
+                   :body    (html/html (ui/layout request (realm-not-found-view request)))}
+                  ((morph/page-handler layout-fn wrapped) request))))
       :post (morph/render-handler wrapped options)})))
 
+(defn- home-view
+  [request]
+  (let [view-fn (get-in request [:session/realm :realm/view])]
+    (assert (fn? view-fn) "No :realm/view in session realm?!")
+    (view-fn request)))
+
+(defn- home-layout
+  [request & content]
+  (let [layout-fn (get-in request [:session/realm :realm/layout])]
+    (assert (fn? layout-fn) "No :realm/layout in session realm?!")
+    (apply layout-fn request content)))
+
 (def routes
-  [["/"         (morphable ui/layout counter-view)]
+  [["/"         (morphable home-layout home-view)]
    ["/cursors"  (morphable ui/layout cursors-view {:on-close remove-cursor!})]
    ["/email"    (morphable ui/layout email-view)]
+   ["/explore"  (morphable ui/layout explore-view)]
    ["/login"    (morphable ui/layout login-view-wrapper)]
    ["/redirect" (morphable ui/layout redirect-view)]])
