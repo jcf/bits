@@ -321,8 +321,8 @@
 (defn post-card
   [{:keys [creator post/created-at post/image-url post/text]}]
   (let [;; Fake engagement for now
-        likes    (+ 3 (rand-int 20))
-        comments (rand-int 10)]
+        likes    11
+        comments 4]
     [:article {:class ["bg-surface-raised" "border" "border-border-subtle"
                        "rounded-2xl" "overflow-hidden"
                        "transition-colors" "duration-200"
