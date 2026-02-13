@@ -11,7 +11,6 @@
    [clojure.string :as str]
    [datahike.api :as d]
    [io.pedestal.log :as log]
-   [medley.core :as medley]
    [medley.core :as medley]))
 
 ;;; ----------------------------------------------------------------------------
