@@ -43,3 +43,16 @@
     (-> (mock/request :get "https://example.com:443/")
         (mock/header "host" "override.test"))
     "override.test"))
+
+;;; ----------------------------------------------------------------------------
+;;; Local
+
+(deftest local?
+  (are [in] (sut/local? (mock/request :get (format "http://%s/" in)))
+    "127.0.0.1"
+    "::1"
+    "localhost")
+  (are [in] (not (sut/local? (mock/request :get (format "http://%s/" in))))
+    "bits.page"
+    "bits.page.test"
+    "example.bits.page.test"))

@@ -1,7 +1,9 @@
 (ns bits.request
   (:require
    [clojure.string :as str]
-   [ring.util.response :as response]))
+   [ring.util.response :as response])
+  (:import
+   (com.google.common.net InetAddresses)))
 
 (defn remote-addr
   [request]
@@ -18,3 +20,10 @@
         idx  (str/index-of host ":")]
     (cond-> host
       (int? idx) (subs 0 idx))))
+
+(defn local?
+  [request]
+  (let [d (domain request)]
+    (or (= "localhost" d)
+        (and (InetAddresses/isInetAddress d)
+             (.isLoopbackAddress (InetAddresses/forString d))))))
