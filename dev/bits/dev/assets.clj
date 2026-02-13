@@ -1,7 +1,7 @@
 (ns bits.dev.assets
   (:require
    [bits.app :as app]
-   [bits.assets :as assets]
+   [bits.asset :as asset]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [system]]
    [java-time.api :as time]
@@ -44,7 +44,7 @@
   [buster]
   {:colors       colors
    :fonts        (mapv (fn [{:keys [path] :as font}]
-                         (assoc font :url (assets/asset-path buster path)))
+                         (assoc font :url (asset/asset-path buster path)))
                        fonts)
    :generated-at (time/format "yyyy/MM/dd HH:mm:ss" (time/local-date-time))})
 

@@ -1,6 +1,6 @@
 (ns bits.app
   (:require
-   [bits.assets :as assets]
+   [bits.asset :as asset]
    [bits.boot :as boot]
    [bits.crypto :as crypto]
    [bits.datahike :as datahike]
@@ -79,7 +79,7 @@
 (defn components
   [config]
   {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
-   :buster        (assets/make-buster         (:buster config))
+   :buster        (asset/make-buster          (:buster config))
    :datahike      (datahike/make-database     (:datahike config))
    :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:postgres config))

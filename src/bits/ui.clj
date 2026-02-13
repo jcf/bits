@@ -1,6 +1,6 @@
 (ns bits.ui
   (:require
-   [bits.assets :as assets]
+   [bits.asset :as asset]
    [bits.form :as form]
    [bits.middleware :as mw]
    [bits.tailwind :as tw]))
@@ -215,7 +215,7 @@
 (defn layout
   [request & content]
   (let [buster     (mw/request->buster request)
-        asset-path #(assets/asset-path buster %)]
+        asset-path #(asset/asset-path buster %)]
     [:html {:class "min-h-screen" :lang "en"}
      [:head
       [:meta {:name "viewport" :content "width=device-width"}]

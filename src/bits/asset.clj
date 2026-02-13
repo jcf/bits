@@ -1,4 +1,4 @@
-(ns bits.assets
+(ns bits.asset
   (:require
    [babashka.fs :as fs]
    [bits.string :as string]

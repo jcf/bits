@@ -16,10 +16,10 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Buster
 
-(s/def :bits.assets/resources (s/coll-of string? :kind set?))
+(s/def :bits.asset/resources (s/coll-of string? :kind set?))
 
-(s/def :bits.assets/config
-  (s/keys :req-un [:bits.assets/resources]))
+(s/def :bits.asset/config
+  (s/keys :req-un [:bits.asset/resources]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Morph
@@ -109,7 +109,7 @@
 
 ;; Rename the keys as we're using unqualified keys to configure our system's
 ;; components.
-(s/def :bits.system/buster :bits.assets/config)
+(s/def :bits.system/buster :bits.asset/config)
 (s/def :bits.system/service :bits.service/config)
 
 (s/def :bits.system/config

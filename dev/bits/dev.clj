@@ -1,7 +1,7 @@
 (ns bits.dev
   (:require
    [bits.app :as app]
-   [bits.assets :as assets]
+   [bits.asset :as asset]
    [bits.dev.watcher :as watcher]
    [bits.morph :as morph]
    [bits.service :as service]
@@ -18,14 +18,14 @@
   [watcher events]
   (let [{:keys [buster service]} watcher]
     (log/debug :msg "Recomputing asset hashes...")
-    (assets/regurgitate! buster)
+    (asset/regurgitate! buster)
     (doseq [event events
             :let  [abs-path (str "/" (:path event))]
             :when (= "app.css" (:path event))]
       (log/debug :msg      "Broadcasting stylesheet update..."
                  :abs-path abs-path)
       (service/broadcast!
-       service (morph/stylesheet-event (assets/asset-path buster abs-path))))))
+       service (morph/stylesheet-event (asset/asset-path buster abs-path))))))
 
 (set-init
  (fn [_system]

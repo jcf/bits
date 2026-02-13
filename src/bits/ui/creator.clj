@@ -1,6 +1,6 @@
 (ns bits.ui.creator
   (:require
-   [bits.assets :as assets]
+   [bits.asset :as asset]
    [bits.middleware :as mw]
    [bits.tailwind :as tw]
    [java-time.api :as time]))
@@ -398,7 +398,7 @@
 (defn creator-layout
   [request & content]
   (let [buster     (mw/request->buster request)
-        asset-path #(assets/asset-path buster %)]
+        asset-path #(asset/asset-path buster %)]
     [:html {:lang "en"}
      [:head
       [:meta {:charset "UTF-8"}]

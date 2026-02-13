@@ -1,7 +1,7 @@
 (ns bits.middleware
   (:require
    [bits.anomaly :as anom]
-   [bits.assets :as assets]
+   [bits.asset :as asset]
    [bits.crypto :as crypto]
    [bits.csp :as csp]
    [bits.datahike :as datahike]
@@ -224,10 +224,10 @@
   [handler]
   (fn [request]
     (let [buster                (request->buster request)
-          {::assets/keys [content-type
-                          resource]
-           :as           asset} (assets/lookup buster request)]
-      (if (some? asset)
+          {::asset/keys [content-type
+                         resource]
+           :as          a} (asset/lookup buster request)]
+      (if (some? a)
         {:status  200
          :headers {"content-type"  content-type
                    "cache-control" "public, max-age=31536000, immutable"}
