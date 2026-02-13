@@ -16,6 +16,22 @@ Use `just` for all common tasks (not `bin/*` scripts):
 
 See `just --list` for all available commands.
 
+## Tailwind CSS
+
+Tailwind CSS is generated from a Selmer template at
+`dev-resources/templates/tailwind.css.selmer`. The template includes:
+
+- Font face declarations (with cache-busted URLs)
+- Theme colors
+- Custom component classes
+
+After modifying the template, regenerate with:
+
+    just css
+
+The `just tailwind` command watches for class changes in Clojure source files and
+rebuilds `resources/public/app.css`.
+
 ## Clojure
 
 **Claude Code Restriction**: Do not write new Clojure implementations. Claude may:
