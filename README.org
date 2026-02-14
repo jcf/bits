@@ -210,12 +210,12 @@ done
 #+end_src
 
 #+results:
-| Status        | Date         | Title                |
-|---------------+--------------+----------------------|
-| =IN-PROGRESS= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]      |
-| =TODO=        | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]      |
-| =TODO=        | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]] |
-| =TODO=        | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]        |
+| Status  | Date         | Title                |
+|---------+--------------+----------------------|
+| =DOING= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]      |
+| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]      |
+| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]] |
+| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]        |
 
 ** =DONE=
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results

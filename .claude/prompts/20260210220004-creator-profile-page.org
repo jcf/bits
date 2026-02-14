@@ -1,6 +1,6 @@
 #+title:    Creator Profile Page
 #+date:     2026-02-10
-#+status:   in-progress
+#+status:   doing
 #+property: header-args :dir ../..
 
 * Goal
