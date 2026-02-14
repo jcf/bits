@@ -80,22 +80,23 @@
 
 (defn avatar
   [{:keys [creator size] :or {size :large}}]
-  (let [avatar-url    (:creator/avatar-url creator)
-        display-name  (:creator/display-name creator)
-        initial       (first display-name)
-        size-classes  (case size
-                        :large  ["w-24" "h-24"]
-                        :medium ["w-9" "h-9" "text-sm"]
-                        :small  ["w-8" "h-8" "text-xs"])
-        base-classes  ["rounded-full" "border-3" "border-surface"
-                       "bg-surface-hover" "shrink-0" "overflow-hidden"
-                       "flex" "items-center" "justify-center"
-                       "font-serif" "text-2xl" "text-accent"]]
+  (let [avatar-url   (:creator/avatar-url creator)
+        display-name (:creator/display-name creator)
+        initial      (first display-name)
+        size-classes (case size
+                       :large  ["w-24" "h-24"]
+                       :medium ["w-9" "h-9" "text-sm"]
+                       :small  ["w-8" "h-8" "text-xs"])
+        base-classes ["rounded-full" "border-3" "border-surface"
+                      "bg-surface-hover" "shrink-0" "overflow-hidden"
+                      "flex" "items-center" "justify-center"
+                      "font-serif" "text-2xl" "text-accent"]
+        classes      (tw/merge-classes [base-classes size-classes])]
     (if avatar-url
       [:img {:src   avatar-url
              :alt   display-name
-             :class (tw/merge-classes base-classes size-classes)}]
-      [:div {:class (tw/merge-classes base-classes size-classes)}
+             :class classes}]
+      [:div {:class classes}
        initial])))
 
 ;;; ----------------------------------------------------------------------------
