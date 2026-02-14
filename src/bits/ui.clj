@@ -25,16 +25,16 @@
 
 (defn input
   [attrs]
-  [:input (update attrs :class #(tw/merge-classes input-base %))])
+  [:input (update attrs :class #(tw/merge-classes (into input-base %)))])
 
 (defn input-top
   [attrs]
-  (input (update attrs :class #(tw/merge-classes ["rounded-t-md"] %))))
+  (input (update attrs :class #(into ["rounded-t-md"] %))))
 
 (defn input-bottom
   [attrs]
-  [:div {:class "-mt-px"}
-   (input (update attrs :class #(tw/merge-classes ["rounded-b-md"] %)))])
+  [:div {:class ["-mt-px"]}
+   (input (update attrs :class #(into ["rounded-b-md"] %)))])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Button classes
@@ -60,14 +60,14 @@
   [attrs & children]
   (into [:button (-> attrs
                      (assoc :type "submit")
-                     (update :class #(tw/merge-classes button-primary-base %)))]
+                     (update :class #(tw/merge-classes (into button-primary-base %))))]
         children))
 
 (defn button-secondary
   [attrs & children]
   (into [:button (-> attrs
                      (assoc :type "submit")
-                     (update :class #(tw/merge-classes button-secondary-base %)))]
+                     (update :class #(tw/merge-classes (into button-secondary-base %))))]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -87,16 +87,16 @@
                  "dark:bg-red-500/15"
                  "dark:outline" "dark:outline-red-500/25"]
          :role  "alert"}
-   [:div {:class "flex"}
-    [:div {:class "shrink-0"}
+   [:div {:class ["flex"]}
+    [:div {:class ["shrink-0"]}
      [:svg {:viewBox     "0 0 20 20"
             :fill        "currentColor"
-            :class       "size-5 text-red-400"
+            :class       ["size-5" "text-red-400"]
             :aria-hidden "true"}
       [:path {:d         error-icon-path
               :clip-rule "evenodd"
               :fill-rule "evenodd"}]]]
-    [:div {:class "ml-3"}
+    [:div {:class ["ml-3"]}
      [:p {:class ["text-sm" "font-medium"
                   "text-red-800" "dark:text-red-200"]}
       message]]]])
@@ -113,20 +113,19 @@
 
 (defn nav-header
   [request current-path]
-  (let [user (:session/user request)
-        link-class
-        (fn [path]
-          (str "text-sm font-medium "
-               (if (= path current-path)
-                 "text-accent"
-                 "text-secondary hover:text-primary")))]
-    [:header {:class "flex justify-between border-b border-border-subtle"}
-     [:nav {:class "flex gap-4 p-4"}
+  (let [user       (:session/user request)
+        link-class (fn [path]
+                     (into ["text-sm" "font-medium"]
+                           (if (= path current-path)
+                             ["text-accent"]
+                             ["text-secondary" "hover:text-primary"])))]
+    [:header {:class ["flex" "justify-between" "border-b" "border-border-subtle"]}
+     [:nav {:class ["flex" "gap-4" "p-4"]}
       (for [[path label] nav-links]
         [:a {:href  path
              :class (link-class path)}
          label])]
-     [:div {:class "p-4"}
+     [:div {:class ["p-4"]}
       (if (:user/id user)
         (form/action-button :auth/sign-out
           {:class ["text-sm"
@@ -147,7 +146,7 @@
 
 (defn page-center
   [attrs & children]
-  (into [:div (update attrs :class #(tw/merge-classes page-center-base %))]
+  (into [:div (update attrs :class #(tw/merge-classes (into page-center-base %)))]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -159,12 +158,12 @@
 
 (defn card
   [attrs & children]
-  (into [:div (update attrs :class #(tw/merge-classes card-base %))]
+  (into [:div (update attrs :class #(tw/merge-classes (into card-base %)))]
         children))
 
 (defn card-title
   [& children]
-  (into [:h3 {:class "text-lg font-semibold mb-4 text-primary"}]
+  (into [:h3 {:class ["text-lg" "font-semibold" "mb-4" "text-primary"]}]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -173,25 +172,22 @@
 (defn page-title
   [attrs & children]
   (into [:h1 (update attrs :class #(tw/merge-classes
-                                    ["text-4xl" "font-bold" "text-primary"]
-                                    %))]
+                                    (into ["text-4xl" "font-bold" "text-primary"] %)))]
         children))
 
 (defn text-muted
   [attrs & children]
-  (into [:p (update attrs :class #(tw/merge-classes
-                                   ["text-muted"]
-                                   %))]
+  (into [:p (update attrs :class #(tw/merge-classes (into ["text-muted"] %)))]
         children))
 
 (defn text-error
   [& children]
-  (into [:p {:class "text-sm text-red-600 dark:text-red-400"}]
+  (into [:p {:class ["text-sm" "text-red-600" "dark:text-red-400"]}]
         children))
 
 (defn text-success
   [& children]
-  (into [:p {:class "text-sm text-success"}]
+  (into [:p {:class ["text-sm" "text-success"]}]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -206,7 +202,7 @@
   [attrs & children]
   (into [:button (-> attrs
                      (assoc :type "button")
-                     (update :class #(tw/merge-classes icon-button-base %)))]
+                     (update :class #(tw/merge-classes (into icon-button-base %))))]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -216,13 +212,15 @@
   [request & content]
   (let [buster     (mw/request->buster request)
         asset-path #(asset/asset-path buster %)]
-    [:html {:class "min-h-screen" :lang "en"}
+    [:html {:class ["min-h-screen"] :lang "en"}
      [:head
       [:meta {:name "viewport" :content "width=device-width"}]
       [:title "Bits"]
-      [:link {:rel "icon" :href "data:,"}]
+      [:link {:rel "icon" :href (asset-path "/favicon.ico") :sizes "any"}]
+      [:link {:rel "icon" :type "image/svg+xml" :href (asset-path "/favicon.svg")}]
+      [:link {:rel "apple-touch-icon" :href (asset-path "/apple-touch-icon.png")}]
       [:link {:rel "stylesheet" :href (asset-path "/app.css")}]
       [:script {:src (asset-path "/idiomorph@0.7.4.min.js")}]
       [:script {:src (asset-path "/bits.js")}]]
-     [:body {:class "min-h-screen bg-surface text-primary font-sans"}
-      (into [:main#morph {:class "min-h-screen flex flex-col"}] content)]]))
+     [:body {:class ["min-h-screen" "bg-surface" "text-primary" "font-sans"]}
+      (into [:main#morph {:class ["min-h-screen" "flex" "flex-col"]}] content)]]))

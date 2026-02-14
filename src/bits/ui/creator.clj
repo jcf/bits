@@ -41,7 +41,7 @@
                :fill         "none"
                :stroke       "currentColor"
                :stroke-width "2"
-               :class        (tw/merge-classes ["w-3.5" "h-3.5" "shrink-0"] class)}]
+               :class        (tw/merge-classes (into ["w-3.5" "h-3.5" "shrink-0"] class))}]
     (if (string? paths)
       [:svg base [:path {:d paths}]]
       (into [:svg base] paths))))
@@ -51,17 +51,17 @@
 
 (def ^:private heart-icon
   [:svg {:viewBox "0 0 24 24" :fill "none" :stroke "currentColor" :stroke-width "2"
-         :class "w-4 h-4"}
+         :class ["w-4" "h-4"]}
    [:path {:d "M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"}]])
 
 (def ^:private comment-icon
   [:svg {:viewBox "0 0 24 24" :fill "none" :stroke "currentColor" :stroke-width "2"
-         :class "w-4 h-4"}
+         :class ["w-4" "h-4"]}
    [:path {:d "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"}]])
 
 (def ^:private users-icon
   [:svg {:viewBox "0 0 24 24" :fill "none" :stroke "currentColor" :stroke-width "2"
-         :class "w-3.5 h-3.5"}
+         :class ["w-3.5" "h-3.5"]}
    [:path {:d "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"}]
    [:circle {:cx "9" :cy "7" :r "4"}]
    [:path {:d "M23 21v-2a4 4 0 0 0-3-3.87"}]
@@ -69,7 +69,7 @@
 
 (def ^:private calendar-icon
   [:svg {:viewBox "0 0 24 24" :fill "none" :stroke "currentColor" :stroke-width "2"
-         :class "w-3.5 h-3.5"}
+         :class ["w-3.5" "h-3.5"]}
    [:rect {:x "3" :y "4" :width "18" :height "18" :rx "2" :ry "2"}]
    [:line {:x1 "16" :y1 "2" :x2 "16" :y2 "6"}]
    [:line {:x1 "8" :y1 "2" :x2 "8" :y2 "6"}]
@@ -83,15 +83,15 @@
   (let [avatar-url   (:creator/avatar-url creator)
         display-name (:creator/display-name creator)
         initial      (first display-name)
-        size-classes (case size
-                       :large  ["w-24" "h-24"]
-                       :medium ["w-9" "h-9" "text-sm"]
-                       :small  ["w-8" "h-8" "text-xs"])
         base-classes ["rounded-full" "border-3" "border-surface"
                       "bg-surface-hover" "shrink-0" "overflow-hidden"
                       "flex" "items-center" "justify-center"
                       "font-serif" "text-2xl" "text-accent"]
-        classes      (tw/merge-classes [base-classes size-classes])]
+        size-classes (case size
+                       :large  ["w-24" "h-24"]
+                       :medium ["w-9" "h-9" "text-sm"]
+                       :small  ["w-8" "h-8" "text-xs"])
+        classes      (tw/merge-classes (into base-classes size-classes))]
     (if avatar-url
       [:img {:src   avatar-url
              :alt   display-name
@@ -173,14 +173,14 @@
                    "mb-8"]}
      (for [{:keys [id label]} tabs]
        [:button {:class (tw/merge-classes
-                         ["px-4" "py-2"
-                          "text-sm" "cursor-pointer"
-                          "border-b-2" "border-t-0" "border-l-0" "border-r-0"
-                          "bg-transparent" "font-sans"
-                          "transition-colors" "duration-150"]
-                         (if (= id active-tab)
-                           ["text-primary" "border-accent"]
-                           ["text-muted" "border-transparent" "hover:text-secondary"]))
+                         (into ["px-4" "py-2"
+                                "text-sm" "cursor-pointer"
+                                "border-b-2" "border-t-0" "border-l-0" "border-r-0"
+                                "bg-transparent" "font-sans"
+                                "transition-colors" "duration-150"]
+                               (if (= id active-tab)
+                                 ["text-primary" "border-accent"]
+                                 ["text-muted" "border-transparent" "hover:text-secondary"])))
                  :key   (name id)}
         label])]))
 
@@ -399,7 +399,9 @@
       [:meta {:charset "UTF-8"}]
       [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
       [:title "Bits"]
-      [:link {:rel "icon" :href "data:,"}]
+      [:link {:rel "icon" :href (asset-path "/favicon.ico") :sizes "any"}]
+      [:link {:rel "icon" :type "image/svg+xml" :href (asset-path "/favicon.svg")}]
+      [:link {:rel "apple-touch-icon" :href (asset-path "/apple-touch-icon.png")}]
       [:link {:rel "stylesheet" :href (asset-path "/app.css")}]
       [:script {:src (asset-path "/idiomorph@0.7.4.min.js")}]
       [:script {:src (asset-path "/bits.js")}]]

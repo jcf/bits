@@ -18,7 +18,7 @@
   (let [[opts & children] (html/normalize body)
         csrf              (::mw/csrf request)
         attrs             (-> default-attrs
-                              (update :class tw/merge-classes (:class opts))
+                              (update :class #(tw/merge-classes (into % (:class opts))))
                               (merge (dissoc opts :class)))]
     (into [:form attrs
            [:input {:type  "hidden"

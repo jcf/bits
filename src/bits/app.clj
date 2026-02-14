@@ -45,12 +45,16 @@
 (defn read-config
   []
   (let [database-url (-> :database-url env normalize-database-url)]
-    {:buster        {:resources #{"public/JetBrainsMono.woff2"
+    {:buster        {:resources #{"public/apple-touch-icon.png"
                                   "public/app.css"
                                   "public/bits.js"
                                   "public/DMSans.woff2"
                                   "public/DMSerifDisplay.woff2"
-                                  "public/idiomorph@0.7.4.min.js"}}
+                                  "public/favicon.ico"
+                                  "public/favicon.svg"
+                                  "public/idiomorph@0.7.4.min.js"
+                                  "public/JetBrainsMono.woff2"
+                                  "public/logo.svg"}}
      :datahike      {:store (datahike/jdbc-url->store database-url)}
      :keymaster     {:argon {:alg         :argon2id
                              :iterations  3
