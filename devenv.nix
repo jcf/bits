@@ -119,7 +119,38 @@ in {
 
   services.nginx = {
     enable = true;
-    httpConfig = ''
+    httpConfig = let
+      # Common proxy settings for SSE support
+      proxySettings = upstream: ''
+        proxy_pass http://${upstream};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE support
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+      '';
+
+      # Error page and static asset locations
+      errorLocations = ''
+        error_page 502 503 504 /_nginx/502.html;
+
+        location /_nginx/ {
+          alias ${root}/nix/nginx/;
+          internal;
+        }
+
+        location /_nginx/fonts/ {
+          alias ${root}/resources/public/;
+        }
+      '';
+    in ''
       error_log stderr error;
 
       upstream page {
@@ -138,20 +169,10 @@ in {
         ssl_certificate ${dev.hosts.page.certPem};
         ssl_certificate_key ${dev.hosts.page.certKey};
 
-        location / {
-          proxy_pass http://${dev.hosts.page.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
+        ${errorLocations}
 
-          # SSE support
-          proxy_buffering off;
-          proxy_cache off;
-          proxy_read_timeout 86400s;
+        location / {
+          ${proxySettings dev.hosts.page.upstream}
         }
       }
 
@@ -163,20 +184,10 @@ in {
         ssl_certificate ${dev.hosts.page-customers.certPem};
         ssl_certificate_key ${dev.hosts.page-customers.certKey};
 
-        location / {
-          proxy_pass http://${dev.hosts.page-customers.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
+        ${errorLocations}
 
-          # SSE support
-          proxy_buffering off;
-          proxy_cache off;
-          proxy_read_timeout 86400s;
+        location / {
+          ${proxySettings dev.hosts.page-customers.upstream}
         }
       }
 
@@ -188,20 +199,10 @@ in {
         ssl_certificate ${dev.hosts.custom-domains.certPem};
         ssl_certificate_key ${dev.hosts.custom-domains.certKey};
 
-        location / {
-          proxy_pass http://${dev.hosts.custom-domains.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
+        ${errorLocations}
 
-          # SSE support
-          proxy_buffering off;
-          proxy_cache off;
-          proxy_read_timeout 86400s;
+        location / {
+          ${proxySettings dev.hosts.custom-domains.upstream}
         }
       }
 
@@ -213,20 +214,10 @@ in {
         ssl_certificate ${dev.hosts.www.certPem};
         ssl_certificate_key ${dev.hosts.www.certKey};
 
-        location / {
-          proxy_pass http://${dev.hosts.www.upstream};
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
+        ${errorLocations}
 
-          # SSE support
-          proxy_buffering off;
-          proxy_cache off;
-          proxy_read_timeout 86400s;
+        location / {
+          ${proxySettings dev.hosts.www.upstream}
         }
       }
     '';
