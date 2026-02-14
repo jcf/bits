@@ -4,5 +4,5 @@
    [clojure.test :refer [deftest is]]))
 
 (deftest merge-classes
-  (is (= ""
+  (is (= "text-lg"
          (sut/merge-classes ["text-sm" "text-lg"]))))

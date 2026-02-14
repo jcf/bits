@@ -37,11 +37,12 @@
 (defn icon-svg
   [{:keys [icon class]}]
   (let [paths (get icon-paths icon)
-        base  {:viewBox      "0 0 24 24"
-               :fill         "none"
-               :stroke       "currentColor"
-               :stroke-width "2"
-               :class        (tw/merge-classes (into ["w-3.5" "h-3.5" "shrink-0"] class))}]
+        base  (tw/with-defaults {:viewBox      "0 0 24 24"
+                                 :fill         "none"
+                                 :stroke       "currentColor"
+                                 :stroke-width "2"
+                                 :class        class}
+                ["w-3.5" "h-3.5" "shrink-0"])]
     (if (string? paths)
       [:svg base [:path {:d paths}]]
       (into [:svg base] paths))))

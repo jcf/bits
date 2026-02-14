@@ -17,9 +17,9 @@
   [request action-kw & body]
   (let [[opts & children] (html/normalize body)
         csrf              (::mw/csrf request)
-        attrs             (-> default-attrs
-                              (update :class #(tw/merge-classes (into % (:class opts))))
-                              (merge (dissoc opts :class)))]
+        attrs             (-> (merge default-attrs (dissoc opts :class))
+                              (assoc :class (:class opts))
+                              (tw/with-defaults (:class default-attrs)))]
     (into [:form attrs
            [:input {:type  "hidden"
                     :name  "action"

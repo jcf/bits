@@ -25,16 +25,16 @@
 
 (defn input
   [attrs]
-  [:input (update attrs :class #(tw/merge-classes (into input-base %)))])
+  [:input (tw/with-defaults attrs input-base)])
 
 (defn input-top
   [attrs]
-  (input (update attrs :class #(into ["rounded-t-md"] %))))
+  (input (tw/with-defaults attrs ["rounded-t-md"])))
 
 (defn input-bottom
   [attrs]
   [:div {:class ["-mt-px"]}
-   (input (update attrs :class #(into ["rounded-b-md"] %)))])
+   (input (tw/with-defaults attrs ["rounded-b-md"]))])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Button classes
@@ -60,14 +60,14 @@
   [attrs & children]
   (into [:button (-> attrs
                      (assoc :type "submit")
-                     (update :class #(tw/merge-classes (into button-primary-base %))))]
+                     (tw/with-defaults button-primary-base))]
         children))
 
 (defn button-secondary
   [attrs & children]
   (into [:button (-> attrs
                      (assoc :type "submit")
-                     (update :class #(tw/merge-classes (into button-secondary-base %))))]
+                     (tw/with-defaults button-secondary-base))]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -146,7 +146,7 @@
 
 (defn page-center
   [attrs & children]
-  (into [:div (update attrs :class #(tw/merge-classes (into page-center-base %)))]
+  (into [:div (tw/with-defaults attrs page-center-base)]
         children))
 
 ;;; ----------------------------------------------------------------------------
@@ -158,7 +158,7 @@
 
 (defn card
   [attrs & children]
-  (into [:div (update attrs :class #(tw/merge-classes (into card-base %)))]
+  (into [:div (tw/with-defaults attrs card-base)]
         children))
 
 (defn card-title
@@ -171,13 +171,12 @@
 
 (defn page-title
   [attrs & children]
-  (into [:h1 (update attrs :class #(tw/merge-classes
-                                    (into ["text-4xl" "font-bold" "text-primary"] %)))]
+  (into [:h1 (tw/with-defaults attrs ["text-4xl" "font-bold" "text-primary"])]
         children))
 
 (defn text-muted
   [attrs & children]
-  (into [:p (update attrs :class #(tw/merge-classes (into ["text-muted"] %)))]
+  (into [:p (tw/with-defaults attrs ["text-muted"])]
         children))
 
 (defn text-error
@@ -202,7 +201,7 @@
   [attrs & children]
   (into [:button (-> attrs
                      (assoc :type "button")
-                     (update :class #(tw/merge-classes (into icon-button-base %))))]
+                     (tw/with-defaults icon-button-base))]
         children))
 
 ;;; ----------------------------------------------------------------------------
