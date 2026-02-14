@@ -1,0 +1,167 @@
+#+title:  Crypto-Shredding for GDPR Compliance
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2026-02-14
+#+status: proposed
+#+parent: [[file:20260214190732-datahike-vs-datomic-for-distributed-coordination.org][Datahike vs Datomic for distributed coordination]]
+
+* Context
+Datomic is immutable by design. Retraction marks data as "not current" but
+preserves history. Excision exists but is operationally heavyweight — requires
+transactor restart and is intended for accidental sensitive data, not routine
+GDPR requests.
+
+GDPR Article 17 ("right to erasure") requires the ability to delete personal
+data on request. We need a compliant approach that works with Datomic's
+immutability.
+
+* Solution: Crypto-Shredding
+Encrypt PII at rest with per-user keys. On deletion request, destroy the key.
+The encrypted data remains in Datomic history but is cryptographically
+unreadable — effectively "forgotten".
+
+** Architecture
+#+begin_example
+┌─────────────────────────────────────────────────────────────┐
+│  Datomic (datomic_kvs in PostgreSQL)                        │
+│  - Immutable, history preserved                             │
+│  - Stores encrypted PII (bytes)                             │
+│  - Stores lookup hashes (UUIDs, not PII)                    │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  PostgreSQL table: user_keys                                │
+│  - Mutable, no history                                      │
+│  - DELETE = truly gone                                      │
+│  - Stores per-user DEKs (encrypted with master KEK)         │
+└─────────────────────────────────────────────────────────────┘
+#+end_example
+
+Key insight: Datomic data lives in PostgreSQL (=datomic_kvs= table), but a
+separate =user_keys= table can use normal SQL DELETE — no history, no excision
+needed.
+
+** Encryption Scheme
+- *DEK* (Data Encryption Key): Per-user AES-256-GCM key
+- *KEK* (Key Encryption Key): Master key, encrypts all DEKs
+- DEKs stored in PostgreSQL, encrypted with KEK
+- KEK stored in secure location (environment variable, KMS, or 1Password)
+
+** Data Flow
+*** Registration
+1. Generate random DEK for user
+2. Encrypt DEK with KEK, store in =user_keys= table
+3. Hash email: ~(hasch/uuid "alice@example.com")~ → deterministic UUID
+4. Encrypt email with DEK → bytes
+5. Store hash (for lookup) and encrypted email (for display) in Datomic
+
+*** Login
+1. Hash input email → UUID
+2. Index lookup on =:user/email-hash= (fast, indexed)
+3. Found user → verify password
+
+*** Display Email
+1. Fetch encrypted email from Datomic
+2. Fetch DEK from =user_keys=, decrypt with KEK
+3. Decrypt email with DEK
+4. Display to user
+
+*** Deletion Request
+#+begin_src sql
+DELETE FROM user_keys WHERE user_id = ?;
+#+end_src
+
+Key is gone. Encrypted email in Datomic history is now unreadable garbage.
+
+* Schema
+** Datomic
+#+begin_src clojure
+;; Lookup hash — indexed, not PII, cannot reverse
+{:db/ident       :user/email-hash
+ :db/valueType   :db.type/uuid
+ :db/cardinality :db.cardinality/one
+ :db/unique      :db.unique/identity}
+
+;; Encrypted value — PII, marked for crypto-shredding awareness
+{:db/ident       :user/email-encrypted
+ :db/valueType   :db.type/bytes
+ :db/cardinality :db.cardinality/one
+ :bits/pii       true}
+#+end_src
+
+The =:bits/pii= attribute is custom schema metadata. Application code can query
+for all PII attributes and handle them appropriately.
+
+** PostgreSQL
+#+begin_src sql
+CREATE TABLE user_keys (
+  user_id    UUID PRIMARY KEY REFERENCES ... ,
+  dek        BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+#+end_src
+
+* Why hasch UUIDs for Lookup
+- Deterministic: same input always produces same UUID
+- Native Datomic type, efficiently indexed
+- 128-bit collision resistance is sufficient
+- Already in deps (~io.replikativ/hasch~)
+- Cleaner than hex-encoded hash strings
+
+* Querying Encrypted Data
+Datomic queries can call arbitrary Clojure functions:
+
+#+begin_src clojure
+[:find ?email
+ :in $ ?user-id decrypt-fn
+ :where
+ [?u :user/id ?user-id]
+ [?u :user/email-encrypted ?ciphertext]
+ [(decrypt-fn ?ciphertext) ?email]]
+#+end_src
+
+Function runs on the peer where keys are available. However, this cannot use
+indexes — use hash lookups for finding users, decrypt for display only.
+
+* Open Questions
+** KEK Storage
+Where does the master key live?
+- Environment variable (simple, works for single-node)
+- AWS KMS / GCP KMS (HSM-backed, audit logs, key rotation)
+- HashiCorp Vault (self-hosted option)
+- 1Password (already in stack, but not designed for programmatic access at scale)
+
+For self-hosters, environment variable is pragmatic. Hosted Bits could use KMS.
+
+** Key Rotation
+How do we rotate the KEK?
+1. Generate new KEK
+2. Re-encrypt all DEKs with new KEK
+3. This is a PostgreSQL-only operation, no Datomic changes needed
+
+** Backup/Restore
+- Datomic backups contain encrypted blobs (safe)
+- =user_keys= table must be backed up separately
+- Restore requires both to be in sync
+- Consider: backup =user_keys= encrypted with offline key
+
+* Consequences
+** Positive
+- GDPR compliant without Datomic excision
+- Defense in depth — breach of Datomic alone is insufficient
+- Can leverage =:bits/pii= schema attribute for automated handling
+- Existing =bits.cryptex= can be extended for this
+
+** Negative
+- Two data stores to manage (Datomic + =user_keys= table)
+- Cannot query encrypted values directly (hash lookup required)
+- Key management complexity (KEK storage, rotation, backup)
+- Slightly more complex registration/login flow
+
+** Neutral
+- PostgreSQL already in stack, no new infrastructure
+- Pattern is well-established (envelope encryption + crypto-shredding)
+
+* References
+- [[https://en.wikipedia.org/wiki/Crypto-shredding][Crypto-shredding (Wikipedia)]]
+- [[https://docs.aws.amazon.com/wellarchitected/latest/financial-services-industry-lens/use-cryptographic-erasure.html][AWS: Cryptographic Erasure]]
+- [[https://gdpr-info.eu/art-17-gdpr/][GDPR Article 17 — Right to erasure]]
