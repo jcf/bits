@@ -1,0 +1,80 @@
+#+title:    About Tab
+#+date:     2026-02-13
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Render the About tab with creator's long bio, stats grid, external links, and
+platform sovereignty badge. Pure content display, no actions.
+
+* Reference
+~.claude/references/shop-about-reference.html~ — Lines 901-977
+
+* Data Model
+** Creator attributes
+| Attribute           | Type   | Description                    |
+|---------------------+--------+--------------------------------|
+| ~:creator/bio-long~ | string | Extended biography (HTML-safe) |
+| ~:creator/links~    | ref*   | External link entities         |
+
+** Link entity
+#+begin_src clojure
+{:link/url  "https://miravasquez.com"
+ :link/icon :link.icon/globe}
+#+end_src
+
+Icon idents (UI layer maps these to SVG via ~icon-paths~):
+#+begin_src clojure
+{:db/ident :link.icon/globe}
+{:db/ident :link.icon/instagram}
+{:db/ident :link.icon/twitter}
+{:db/ident :link.icon/youtube}
+#+end_src
+
+Labels derived from URL (domain extraction) or I18n for icon type.
+
+** Stats (computed at render time)
+| Stat         | Derivation                        |
+|--------------+-----------------------------------|
+| Supporters   | Count of active subscriptions     |
+| Posts        | Count of published posts          |
+| Shop items   | Count of purchasable posts        |
+| Items sold   | Sum of ~:post/sold-count~         |
+| Years active | Years since ~:creator/created-at~ |
+| Avg rating   | Mean of ratings (if applicable)   |
+
+* Components
+** src/bits/ui/about.clj (new namespace)
+| Component        | Input                     | Description               |
+|------------------+---------------------------+---------------------------|
+| ~about-block~    | ~{:keys [title]} & body~  | Card container with title |
+| ~about-bio~      | ~{:keys [paragraphs]}~    | Long bio paragraphs       |
+| ~about-stats~    | ~{:keys [stats]}~         | 3x2 stats grid            |
+| ~about-stat~     | ~{:keys [value label]}~   | Single stat box           |
+| ~about-links~    | ~{:keys [links]}~         | List of external links    |
+| ~about-link~     | ~{:keys [link]}~          | Single link row           |
+| ~about-platform~ | ~{:keys [creator-name]}~  | "Powered by Bits" badge   |
+| ~about-tab~      | ~{:keys [creator stats]}~ | Composes all sections     |
+
+** about-block
+Reusable card wrapper with title.
+
+** about-stats
+Responsive grid: 3 columns on desktop, 2 on mobile.
+
+** about-link
+Row with icon, label (extracted from URL), and arrow. Opens in new tab.
+
+** about-platform
+Dashed border sovereignty badge with Bits branding and link.
+
+* Routing
+Tab switching renders ~about-tab~ and morphs into feed area.
+
+* Verification
+- [ ] About tab renders bio, stats, links, platform badge
+- [ ] Stats grid shows computed values
+- [ ] External links open in new tab
+- [ ] Bio paragraphs render safely (no XSS)
+- [ ] Platform badge links to bits.page
+- [ ] ~just check~ passes

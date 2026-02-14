@@ -1,0 +1,109 @@
+#+title:    Posts Feed
+#+date:     2026-02-13
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Render the Posts tab with different post types: free posts, purchasable posts
+(locked/owned states), and subscriber-only posts. Handle like actions and
+display download areas for owned content.
+
+* Reference
+~.claude/references/purchase-flow-reference.html~ — Lines 1048-1268
+
+* Post Types
+| Type            | Access               | Locked State                 |
+|-----------------+----------------------+------------------------------|
+| Free            | Everyone             | N/A                          |
+| Purchasable     | Purchase required    | Blurred preview + price      |
+| Subscriber-only | Subscription required| Blurred + "Subscribe" prompt |
+
+* Data Model
+** Post access level (idents)
+#+begin_src clojure
+{:db/ident :post.access/free}
+{:db/ident :post.access/purchase}
+{:db/ident :post.access/subscriber}
+#+end_src
+
+** Post attributes
+| Attribute           | Type    | Description                     |
+|---------------------+---------+---------------------------------|
+| ~:post/id~          | uuid    | Unique identifier               |
+| ~:post/title~       | string  | Optional title                  |
+| ~:post/text~        | string  | Post body text                  |
+| ~:post/access~      | ref     | Access level ident              |
+| ~:post/price~       | decimal | Price (for purchasable)         |
+| ~:post/created-at~  | instant | Publication timestamp           |
+| ~:post/image-url~   | string  | Optional image                  |
+| ~:post/media~       | ref     | Media type (for purchasable)    |
+| ~:post/media-count~ | long    | Number of items                 |
+
+** Relationships
+Creator has posts:
+#+begin_src clojure
+{:db/ident       :creator/posts
+ :db/valueType   :db.type/ref
+ :db/cardinality :db.cardinality/many}
+#+end_src
+
+Post has likes (user refs):
+#+begin_src clojure
+{:db/ident       :post/likes
+ :db/valueType   :db.type/ref
+ :db/cardinality :db.cardinality/many}
+#+end_src
+
+* Components
+** src/bits/ui/feed.clj (new namespace)
+| Component              | Input                               | Description              |
+|------------------------+-------------------------------------+--------------------------|
+| ~post-header~          | ~{:keys [creator created-at price]}~ | Avatar, name, time, badge |
+| ~post-body~            | ~{:keys [title text]}~              | Title + text content     |
+| ~post-image~           | ~{:keys [url]}~                     | Image display            |
+| ~post-actions~         | ~{:keys [request post likes comments]}~ | Like/comment buttons |
+| ~post-locked~          | ~{:keys [request post]}~            | Blurred purchase overlay |
+| ~post-subscriber-locked~ | ~{:keys [request creator]}~       | Subscribe prompt overlay |
+| ~post-owned~           | ~{:keys [request post]}~            | Download area            |
+| ~post-card~            | ~{:keys [request post viewer]}~     | Complete post card       |
+| ~posts-feed~           | ~{:keys [request posts viewer]}~    | List of post cards       |
+| ~mid-feed-cta~         | ~{:keys [request creator]}~         | Subscribe prompt         |
+
+** post-header
+Avatar, display name, relative timestamp. Shows price badge for purchasable.
+
+** post-actions
+Like button uses ~bits.form/form~. Comment button (display only for now).
+
+** post-locked
+Blurred overlay with price and unlock button. Uses ~bits.form/form~.
+
+** post-subscriber-locked
+Blurred overlay with lock icon and subscribe button. Uses ~bits.form/form~.
+
+** post-owned
+Full content visible with download area showing filename and download button.
+
+** post-card
+Composes header, body, content area (based on access/ownership), and actions.
+
+** mid-feed-cta
+Dashed border card encouraging subscription. Inserted after 2-3 posts.
+
+* Actions
+*Note: Action names are tentative — confirm during implementation.*
+
+| Action          | Parameters | Effect                |
+|-----------------+------------+-----------------------|
+| like post       | ~post-id~  | Toggle like, refresh  |
+| begin purchase  | ~post-id~  | Open purchase modal   |
+| begin subscribe | ~creator~  | Open subscribe modal  |
+
+* Verification
+- [ ] Free posts render fully visible
+- [ ] Purchasable posts show blurred preview with price
+- [ ] Subscriber-only posts show subscribe prompt
+- [ ] Owned posts show download area
+- [ ] Like button submits form
+- [ ] Mid-feed CTA appears after 2-3 posts
+- [ ] ~just check~ passes

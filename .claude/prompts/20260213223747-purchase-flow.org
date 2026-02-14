@@ -1,0 +1,101 @@
+#+title:    Purchase Flow
+#+date:     2026-02-13
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Modal checkout flow for purchasing individual posts. Supports payment method
+selection (card, Monero), processing state, success confirmation, and state
+transitions via SSE morphing.
+
+* Reference
+~.claude/references/purchase-flow-reference.html~ — Lines 617-1409
+
+* Flow States
+| State      | Trigger             | UI                             |
+|------------+---------------------+--------------------------------|
+| ~closed~   | (initial)           | No modal visible               |
+| ~select~   | begin purchase      | Item summary + payment methods |
+| ~process~  | confirm purchase    | Spinner, "Processing payment…" |
+| ~success~  | Payment webhook     | Checkmark, "Purchase complete" |
+| ~closed~   | dismiss             | Modal removed, post unlocked   |
+
+* Data Model
+** Payment methods (idents)
+#+begin_src clojure
+{:db/ident :payment.method/card}
+{:db/ident :payment.method/monero}
+#+end_src
+
+** Purchase entity
+#+begin_src clojure
+{:purchase/id     (random-uuid)
+ :purchase/post   post-ref
+ :purchase/method :payment.method/card
+ :purchase/amount 500      ; pence/cents
+ :purchase/at     #inst "..."
+ :purchase/status :purchase.status/complete}
+#+end_src
+
+** Purchase status (idents)
+#+begin_src clojure
+{:db/ident :purchase.status/pending}
+{:db/ident :purchase.status/complete}
+{:db/ident :purchase.status/failed}
+#+end_src
+
+* Components
+** src/bits/ui/checkout.clj (new namespace)
+| Component             | Input                           | Description                 |
+|-----------------------+---------------------------------+-----------------------------|
+| ~checkout-modal~      | ~{:keys [state post method]}~   | Modal backdrop + content    |
+| ~checkout-item~       | ~{:keys [post creator]}~        | Item thumbnail + details    |
+| ~payment-methods~     | ~{:keys [request post selected]}~ | Payment option list      |
+| ~payment-option~      | ~{:keys [method selected?]}~    | Single payment choice       |
+| ~checkout-select~     | ~{:keys [request post method]}~ | Selection state content     |
+| ~checkout-processing~ | ~{}~                            | Spinner state               |
+| ~checkout-success~    | ~{:keys [request post]}~        | Success state with download |
+
+** checkout-modal
+Renders backdrop and delegates to state-specific content component.
+
+** payment-option
+Uses ~bits.form/form~ for CSRF. Displays radio-style selection.
+
+** checkout-select
+Item summary, payment method selection, total, terms, and confirm button.
+All forms use ~bits.form/form~.
+
+** checkout-processing
+Centered spinner with "Processing payment…" text.
+
+** checkout-success
+Checkmark icon, "Purchase complete" message, download button.
+
+* Actions
+*Note: Action names are tentative — confirm during implementation.*
+
+| Action                 | Parameters      | Effect                        |
+|------------------------+-----------------+-------------------------------|
+| begin purchase         | ~post-id~       | Morph in modal (select state) |
+| select payment method  | ~post-id method~| Update selected method        |
+| confirm purchase       | ~post-id method~| Morph to processing, initiate |
+| cancel purchase        | ~post-id~       | Remove modal                  |
+| dismiss success        | ~post-id~       | Remove modal, unlock post     |
+| download               | ~post-id~       | Generate signed download URL  |
+
+* SSE State Transitions
+1. Begin → Server morphs modal into page (state=select)
+2. Select method → Server morphs modal with new selection
+3. Confirm → Server morphs modal (state=processing), initiates payment
+4. Payment webhook → Server morphs modal (state=success)
+5. Dismiss → Server removes modal, morphs post to owned state
+
+* Verification
+- [ ] Clicking "Unlock" opens checkout modal
+- [ ] Payment method selection updates radio state
+- [ ] Confirm shows processing spinner
+- [ ] Success state shows checkmark and download button
+- [ ] Dismiss closes modal and unlocks post
+- [ ] Post shows "Owned" badge after purchase
+- [ ] ~just check~ passes
