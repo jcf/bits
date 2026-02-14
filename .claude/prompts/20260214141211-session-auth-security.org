@@ -1,0 +1,396 @@
+#+title:    Session and Auth Security
+#+date:     2026-02-14
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Harden the session and authentication systems with testable time, tenant
+scoping, hashed identifiers, device context capture, and anomaly notification.
+
+* Architecture Context
+** Multi-tenancy
+Bits is multi-tenant. Each creator has a subdomain (e.g. ~alice.bits.page~) and
+may have a custom domain (~alice-custom.com~). Tenants are fully isolated —
+separate Datahike databases per tenant. PostgreSQL is used only for sessions
+and authentication attempts.
+
+** Tenant identity
+Each tenant has a stable UID stored in Datahike. Subdomains are mutable — a
+creator can change their subdomain. Both the ~sessions~ and
+~authentication_attempts~ tables reference the tenant UID, never the subdomain
+or hostname. Middleware resolves hostname to tenant UID (via Datahike lookup,
+cached) and passes the UID downstream.
+
+** Subdomain changes and sessions
+When a creator changes their subdomain, browsers will not send cookies set on
+the old subdomain to the new one. This is a browser security property — no
+redirect or engineering trick can transfer cookies across origins. Consequence:
+all active sessions become unreachable. Users must sign in again at the new
+address.
+
+On subdomain change:
+- The sessions table is unaffected (references tenant UID, not hostname)
+- Proactively delete all sessions for the tenant as part of the subdomain
+  change operation (cleaner than leaving ghost sessions to expire)
+- Reserve the old subdomain for a grace period; serve a static notice to
+  visitors ("this creator has moved to new-name.bits.page")
+- After the grace period, release the old subdomain back to the pool
+- Datahike retains history of all previous subdomains for a tenant
+
+** Cookie scoping
+Cookies are set on the specific subdomain (e.g. ~alice.bits.page~), never on
+the parent ~.bits.page~ domain. A parent-domain cookie would leak across
+tenants. For custom domains, the cookie is set on the custom domain —
+completely separate cookie jar.
+
+** Future: Sign in with Bits (OAuth/OIDC)
+Out of scope for this prompt. Noted here for architectural awareness.
+
+Bits will act as an identity provider. ~auth.bits.page~ will host an OAuth/OIDC
+authorization server. Creator sites are relying parties. The flow ends with a
+normal ~rotate-session!~ call on the creator's tenant — the session layer does
+not change.
+
+* System Map Changes
+** Config additions in ~read-config~
+#+begin_src clojure
+:rate-limiter {:email-window-minutes 15
+               :email-max-attempts   5
+               :ip-window-minutes    15
+               :ip-max-attempts      20}
+#+end_src
+
+** Component additions in ~components~
+#+begin_src clojure
+:rate-limiter (rate-limit/make-rate-limiter (:rate-limiter config))
+#+end_src
+
+** Updated dependencies
+#+begin_src clojure
+:rate-limiter [:postgres]
+:reaper       [:postgres :rate-limiter :session-store]
+:service      [:bootstrapper :buster :datahike :keymaster
+               :postgres :randomizer :rate-limiter :session-store]
+#+end_src
+
+The reaper gains a dependency on ~:rate-limiter~ so it can call
+~delete-old-attempts!~ alongside ~delete-expired-sessions!~ in its periodic
+cleanup.
+
+* Phase 1 — Testable Time, Tenant Scoping, Core Hardening
+No new infrastructure dependencies. Everything here is internal to the session
+and rate limiting systems.
+
+** 1.1 Add tenant scoping to sessions
+Add a ~tenant~ column (~uuid~, not null) to the ~sessions~ table. This is the
+tenant UID resolved from the request hostname by middleware via Datahike lookup.
+
+Every query must include ~[:= :tenant tenant-uid]~ in its WHERE clause. The
+uniqueness constraint on ~sid_hash~ becomes ~(sid_hash, tenant)~.
+
+Pass ~tenant~ as an explicit parameter to every function that touches the
+database: ~create-session!~, ~get-session~, ~touch-session!~, ~update-session!~,
+~rotate-session!~, ~clear-user!~, ~delete-session!~.
+
+For ~delete-expired-sessions!~: run globally (no tenant filter). Expired
+sessions are expired regardless of tenant, and a single cleanup sweep is
+simpler than per-tenant scheduling.
+
+*** Tests
+- Create sessions with the same sid in two different tenants. Both exist independently.
+- Get session for tenant A does not return tenant B's session.
+- Delete session for tenant A does not affect tenant B.
+
+** 1.2 Add tenant scoping to authentication attempts
+Add a ~tenant~ column (~uuid~, not null) to the ~authentication_attempts~ table.
+Rate limiting must be per-tenant — a brute force attack against
+~alice.bits.page~ must not lock out the same email on ~bob.bits.page~.
+
+~record-attempt!~ and ~failed-count~ (or the combined query — see 1.8) include
+~[:= :tenant tenant-uid]~ in their queries.
+
+~delete-old-attempts!~ runs globally, same rationale as expired session cleanup.
+
+*** Tests
+- Rate limit triggered on tenant A does not affect the same email on tenant B.
+
+** 1.3 Replace ~[:now]~ with a clock-aware ~now~ function
+Create a shared function (in a common namespace, or in each namespace that
+needs it):
+
+#+begin_src clojure
+(defn now
+  "Current time as OffsetDateTime. Respects java-time's thread-local clock,
+   so tests can control time via with-clock."
+  []
+  (java-time/offset-date-time))
+#+end_src
+
+Replace all occurrences of ~[:now]~ in both ~bits.session~ (7 occurrences) and
+~bits.auth.rate-limit~ (3 occurrences: twice in ~failed-count~, once in
+~delete-old-attempts!~). next.jdbc binds ~OffsetDateTime~ directly as
+~timestamptz~ — no casts needed.
+
+*** Tests
+- Create a session, verify it's readable, advance clock past expiry, verify nil.
+- Touch a session, advance clock to just before new expiry, verify still valid.
+- ~delete-expired-sessions!~ returns correct count after advancing time.
+- Record failed attempts, verify rate limited, advance clock past window, verify no longer rate limited.
+
+** 1.4 Hash session IDs before storage
+The ~sid~ is currently stored in plaintext — it's both the cookie value and the
+DB lookup key. If the sessions table leaks, every session is immediately
+compromisable.
+
+- Add ~sha256~ to ~bits.crypto~ if not present. Use ~java.security.MessageDigest~, return hex string.
+- Rename column ~sid~ to ~sid_hash~ (migration).
+- All queries hash the sid before lookup/insert.
+- Callers still work with the raw sid. The hashing is internal to the session layer.
+
+*** Tests
+- Query the DB directly for ~sid_hash = 'raw-sid-value'~ — must return nothing (stored value is the hash).
+- Full round-trip: create, read, touch, update, rotate, delete — all via raw sid.
+
+** 1.5 Hash IP addresses in authentication attempts
+IP addresses are PII. The rate limiter only needs equality checks, not range
+queries. Store a hash of the IP address instead of the raw value.
+
+- Use the same ~sha256~ from ~bits.crypto~.
+- Rename column ~ip_address~ to ~ip_hash~ (migration). Change type from ~inet~ to ~text~.
+- ~record-attempt!~ and the query in ~check~ hash the IP before storage/comparison.
+
+If forensic IP range analysis is needed in future, that's a separate audit log
+concern with its own retention policy — not the rate limiter's job.
+
+*** Tests
+- Query the DB directly for the raw IP — must return nothing.
+- Rate limiting by IP still works via hashed comparison.
+
+** 1.6 Replace read-then-write in ~write-session~ with upsert
+Current code does ~(if (get-session ...) (update-session! ...) (create-session! ...))~
+— a TOCTOU race. Replace with a single ~INSERT ... ON CONFLICT DO UPDATE~.
+
+*** Tests
+- Upsert with a new sid creates a session.
+- Upsert with an existing sid updates data and extends expiry.
+
+** 1.7 Fix ~clear-user!~ extending expiry
+Signing out currently extends ~expires-at~. Remove the expiry extension — only
+clear ~user-id~ and update ~accessed-at~.
+
+** 1.8 Combine rate limit queries into one
+The current ~check~ function makes two sequential queries (per-email and
+per-IP). Combine into a single query using conditional aggregation:
+
+#+begin_src clojure
+(defn- failure-counts
+  [rate-limiter tenant email ip-hash now-ts]
+  (let [{:keys [postgres email-window-minutes ip-window-minutes]} rate-limiter]
+    (postgres/execute-one!
+     postgres
+     {:select [[[:count [:case
+                         [:and
+                          [:= :email email]
+                          [:> :attempted-at [:- now-ts [:make-interval :mins email-window-minutes]]]]
+                         [:inline 1]]]
+                :email-failures]
+               [[:count [:case
+                         [:and
+                          [:= :ip-hash ip-hash]
+                          [:> :attempted-at [:- now-ts [:make-interval :mins ip-window-minutes]]]]
+                         [:inline 1]]]
+                :ip-failures]]
+      :from  [:authentication-attempts]
+      :where [:and
+              [:= :tenant tenant]
+              [:not :success]]})))
+#+end_src
+
+Single round trip instead of two. This matters under load — rate limit checks
+happen on every auth attempt, including the ones being throttled.
+
+** 1.9 Reverse operation order in ~rotate-session!~
+Currently: insert new, delete old. Reverse to: delete old, insert new. Partial
+failure then leaves zero sessions (safe) rather than two (unsafe). The
+transaction ensures atomicity either way, but the safe failure mode matters.
+
+** 1.10 Promote rate limiter to a component
+Convert ~bits.auth.rate-limit~ from stateless functions with hardcoded ~def~s
+to a Component record:
+
+#+begin_src clojure
+(defrecord RateLimiter [email-window-minutes email-max-attempts
+                        ip-window-minutes ip-max-attempts
+                        postgres]
+  component/Lifecycle
+  (start [this] this)
+  (stop [this] this))
+#+end_src
+
+All functions take the ~rate-limiter~ component as first argument instead of a
+raw ~connectable~. Thresholds come from the component, not private vars.
+
+** 1.11 Add observability metrics
+Using ~steffan-westcott/clj-otel~ metrics support:
+
+- *Gauge*: active session count. ~SELECT count(*) FROM sessions WHERE expires_at > (now)~. This is the concurrent user proxy — no span can tell you this.
+- *Histogram*: expired sessions per cleanup. Instrument the return value of ~delete-expired-sessions!~. Shows whether sessions are accumulating.
+
+Don't add counters for create/touch/rotate/delete rates — derivable from
+existing spans.
+
+* Phase 2 — Device Context Capture
+Depends on Phase 1 (testable time, hashed sids, tenant scoping). No email
+dependency yet. This phase builds the detection infrastructure; notification
+comes in Phase 3.
+
+** 2.1 Add request context capture
+Add two columns to ~sessions~:
+- ~request_context jsonb~ — human-readable device/network info for notification emails later
+- ~context_hash uuid~ — hasch-generated UUID for fast comparison
+
+Define specs in ~bits.postgres.session~ for both: ~::request-context~,
+~::context-hash~.
+
+Create a function to extract context from a Ring request:
+
+#+begin_src clojure
+(defn request-context
+  "Extract device/network context from a Ring request.
+   Returns a map suitable for hashing and for human-readable display."
+  [request]
+  {:v            1  ;; algorithm version, part of hash input
+   :ip-prefix    (ip->prefix (:remote-addr request))
+   :user-agent   (ua/parse (get-in request [:headers "user-agent"]))
+   :accept-lang  (get-in request [:headers "accept-language"])})
+#+end_src
+
+For ~ip->prefix~: extract /24 for IPv4 (first three octets), /48 for IPv6. For
+~ua/parse~: extract browser family and OS only — not full version strings,
+which change on every browser update and cause false positives.
+
+The context hash is:
+
+#+begin_src clojure
+(hasch/uuid (request-context request))
+#+end_src
+
+Since ~:v~ is inside the map, changing the algorithm changes the hash
+automatically.
+
+** 2.2 Store context at session creation and rotation
+~create-session!~ and ~rotate-session!~ accept the request context and store
+both the full map (as ~request_context~ jsonb) and the hash (as ~context_hash~
+uuid).
+
+The context must flow from the Ring middleware layer. Pass context explicitly:
+add an optional ~context~ parameter to ~create-session!~ and ~rotate-session!~.
+
+*** Tests
+- Create a session with a known context, read it back, verify both ~request_context~ and ~context_hash~ are stored correctly.
+- Rotate a session with a different context, verify the new session has the new context.
+
+** 2.3 Drift detection
+Create a drift detection function:
+
+#+begin_src clojure
+(defn context-drift
+  "Compare stored and current request contexts.
+   Returns a set of drift factors: #{:network :device :locale}"
+  [stored current]
+  (cond-> #{}
+    (not= (:ip-prefix stored) (:ip-prefix current))    (conj :network)
+    (not= (:user-agent stored) (:user-agent current))  (conj :device)
+    (not= (:accept-lang stored) (:accept-lang current)) (conj :locale)))
+#+end_src
+
+Drift severity:
+- Single factor (e.g. just ~:network~): no action, expected from VPN/mobile network switching
+- Multi-factor (~:device~ + ~:network~): anomaly, flag for notification
+
+~touch-session!~ should compare the current request's context hash against the
+stored one. If they differ, compute the full drift. Return the drift set to the
+caller (middleware layer) so it can decide what to do.
+
+For algorithm version migration: if the stored context has a different ~:v~
+than the current algorithm, recompute the hash using the stored context's
+version for comparison. If it matches, silently upgrade the stored context and
+hash to the current version on the next touch.
+
+*** Tests
+- Same context produces empty drift set.
+- Changed IP prefix only produces ~#{:network}~.
+- Changed user-agent + IP produces ~#{:device :network}~.
+- Context with ~:v 1~ is correctly compared and upgraded to ~:v 2~ when the algorithm changes.
+
+** 2.4 Middleware integration
+The session middleware needs to:
+1. Resolve hostname to tenant UID (Datahike lookup, cached)
+2. Compute request context on every authenticated request
+3. Pass tenant UID and context through to ~touch-session!~
+4. Receive drift information back
+5. For Phase 2: log multi-factor drift events via OTEL spans with drift details as attributes
+6. For Phase 3: trigger email notification on multi-factor drift
+
+The middleware should add drift info to the request map so downstream handlers
+can access it if needed.
+
+* Phase 3 — Email Notification and Session Revocation
+Depends on Phase 2 and email infrastructure being available.
+
+*Email infrastructure decision is pending.* Options under consideration:
+Postmark (preferred for deliverability), Fastmail SMTP, or direct SMTP. This
+phase should be implemented against an email abstraction so the transport is
+swappable.
+
+** 3.1 Email abstraction
+Create an email component with a protocol:
+
+#+begin_src clojure
+(defprotocol EmailSender
+  (send! [this message]))
+#+end_src
+
+Where ~message~ is a map with ~:to~, ~:subject~, ~:body-text~, ~:body-html~.
+Implementations for Postmark API, SMTP, and a test stub that captures sent
+messages into an atom.
+
+** 3.2 Anomaly notification email
+When multi-factor drift is detected, send an email to the session's user
+containing:
+- Human-readable device/network description (from ~request_context~ jsonb)
+- Timestamp of the anomalous request
+- Approximate location derived from IP (can be a later enhancement — start with just the IP prefix)
+- A signed revocation link
+
+** 3.3 Session revocation link
+The link contains an HMAC signature over the session's ~sid_hash~ + a
+timestamp. Hitting the endpoint calls ~delete-session!~. Time-bound the HMAC to
+72 hours.
+
+Use ~bits.crypto~ for HMAC. The signing key should be a config value on the
+session store or a dedicated component.
+
+*** Tests
+- Valid revocation link deletes the session.
+- Expired revocation link (past 72h) is rejected.
+- Tampered revocation link is rejected.
+- Full integration: create session, trigger drift, verify email sent (via test stub), follow revocation link, verify session deleted.
+
+* Principles
+- Time is data, not ambient state. ~(now)~ reads the clock; tests control the clock.
+- The database never decides what "now" is in application logic.
+- next.jdbc handles ~OffsetDateTime~ to ~timestamptz~ and ~UUID~ to ~uuid~ natively.
+- Every security change gets a test that verifies the security property, not just the happy path.
+- Namespace-qualified keywords everywhere. Data from PostgreSQL uses table-qualified ~::postgres.*~ prefixes.
+- Tenant isolation is foundational. Sessions and auth attempts reference the tenant UID (from Datahike), not the hostname. Subdomains are mutable; UIDs are not.
+- Cookies are set on the specific subdomain or custom domain, never the parent domain.
+- Components own their configuration. Thresholds, timeouts, and secrets live on components, not as module-level vars.
+- Detection and notification are separate concerns. Detection ships first; notification follows when email is ready.
+- No absolute session lifetime. Active sessions stay alive. Security comes from anomaly detection, not arbitrary timeouts.
+
+* Verification
+- [ ] Phase 1 complete: all session/rate-limit functions use ~(now)~, hashed identifiers, tenant scoping
+- [ ] Phase 2 complete: device context captured, drift detection working, OTEL spans for anomalies
+- [ ] Phase 3 complete: email notifications sent, revocation links working
+- [ ] ~just check~ passes
