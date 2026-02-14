@@ -42,11 +42,6 @@
   ring/ring-mock                           {:mvn/version "0.6.2"}
   ring/ring-spec                           {:mvn/version "0.0.4"}}
 
- ;; lacinia-pedestal depends on proxy-plus from Red Planet Labs, which in turn
- ;; depends on rama-shaded-asm, and without the RPL Nexus repository below, we
- ;; can't build our classpath.
- :mvn/repos {"nexus-releases" {:url "https://nexus.redplanetlabs.com/repository/maven-public-releases/"}}
-
  :aliases
  {:darwin-aarch64
   {:extra-deps
