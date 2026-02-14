@@ -591,6 +591,34 @@ Functions that return transaction data use suffix conventions:
 (datahike/transact! db (realm-txes))                 ; -txes already a vector
 ```
 
+### Datahike Schema: Relationship Naming
+
+Name relationships from the "one" side to the "many" side. The namespace indicates
+the owner; the attribute name indicates what they own.
+
+```clojure
+;; Good: Owner's perspective — "a tenant has domains"
+{:db/ident       :tenant/domains
+ :db/valueType   :db.type/ref
+ :db/cardinality :db.cardinality/many}
+
+;; Good: "a user has purchases", "a creator has posts"
+:user/purchases
+:creator/posts
+
+;; Bad: Inverse perspective — "a domain belongs to a tenant"
+:domain/tenant
+:purchase/user
+:post/creator
+```
+
+**Rationale:**
+
+- **Natural language** — "show me the user's purchases" not "find purchases where purchase-user equals X"
+- **Query direction** — You typically navigate from the "one" to the "many"
+- **Domain modeling** — Reflects how you think about relationships, not storage details
+- **Consistency** — All relationships read the same way: owner/owned
+
 ### Dev Namespace Conventions
 
 Functions in `dev/` namespaces that are internal helpers should be private (`defn-`).
