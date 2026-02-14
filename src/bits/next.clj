@@ -8,7 +8,7 @@
    [bits.ui :as ui]
    [bits.ui.creator :as ui.creator]
    [clojure.string :as str]
-   [datahike.api :as d]
+   [datomic.api :as d]
    [medley.core :as medley]))
 
 ;;; ----------------------------------------------------------------------------
@@ -83,7 +83,7 @@
       (if-not (seq tenants)
         (list
          (ui/page-title {} "No tenants found")
-         (ui/text-muted {:class "mt-4"}
+         (ui/text-muted {:class ["mt-4"]}
                         "Please create a tenant or two."))
         [:ul {:class "space-y-2"}
          (for [{:keys [creator/display-name
@@ -171,7 +171,7 @@
 
       (ui/page-center {}
                       (ui/page-title {} "Presence Cursors")
-                      (ui/text-muted {:class "mt-4"}
+                      (ui/text-muted {:class ["mt-4"]}
                                      (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")))])))
 
 ;;; ----------------------------------------------------------------------------
@@ -228,7 +228,7 @@
   (ui/page-center
    {}
    (ui/page-title {} "Realm not found")
-   (ui/text-muted {:class "mt-4"}
+   (ui/text-muted {:class ["mt-4"]}
                   "Want your own Bits? We want to hear from you!")))
 
 ;;; ----------------------------------------------------------------------------

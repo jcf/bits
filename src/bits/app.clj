@@ -3,7 +3,7 @@
    [bits.asset :as asset]
    [bits.boot :as boot]
    [bits.crypto :as crypto]
-   [bits.datahike :as datahike]
+   [bits.datomic :as datomic]
    [bits.next :as next]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
@@ -55,7 +55,7 @@
                                   "public/idiomorph@0.7.4.min.js"
                                   "public/JetBrainsMono.woff2"
                                   "public/logo.svg"}}
-     :datahike      {:store (datahike/jdbc-url->store database-url)}
+     :datomic       {:uri (env :datomic-uri)}
      :keymaster     {:argon {:alg         :argon2id
                              :iterations  3
                              :memory      (* 64 1024)
@@ -84,7 +84,7 @@
   [config]
   {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
    :buster        (asset/make-buster          (:buster config))
-   :datahike      (datahike/make-database     (:datahike config))
+   :datomic       (datomic/make-datomic      (:datomic config))
    :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:postgres config))
    :postgres      (postgres/make-postgres     (:postgres config))
@@ -98,7 +98,7 @@
    :reaper        [:postgres :session-store]
    :service       [:bootstrapper
                    :buster
-                   :datahike
+                   :datomic
                    :keymaster
                    :postgres
                    :randomizer

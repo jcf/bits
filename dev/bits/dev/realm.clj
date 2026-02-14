@@ -1,8 +1,8 @@
 (ns bits.dev.realm
   (:require
-   [bits.datahike :as datahike]
+   [bits.datomic :as datomic]
    [com.stuartsierra.component.repl :refer [system]]
-   [datahike.api :as d]
+   [datomic.api :as d]
    [java-time.api :as time]))
 
 (defn seed-txes
@@ -100,10 +100,10 @@
     :creator/bio          "Aspiring barista. Froth enthusiast. Decaf only — can't have caffeine, what with being a dog."}])
 
 (comment
-  (datahike/transact! (:datahike system) (seed-txes))
+  (datomic/transact! (:datomic system) (seed-txes))
 
   (d/q '[:find (pull ?e [*
                          {:creator/posts [*]}
                          {:tenant/domains [:domain/name]}])
          :where [?e :tenant/id]]
-       (datahike/db (:datahike system))))
+       (datomic/db (:datomic system))))

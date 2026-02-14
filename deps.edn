@@ -27,9 +27,8 @@
   http-kit/http-kit                        {:mvn/version "2.9.0-beta3"}
   inflections/inflections                  {:mvn/version "0.15.0"}
   io.netty/netty-buffer                    {:mvn/version "4.2.10.Final"}
+  com.datomic/peer                         {:mvn/version "1.0.7187"}
   io.pedestal/pedestal.log                 {:mvn/version "0.8.1"}
-  io.replikativ/datahike                   {:mvn/version "0.6.1597"}
-  io.replikativ/datahike-jdbc              {:mvn/version "0.3.50"}
   io.replikativ/hasch                      {:mvn/version "0.3.94"}
   lambdaisland/uri                         {:mvn/version "1.19.155"}
   metosin/reitit                           {:mvn/version "0.10.0"}

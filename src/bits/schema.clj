@@ -80,7 +80,8 @@
 
    {:db/ident       :creator/links
     :db/valueType   :db.type/ref
-    :db/cardinality :db.cardinality/many}
+    :db/cardinality :db.cardinality/many
+    :db/isComponent true}
 
    {:db/ident       :creator/posts
     :db/valueType   :db.type/ref

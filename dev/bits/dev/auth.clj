@@ -3,7 +3,7 @@
    [bits.auth.credential :as credential]
    [bits.cryptex :as cryptex]
    [bits.crypto :as crypto]
-   [bits.datahike :as datahike]
+   [bits.datomic :as datomic]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
    [com.stuartsierra.component.repl :refer [system]]
@@ -21,9 +21,9 @@
         password  "password"
         txes      (user-txes
                    "dev@bits.page" (crypto/derive keymaster (cryptex/cryptex password)))]
-    (datahike/transact! (:datahike system) txes))
+    (datomic/transact! (:datomic system) txes))
 
-  (datahike/q (:datahike system) credential/user-by-email-query "dev@bits.page")
+  (datomic/q (:datomic system) credential/user-by-email-query "dev@bits.page")
 
   (postgres/execute! (:postgres system)
                      {:select   [:*]

@@ -7,7 +7,7 @@
    [bits.service :as service]
    [com.stuartsierra.component :as component]
    [com.stuartsierra.component.repl :refer [set-init start stop system]]
-   [datahike.core]
+   [datomic.api]
    [io.pedestal.log :as log]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 

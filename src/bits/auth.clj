@@ -5,7 +5,7 @@
    [bits.auth.rate-limit :as rate-limit]
    [bits.cryptex :as cryptex]
    [bits.crypto :as crypto]
-   [bits.datahike :as datahike]
+   [bits.datomic :as datomic]
    [bits.form :as form]
    [bits.middleware :as mw]
    [bits.morph :as morph]
@@ -64,14 +64,14 @@
 
 (defn- find-user-by-email
   "Look up user by email. Returns {:user/id :user/password-hash} or nil."
-  [datahike email]
-  (datahike/q datahike credential/user-by-email-query email))
+  [database email]
+  (datomic/q database credential/user-by-email-query email))
 
 (defn authenticate
-  "Login action. Requires :keymaster, :datahike, and :postgres in request."
+  "Login action. Requires :keymaster, :datomic, and :postgres in request."
   [request]
   (span/with-span! {:name ::authenticate}
-    (let [{:keys [datahike keymaster postgres]} (mw/request->state request)
+    (let [{:keys [datomic keymaster postgres]} (mw/request->state request)
 
           params                   (get-in request [:parameters :form])
           {:keys [email password]} params
@@ -86,7 +86,7 @@
                         :email      email-str
                         :ip-address ip-address)
               (morph/respond (login-view request {:error (::anom/message rate-check)})))
-            (let [user         (find-user-by-email datahike email-str)
+            (let [user         (find-user-by-email datomic email-str)
                   has-user?    (some? user)
                   password-ok? (if has-user?
                                  (:valid (crypto/verify keymaster password (:user/password-hash user)))

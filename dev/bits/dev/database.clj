@@ -1,10 +1,9 @@
 (ns bits.dev.database
   (:require
    [bits.app :as app]
-   [bits.datahike :as datahike]
    [bits.postgres :as postgres]
    [com.stuartsierra.component.repl :refer [start stop system]]
-   [datahike.api :as d]))
+   [datomic.api :as d]))
 
 (defn- local-database-url?
   [db-url]
@@ -15,12 +14,13 @@
 
 (defn reset-database!
   []
-  (let [database-url (get-in (app/read-config) [:postgres :database-url])]
+  (let [database-url (get-in (app/read-config) [:postgres :database-url])
+        datomic-uri  (get-in (app/read-config) [:datomic :uri])]
     (when-not (local-database-url? database-url)
       (throw (ex-info "Refusing to delete non-local database."
                       {:database-url database-url})))
     (stop)
-    (d/delete-database {:store (datahike/jdbc-url->store database-url)})
+    (d/delete-database datomic-uri)
     (start)))
 
 (comment
@@ -33,6 +33,6 @@
   (local-database-url?
    "jdbc:postgresql://127.0.0.1:5432/bits_prod?user=bits&password=please")
 
-  ;; Here be dragons! This function will delete whatever database Datahike is
+  ;; Here be dragons! This function will delete whatever database Datomic is
   ;; configured to use within the running system.
   (reset-database!))

@@ -4,12 +4,12 @@
    [bits.asset :as asset]
    [bits.crypto :as crypto]
    [bits.csp :as csp]
-   [bits.datahike :as datahike]
+   [bits.datomic :as datomic]
    [bits.request :as request]
    [buddy.core.bytes :as buddy.bytes]
    [clojure.java.io :as io]
    [clojure.string :as str]
-   [datahike.api :as d]
+   [datomic.api :as d]
    [ring.util.response :as response]))
 
 ;;; ----------------------------------------------------------------------------
@@ -32,9 +32,9 @@
   [request]
   (get-state request :buster))
 
-(defn request->datahike
+(defn request->datomic
   [request]
-  (get-state request :datahike))
+  (get-state request :datomic))
 
 (defn request->keymaster
   [request]
@@ -76,11 +76,11 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Database
 
-(defn wrap-datahike
+(defn wrap-datomic
   [handler]
   (fn [request]
-    (let [datahike (request->datahike request)
-          db       (some-> datahike datahike/db)]
+    (let [database (request->datomic request)
+          db       (some-> database datomic/db)]
       (handler (cond-> request (some? db) (assoc ::db db))))))
 
 ;;; ----------------------------------------------------------------------------

@@ -1,8 +1,6 @@
 (ns bits.spec
   (:require
    [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [datahike-jdbc.core]
    [ring.core.spec]))
 
 ;;; ----------------------------------------------------------------------------
@@ -62,27 +60,12 @@
                    :bits.service/sse-reconnect-ms]))
 
 ;;; ----------------------------------------------------------------------------
-;;; Datahike
+;;; Datomic
 
-(s/def :bits.datahike/jdbc-url
-  (s/and string? #(str/starts-with? % "jdbc:")))
+(s/def :bits.datomic/uri string?)
 
-(defmulti store-type :backend)
-(defmethod store-type :mem [_] :datahike.store/mem)
-(defmethod store-type :jdbc [_]
-  (s/keys :req-un [:datahike.store.jdbc/backend
-                   :datahike.store.jdbc/dbtype
-                   :datahike.store.jdbc/host
-                   :datahike.store.jdbc/dbname]
-          :opt-un [:datahike.store.jdbc/port
-                   :datahike.store.jdbc/user
-                   :datahike.store.jdbc/password
-                   :datahike.store.jdbc/table]))
-
-(s/def :bits.datahike/store (s/multi-spec store-type :backend))
-
-(s/def :bits.datahike/config
-  (s/keys :req-un [:bits.datahike/store]))
+(s/def :bits.datomic/config
+  (s/keys :req-un [:bits.datomic/uri]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Crypto

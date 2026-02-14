@@ -3,7 +3,7 @@
    [bits.app :as app]
    [bits.cryptex :as cryptex]
    [bits.crypto :as crypto]
-   [bits.datahike :as datahike]
+   [bits.datomic :as datomic]
    [bits.postgres :as postgres]
    [bits.test.postgres :as test.postgres]
    [clojure.spec.alpha :as s]
@@ -50,7 +50,7 @@
         {:keys [ephemeral-url
                 template-name]} (test.postgres/ephemerize database-url)
         config                  (-> config
-                                    (assoc-in [:datahike :store] (datahike/memory-store))
+                                    (assoc-in [:datomic :uri] (str "datomic:mem://bits-test-" (random-uuid)))
                                     (assoc-in [:postgres :database-url] ephemeral-url)
                                     (assoc-in [:service :cookie-name] "bits")
                                     (assoc-in [:service :cookie-secure] false)
@@ -59,7 +59,8 @@
         ephemeron               (test.postgres/make-ephemeron {:database-url  ephemeral-url
                                                                :template-name template-name})
         deps                    (-> app/dependencies
-                                    (update :datahike (fnil conj []) :ephemeron)
+                                    (update :datomic (fnil conj []) :ephemeron)
+                                    (update :migrator (fnil conj []) :ephemeron)
                                     (update :postgres (fnil conj []) :ephemeron))]
     (-> config
         app/components
@@ -143,7 +144,7 @@
 
 (defn create-user!
   [service email password]
-  (let [{:keys [datahike
+  (let [{:keys [datomic
                 keymaster]} service
         txes                (user-txes email (hash-password keymaster password))]
-    (datahike/transact! datahike txes)))
+    (datomic/transact! datomic txes)))

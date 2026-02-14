@@ -88,7 +88,7 @@
         [[morph/wrap-refresh refresh-ch refresh-mult]
          [morph/wrap-channels channels]
          [mw/wrap-state service]
-         [mw/wrap-datahike]
+         [mw/wrap-datomic]
          [middleware.params/wrap-params]
          [middleware.cookies/wrap-cookies]
          [middleware.session/wrap-session {:cookie-attrs {:http-only true
@@ -128,7 +128,7 @@
                     cookie-secure
                     csrf-cookie-name
                     csrf-secret
-                    datahike
+                    datomic
                     http-host
                     http-port
                     keymaster
