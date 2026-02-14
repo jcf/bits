@@ -1,0 +1,187 @@
+#+title:  Datahike vs Datomic for distributed coordination
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2026-02-14
+#+status: evaluating
+
+* Context
+Bits uses Server-Sent Events (SSE) to push UI updates from server to clients.
+The intended architecture is:
+
+1. Actions arrive (HTTP POST)
+2. State changes written to database
+3. Database notifies peers of changes
+4. Peers push updated views to connected clients
+
+The database should be the single coordination point. All peers observe all
+transactions and react accordingly. This enables:
+
+- Real-time presence indicators (who's viewing a creator's page)
+- Live post feeds (new posts appear instantly for all viewers)
+- Cross-node consistency without building separate pub/sub infrastructure
+
+** The Problem
+Datahike's ~listen!~ function only fires on the node that called ~transact!~.
+With multiple nodes behind a load balancer, Node A doesn't see Node B's
+transactions. This breaks the "database as coordinator" architecture.
+
+Datomic's ~tx-report-queue~ solves this — every peer receives every transaction,
+regardless of which peer originated it.
+
+* Options
+** Option A: Datahike + PostgreSQL NOTIFY
+Keep Datahike for data storage. Use PostgreSQL LISTEN/NOTIFY for cross-node
+coordination.
+
+*** How it works
+- Write to Datahike, also fire ~pg_notify~
+- Each node runs a thread polling ~getNotifications()~
+- On notification, re-query or invalidate local state
+
+*** Advantages
+- No migration effort
+- Datahike is open source (Apache 2.0)
+- PostgreSQL already in the stack
+
+*** Disadvantages
+- Two coordination systems (Datahike locally, PG across nodes)
+- Standard JDBC requires polling, not true push
+- Async JDBC driver (pgjdbc-ng) adds complexity
+- Architecture doesn't match the vision — database isn't the sole coordinator
+
+** Option B: Datomic Pro On-Prem (Peer API)
+Replace Datahike with Datomic Pro using the Peer API and ~tx-report-queue~.
+
+*** How it works
+- Transactor process handles all writes
+- Peers connect to transactor, receive full transaction log
+- ~tx-report-queue~ delivers every transaction to every peer
+- Peers push updates to their connected SSE clients
+
+*** Deployment modes
+| Mode        | Transactor           | Peers                |
+|-------------+----------------------+----------------------|
+| Self-hosted | Colocated or dev-local | Single JVM          |
+| Hosted      | Dedicated process    | Multiple JVMs        |
+
+*** Advantages
+- Architecture matches the vision exactly
+- ~tx-report-queue~ is battle-tested (used at Nubank scale)
+- Single coordination mechanism
+- Free, Apache 2.0 licensed (since 2023)
+- Migration from Datahike is straightforward (similar APIs)
+
+*** Disadvantages
+- Transactor is an additional process for self-hosters
+- Proprietary source code (binaries are Apache 2.0)
+- Dependency on Nubank's continued maintenance
+
+** Option C: Datomic Local (Client API)
+Use Datomic Local for lightweight single-node deployments, Datomic Pro for
+hosted.
+
+*** Why this doesn't work
+Datomic Local uses the Client API, which lacks ~tx-report-queue~. This would
+create two code paths and architectural divergence between deployment modes.
+
+Rejected.
+
+** Option D: Wait for Datahike improvements
+Datahike's roadmap mentions "async support" and "distributed Datahike".
+
+*** Why this is risky
+- No timeline provided
+- Current architecture is blocked on this feature
+- May never arrive in the needed form
+
+Not viable for near-term development.
+
+* Evaluation
+** Migration effort (Datahike → Datomic)
+| Area          | Effort   | Notes                                    |
+|---------------+----------+------------------------------------------|
+| Dependencies  | Low      | Swap artefacts in deps.edn               |
+| Requires      | Low      | ~datahike.api~ → ~datomic.api~           |
+| Schema        | None     | Same EDN format                          |
+| Transactions  | None     | Same data structures                     |
+| Queries       | Low      | Minor differences in pull/query behavior |
+| Connection    | Medium   | Component needs transactor URI           |
+| Tests         | Low      | Point at dev-local or mem transactor     |
+
+** Operational complexity
+| Deployment  | Datahike        | Datomic Pro                     |
+|-------------+-----------------+---------------------------------|
+| Self-hosted | Single JVM      | JVM + transactor (or dev-local) |
+| Hosted      | N JVMs + PG coordination | N JVMs + transactor      |
+
+Datomic adds transactor management, but removes the need for custom cross-node
+coordination.
+
+** Self-hoster experience
+Worst case: self-hosters run two JVM processes (app + transactor). Given they
+already configure PostgreSQL connections, this is incremental complexity.
+
+Best case: dev-local or embedded transactor mode (needs investigation) allows
+single-process deployment with ~tx-report-queue~.
+
+** Licensing
+| Product      | License      | Cost | Redistributable |
+|--------------+--------------+------+-----------------|
+| Datahike     | Apache 2.0   | Free | Yes (source)    |
+| Datomic Pro  | Apache 2.0   | Free | Yes (binaries)  |
+| Datomic Local| Apache 2.0   | Free | Yes (binaries)  |
+
+Both are free. Datomic source is proprietary but binaries are Apache 2.0,
+covering copyright, patent, and redistribution.
+
+* Open Questions (Researched)
+** 1. Can transactor run embedded in the peer JVM?
+No. The transactor is a separate process by design. However, for development:
+
+- ~datomic:mem://~ URIs run an in-memory "standalone mode" in the peer process
+- Data does not persist — suitable for dev/test only
+- Production requires process isolation
+
+For self-hosters wanting single-process deployment, the only option is in-memory
+(no persistence) or running transactor as a second process.
+
+** 2. What's the memory footprint of a minimal transactor?
+- Dev: 1GB heap (~-Xmx1g~)
+- Production: 4GB heap (~-Xmx4g~)
+
+Configurable via ~-Xmx~ flags. A small self-hosted deployment could run with 1GB.
+
+** 3. Does dev-local support tx-report-queue?
+No. Dev-local (now Datomic Local) uses the Client API, which lacks
+~tx-report-queue~. Only the Peer API has this feature.
+
+** 4. What storage backends does Datomic Pro On-Prem support?
+PostgreSQL is supported and actively used. Storage backends include:
+
+- PostgreSQL (confirmed, with SSL support)
+- Other SQL databases
+- DynamoDB
+- Cassandra
+
+PostgreSQL fits the existing Bits infrastructure.
+
+* Decision
+/Pending./
+
+Given the research:
+
+- Option B (Datomic Pro On-Prem) is the only option that delivers the intended
+  architecture
+- PostgreSQL storage backend aligns with existing infrastructure
+- Self-hosters must run transactor as a second process (or accept in-memory for
+  dev/testing)
+- Migration effort is low
+
+* Consequences
+/To be filled after decision./
+
+* References
+- [[https://blog.datomic.com/2023/04/datomic-is-free.html][Datomic is Free (April 2023)]]
+- [[https://blog.datomic.com/2013/10/the-transaction-report-queue.html][The Transaction Report Queue]]
+- [[https://docs.datomic.com/datomic-local.html][Datomic Local Documentation]]
+- [[https://danielcompton.net/guide-to-datomic-licensing-changes][Guide to Datomic Licensing Changes]]
+- [[https://github.com/replikativ/datahike][Datahike GitHub]]
