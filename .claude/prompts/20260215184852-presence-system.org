@@ -1,0 +1,46 @@
+#+title:    Presence System
+#+date:     2026-02-15
+#+status:   todo
+#+property: header-args :dir ../..
+
+* Goal
+Real-time viewer counts on creator profiles. When visitors view a creator's
+page, other visitors see how many people are "here now".
+
+* Current State
+Cursor presence demo exists at ~/cursors~ using a global atom:
+
+#+begin_src clojure
+(defonce !cursors (atom {}))
+#+end_src
+
+This works for single-process but won't scale horizontally.
+
+* Constraints
+- Self-hostable: minimize additional infrastructure
+- PostgreSQL already available
+- Acceptable latency: seconds, not milliseconds
+- Eventual consistency is fine for presence counts
+
+* Open Questions
+** Where does the atom live?
+Close over ~make-app~? Component? Global with explicit lifecycle?
+
+** Horizontal scaling
+Options considered:
+- PostgreSQL LISTEN/NOTIFY — fits self-hostable story, ~10-50ms latency
+- Redis pub/sub — lower latency but adds infrastructure
+- Shared table + polling — simplest fallback
+- CRDTs — eventually consistent, natural fit for counters
+- JGroups — reliable group communication for JVM clusters, could provide
+  distributed counters or replicated state without external infrastructure
+
+** Granularity
+- Per creator handle?
+- Per page/route?
+- Track individual viewers or just counts?
+
+* References
+- Existing cursor demo: ~src/bits/next.clj~ (~!cursors~, ~update-cursor!~, ~remove-cursor!~)
+- SSE infrastructure: ~src/bits/service.clj~ (~sse-channel~)
+- Creator profile indicator: ~src/bits/ui/creator.clj~ (~presence-indicator~)
