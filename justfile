@@ -294,6 +294,11 @@ test *args:
 build:
     clojure -T:build uber
 
+# Build Datomic Pro output
+[group('build')]
+build-datomic:
+    devenv build outputs.datomic-pro
+
 # Build the Docker image
 [group('build')]
 docker-build tag="bits:latest":
