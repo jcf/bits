@@ -38,9 +38,11 @@
 (deftest qualification
   (t/with-system [{:keys [postgres]} (t/system)]
     (sut/execute! postgres {:insert-into [:sessions]
-                            :values      [{:sid "sid"}]})
+                            :values      [{:sid-hash  "abc123"
+                                           :tenant-id #uuid "00000000-0000-0000-0000-000000000001"}]})
     (is (match?
-         {:bits.postgres.session/sid "sid"}
+         {:bits.postgres.session/sid-hash  "abc123"
+          :bits.postgres.session/tenant-id uuid?}
          (sut/execute-one! postgres {:select [:*]
                                      :from   [:sessions]
                                      :limit  1})))))

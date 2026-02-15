@@ -1,11 +1,11 @@
 (ns bits.middleware
   (:require
-   [bits.anomaly :as anom]
    [bits.asset :as asset]
    [bits.crypto :as crypto]
    [bits.csp :as csp]
    [bits.datomic :as datomic]
    [bits.request :as request]
+   [bits.session :as session]
    [buddy.core.bytes :as buddy.bytes]
    [clojure.java.io :as io]
    [clojure.string :as str]
@@ -86,6 +86,37 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Session
 
+(defn wrap-session
+  [handler]
+  (fn [request]
+    (let [{:keys [cookie-name
+                  session-store]} (request->state request)
+          tenant-id               (get-in request [:session/realm :tenant/id])
+          sid                     (get-in request [:cookies cookie-name :value])
+
+          persisted
+          (when (and tenant-id sid)
+            ;; TODO Rename :sid to :session/id
+            (session/get-session session-store tenant-id sid))
+
+          request
+          (assoc request
+                 :session (or (when persisted
+                                (assoc (:data persisted)
+                                       :sid     sid
+                                       :user/id (:user-id persisted)))
+                              (session/new-session session-store)))
+
+          response      (handler request)
+          {:keys [sid]} (:session response)]
+      (cond-> response
+        (some? sid) (assoc-in [:cookies cookie-name]
+                              {:http-only true
+                               :path      "/"
+                               :same-site :lax
+                               :secure    true
+                               :value     sid})))))
+
 (defn wrap-ensure-session
   [handler]
   (fn [request]
@@ -143,18 +174,16 @@
   [handler realms]
   (fn [request]
     (let [{creator-realm  :realm.type/creator
-           platform-realm :realm.type/platform} realms]
+           platform-realm :realm.type/platform
+           unknown-realm  :realm.type/unknown} realms]
       (if (platform? request)
         (handler (assoc request :session/realm platform-realm))
-        (let [db               (request->db request)
-              domain           (request/domain request)
-              realm            (d/q realm-by-domain-query db domain)
-              realm-or-anomaly (if realm
-                                 (merge creator-realm realm)
-                                 (anom/not-found {:msg    "No realm with the given domain?!"
-                                                  :domain domain
-                                                  :realms realms}))]
-          (handler (assoc request :session/realm realm-or-anomaly)))))))
+        (let [db     (request->db request)
+              domain (request/domain request)
+              realm  (or (some->> (d/q realm-by-domain-query db domain)
+                                  (merge creator-realm))
+                         unknown-realm)]
+          (handler (assoc request :session/realm realm)))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Secure headers

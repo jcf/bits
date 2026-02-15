@@ -2,6 +2,7 @@
   (:require
    [bits.coerce :as coerce]
    [bits.middleware :as mw]
+   [bits.middleware.session :as middleware.session]
    [bits.morph :as morph]
    [bits.response]
    [clojure.core.async :as a]
@@ -15,7 +16,6 @@
    [reitit.ring.middleware.exception :as exception]
    [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
-   [ring.middleware.session :as middleware.session]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 ;;; ----------------------------------------------------------------------------
@@ -91,6 +91,7 @@
          [mw/wrap-datomic]
          [middleware.params/wrap-params]
          [middleware.cookies/wrap-cookies]
+         [mw/wrap-realm realms]
          [middleware.session/wrap-session {:cookie-attrs {:http-only true
                                                           :same-site :lax
                                                           :secure    cookie-secure}
@@ -100,7 +101,6 @@
          [mw/wrap-csrf {:cookie-name   csrf-cookie-name
                         :cookie-secure cookie-secure
                         :secret        csrf-secret}]
-         [mw/wrap-realm realms]
          [mw/wrap-assets]
          [mw/wrap-user]
          [mw/wrap-secure-headers]]]

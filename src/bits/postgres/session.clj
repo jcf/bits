@@ -4,8 +4,9 @@
 
 (s/def ::created-at inst?)
 (s/def ::data map?)
-(s/def ::sid string?)
+(s/def ::sid-hash string?)
 (s/def ::user-id (s/nilable uuid?))
 
 (s/def ::persisted
-  (s/keys :req [::data ::sid]))
+  (s/keys :req [::data ::sid-hash]
+          :opt [::created-at ::data]))
