@@ -1,6 +1,5 @@
 (ns bits.next
   (:require
-   [bits.anomaly :as anom]
    [bits.auth :as auth]
    [bits.html :as html]
    [bits.middleware :as mw]
@@ -213,15 +212,11 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Realm
 
-(def realms
-  (medley/index-by
-   :realm/type
-   #{{:realm/layout ui.creator/creator-layout
-      :realm/type   :realm.type/creator
-      :realm/view   ui.creator/creator-profile-view}
-     {:realm/layout ui/layout
-      :realm/type   :realm.type/platform
-      :realm/view   explore-view}}))
+(def ^:const ^:private platform-tenant-id
+  #uuid "00000000-0000-0000-0000-000000000000")
+
+(def ^:const ^:private unknown-tenant-id
+  #uuid "00000000-0000-0000-0000-100000000000")
 
 (defn realm-not-found-view
   [_request]
@@ -230,6 +225,22 @@
    (ui/page-title {} "Realm not found")
    (ui/text-muted {:class ["mt-4"]}
                   "Want your own Bits? We want to hear from you!")))
+
+(def realms
+  (medley/index-by
+   :realm/type
+   #{{:realm/layout ui.creator/creator-layout
+      :realm/type   :realm.type/creator
+      :realm/view   ui.creator/creator-profile-view}
+     {:realm/layout ui/layout
+      :realm/type   :realm.type/platform
+      :realm/view   explore-view
+      :tenant/id    platform-tenant-id}
+     {:realm/layout ui/layout
+      :realm/status 404
+      :realm/type   :realm.type/unknown
+      :realm/view   realm-not-found-view
+      :tenant/id    unknown-tenant-id}}))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Routes
@@ -245,19 +256,12 @@
   ([layout-fn view-fn]
    (morphable layout-fn view-fn {}))
   ([layout-fn view-fn options]
-   (let [wrapped (fn [request]
-                   (let [realm (:session/realm request)]
-                     (if (anom/anomaly? realm)
-                       (realm-not-found-view request)
-                       (view-fn request))))]
+   (let [status #(get-in % [:session/realm :realm/status] 200)]
      {:get  (fn [request]
-              (let [realm (get request :session/realm)]
-                (if (anom/anomaly? realm)
-                  {:status  404
-                   :headers {"content-type" "text/html; charset=utf-8"}
-                   :body    (html/html (ui/layout request (realm-not-found-view request)))}
-                  ((morph/page-handler layout-fn wrapped) request))))
-      :post (morph/render-handler wrapped options)})))
+              {:status  (status request)
+               :headers {"content-type" "text/html; charset=utf-8"}
+               :body    (html/html (layout-fn request (view-fn request)))})
+      :post (morph/render-handler view-fn options)})))
 
 (defn- home-view
   [request]
@@ -274,7 +278,7 @@
 (def routes
   [["/"         (morphable home-layout home-view)]
    ["/cursors"  (morphable ui/layout cursors-view {:on-close remove-cursor!})]
-   ["/counter" (morphable ui/layout counter-view)]
+   ["/counter"  (morphable ui/layout counter-view)]
    ["/email"    (morphable ui/layout email-view)]
    ["/login"    (morphable ui/layout login-view-wrapper)]
    ["/redirect" (morphable ui/layout redirect-view)]])
