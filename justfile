@@ -197,10 +197,43 @@ mkcert:
 
     echo >&2 "🔒 Wildcard certificates ready!"
 
+# Generate cluster keystores
+[group('dev')]
+cluster-certs:
+    #!/usr/bin/env zsh
+    set -e
+    mkdir -p certs
+
+    if [[ ! -f certs/cluster-keystore.p12 ]]; then
+        keytool -genkeypair \
+            -alias bits-cluster \
+            -keyalg EC \
+            -groupname secp256r1 \
+            -validity 3650 \
+            -storetype PKCS12 \
+            -keystore certs/cluster-keystore.p12 \
+            -storepass "$CLUSTER_KEYSTORE_PASSWORD" \
+            -dname "CN=bits-cluster,O=Invetica" \
+            -ext "SAN=IP:127.0.0.1"
+
+        keytool -genkeypair \
+            -alias rogue \
+            -keyalg EC \
+            -groupname secp256r1 \
+            -validity 1 \
+            -storetype PKCS12 \
+            -keystore certs/rogue-keystore.p12 \
+            -storepass password \
+            -dname "CN=rogue,O=Evil"
+    fi
+
+    echo >&2 "🔒 Cluster certificates ready!"
+
 # Setup a local development environment
 [group('dev')]
 setup:
     @just mkcert
+    @just cluster-certs
     devenv shell true
     pnpm install
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ NORMAL }}"

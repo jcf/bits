@@ -7,6 +7,7 @@
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
    [com.stuartsierra.component.repl :refer [system]]
+   [datomic.api :as d]
    [java-time.api :as time]))
 
 (defn- user-txes
@@ -17,6 +18,9 @@
     :user/created-at    (time/java-date)}])
 
 (comment
+  (crypto/random-sid (:randomizer system))
+  (crypto/random-nonce (:randomizer system))
+
   (let [keymaster (:keymaster system)
         password  "password"
         txes      (user-txes

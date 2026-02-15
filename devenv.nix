@@ -5,6 +5,7 @@
 }: let
   root = config.devenv.root;
   datomic-pro = pkgs.callPackage ./pkgs/datomic-pro {};
+  jdk = pkgs.temurin-bin-25;
 
   dev = {
     upstreams = {
@@ -50,6 +51,7 @@ in {
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
+    CLUSTER_KEYSTORE_PASSWORD = "correct-horse-battery-staple";
     DATABASE_URL = "postgres://bits:please@127.0.0.1:5432/bits_dev";
     DATOMIC_URI = "datomic:sql://bits?jdbc:postgresql://127.0.0.1:5432/datomic?user=datomic&password=datomic";
     DOMAIN_PAGE = dev.hosts.page.domain;
@@ -63,8 +65,9 @@ in {
     babashka
     clj-kondo
     cljfmt
-    clojure
+    (clojure.override {jdk = jdk;})
     clojure-lsp
+    jdk
 
     # Database
     datomic-pro
@@ -98,6 +101,7 @@ in {
 
   processes.nrepl = {
     exec = "just nrepl";
+    process-compose.is_tty = true;
   };
 
   processes.market = {

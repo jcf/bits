@@ -3,6 +3,7 @@
    [bits.asset :as asset]
    [bits.auth.rate-limit :as rate-limit]
    [bits.boot :as boot]
+   [bits.cluster :as cluster]
    [bits.crypto :as crypto]
    [bits.datomic :as datomic]
    [bits.next :as next]
@@ -13,9 +14,13 @@
    [bits.spec]
    [bits.string :as string]
    [camel-snake-kebab.core :as csk]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
    [com.stuartsierra.component :as component]
    [lambdaisland.uri :as uri]
-   [medley.core :as medley]))
+   [medley.core :as medley])
+  (:import
+   (java.net InetSocketAddress)))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Config
@@ -42,6 +47,18 @@
                  :scheme   (str "jdbc:" adapter)
                  :user     nil)))))
 
+(defn- parse-hosts
+  [hosts]
+  (if (nil? hosts)
+    #{}
+    (let [parse-host (fn [s]
+                       (let [[host port] (str/split s #":" 2)]
+                         (InetSocketAddress. ^String host (parse-long port))))]
+      (into #{}
+            (comp (map str/trim)
+                  (map parse-host))
+            (str/split hosts #",")))))
+
 ;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
 (defn read-config
   []
@@ -56,6 +73,12 @@
                                   "public/idiomorph@0.7.4.min.js"
                                   "public/JetBrainsMono.woff2"
                                   "public/logo.svg"}}
+     :cluster       {:bind-addr         (env-or :cluster-bind-addr "0.0.0.0")
+                     :bind-port         (parse-long (env-or :cluster-bind-port "7800"))
+                     :cluster-name      "bits"
+                     :initial-hosts     (parse-hosts (env-or :cluster-initial-hosts "127.0.0.1:7800"))
+                     :keystore-password (env :cluster-keystore-password)
+                     :keystore-path     (env-or :cluster-keystore-path "certs/cluster-keystore.p12")}
      :datomic       {:uri (env :datomic-uri)}
      :keymaster     {:argon {:alg         :argon2id
                              :iterations  3
@@ -89,6 +112,7 @@
   [config]
   {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
    :buster        (asset/make-buster          (:buster config))
+   :cluster       (cluster/make-peer          (:cluster config))
    :datomic       (datomic/make-datomic       (:datomic config))
    :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:postgres config))
@@ -100,7 +124,8 @@
    :session-store (session/make-session-store (:session-store config))})
 
 (def dependencies
-  {:postgres      [:migrator :randomizer]
+  {:cluster       [:randomizer]
+   :postgres      [:migrator :randomizer]
    :rate-limiter  [:postgres]
    :reaper        [:postgres :session-store]
    :service       [:bootstrapper
@@ -120,3 +145,8 @@
    (component/system-using
     (medley/mapply component/system-map (components config))
     dependencies)))
+
+(comment
+  (def config (read-config))
+  (s/valid? (s/keys) config)
+  (:cluster config))

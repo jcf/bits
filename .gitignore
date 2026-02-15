@@ -2,6 +2,7 @@
 **/.terraform/
 *.class
 *.jar
+*.p12
 *.pem
 *.tfstate
 *.tfstate.*
