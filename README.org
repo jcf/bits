@@ -54,12 +54,9 @@ priority so will return non-200 status codes.
 
 #+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
 urls=(
-  # These will not return a 200 response
-  https://bits.page.test
-  https://www.usebits.app.test
-
   # These will work, provided you've applied the seeds in `bits.dev.realm`.
   http://localhost:3000
+  https://bits.page.test
   https://charlie.bits.page.test
   https://charlie.bits.page.test
   https://jcf.bits.page.test
@@ -76,8 +73,7 @@ done
 #+end_src
 
 #+results:
-: ❌ https://bits.page.test (404)
-: ❌ https://www.usebits.app.test (502)
+: ✅ https://bits.page.test
 : ✅ http://localhost:3000
 : ✅ https://charlie.bits.page.test
 : ✅ https://charlie.bits.page.test
@@ -113,6 +109,9 @@ done
 - [[file:decisions/20251118100535-mission-over-saas-startup-playbook.org][Mission over SaaS startup playbook]]
 - [[file:decisions/20251119230950-ci-can-wait.org][CI can wait]]
 - [[file:decisions/20251129175326-clojure-over-rust.org][Clojure over Rust]]
+- [[file:decisions/20260212183128-vanilla-js-over-clojurescript-for-bits-js.org][Vanilla JS over ClojureScript for bits.js]]
+- [[file:decisions/20260214190732-datahike-vs-datomic-for-distributed-coordination-appendix-crypto-shredding.org][Crypto-Shredding for GDPR Compliance]]
+- [[file:decisions/20260214190732-datahike-vs-datomic-for-distributed-coordination.org][Datahike vs Datomic for distributed coordination]]
 
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
@@ -124,10 +123,13 @@ just --list
 Available recipes:
     [build]
     build                              # Build an AOT-compiled uberjar
+    build-datomic                      # Build Datomic Pro output
     docker-build tag="bits:latest"     # Build the Docker image
     docker-run tag="bits:latest" *args # Run the Docker image against the local devenv database
 
     [dev]
+    cluster-certs                      # Generate cluster keystores
+    css                                # Regenerate Tailwind CSS from template
     fmt                                # Format project files
     lint                               # Run lints
     market                             # Run the marketing site
@@ -166,33 +168,38 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- Clojure                  55         4582         3572          343          667
- CSS                       2           13           12            0            1
+ Clojure                  61         5760         4587          402          771
+ CSS                       2           84           69            4           11
  Dockerfile                1           72           50            6           16
- Edn                       2          119          102            4           13
+ Edn                       2          119          106            1           12
  HCL                      12          389          323           13           53
- JavaScript                5          297          242           20           35
+ JavaScript                5          310          255           20           35
  JSON                      4           59           59            0            0
- Just                      1          327          208           61           58
+ Just                      1          370          241           65           64
  MDX                       1           56            0           39           17
- Nix                       2          410          338           13           59
- Org                      10         1674         1512            4          158
- SQL                       4           35           29            0            6
+ Nix                       3          501          413           14           74
+ Org                      13         2124         1877            6          241
+ SQL                       4           43           37            0            6
+ SVG                       2           12           12            0            0
  TOML                      1           46           41            0            5
  TypeScript                3           36           30            1            5
  XML                       1           18           14            1            3
  YAML                      3         5056         3971            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1          321            0          208          113
- |- Clojure                1          225          144           47           34
+ HTML                      1           76           72            0            4
+ |- CSS                    1          171          151            0           20
+ (Total)                              247          223            0           24
+─────────────────────────────────────────────────────────────────────────────────
+ Markdown                  1          352            0          228          124
+ |- Clojure                1          238          152           50           36
  |- Org                    1           19           12            0            7
  |- Rust                   1           68           49           10            9
- (Total)                              633          205          265          163
+ (Total)                              677          213          288          176
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   118        13987        10847          770         2370
+ Total                   131        16144        12660          860         2624
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-8c534b1 @ 2026/02/12 17:31
+051e32a-dirty @ 2026/02/15 23:44
 #+end_example
 
 * Prompts
@@ -210,15 +217,16 @@ done
 #+end_src
 
 #+results:
-| Status  | Date         | Title                     |
-|---------+--------------+---------------------------|
-| =DOING= | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]]      |
-| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]             |
-| =DOING= | =2026-02-13= | [[file:.claude/prompts/20260213223741-shop-tab.org][Shop Tab]]                  |
-| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223744-about-tab.org][About Tab]]                 |
-| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223747-purchase-flow.org][Purchase Flow]]             |
-| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223749-posts-feed.org][Posts Feed]]                |
-| =DOING= | =2026-02-14= | [[file:.claude/prompts/20260214141211-session-auth-security.org][Session and Auth Security]] |
+| Status  | Date         | Title                                   |
+|---------+--------------+-----------------------------------------|
+| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]                           |
+| =DOING= | =2026-02-13= | [[file:.claude/prompts/20260213223741-shop-tab.org][Shop Tab]]                                |
+| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223744-about-tab.org][About Tab]]                               |
+| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223747-purchase-flow.org][Purchase Flow]]                           |
+| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223749-posts-feed.org][Posts Feed]]                              |
+| =DOING= | =2026-02-14= | [[file:.claude/prompts/20260214141211-session-auth-security.org][Session and Auth Security]]               |
+| ==      | =2026-02-15= | [[file:.claude/prompts/20260215131107-gdpr-excision-per-tenant-databases.org][GDPR Excision with Per-Tenant Databases]] |
+| =TODO=  | =2026-02-15= | [[file:.claude/prompts/20260215184852-presence-system.org][Presence System]]                         |
 
 ** =DONE=
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
@@ -231,14 +239,16 @@ done
 #+end_src
 
 #+results:
-| Status | Date         | Title                                |
-|--------+--------------+--------------------------------------|
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220001-prompt-workflow.org][Prompt Workflow]]                      |
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]                      |
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]                      |
-| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212174601-asset-pipeline.org][Asset Pipeline]]                       |
-| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212180101-sse-retry-delay.org][SSE Retry Delay Configuration]]        |
-| =DONE= | =2026-02-14= | [[file:.claude/prompts/20260214191109-migrate-from-datahike-to-datomic-pro.org][Migrate from Datahike to Datomic Pro]] |
+| Status | Date         | Title                                           |
+|--------+--------------+-------------------------------------------------|
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220001-prompt-workflow.org][Prompt Workflow]]                                 |
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]                                 |
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]                                 |
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]]                            |
+| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212174601-asset-pipeline.org][Asset Pipeline]]                                  |
+| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212180101-sse-retry-delay.org][SSE Retry Delay Configuration]]                   |
+| =DONE= | =2026-02-14= | [[file:.claude/prompts/20260214191109-migrate-from-datahike-to-datomic-pro.org][Migrate from Datahike to Datomic Pro]]            |
+| =DONE= | =2026-02-15= | [[file:.claude/prompts/20260215141122-remove-redundant-indirection-around-datomic-api.org][Remove redundant indirection around Datomic API]] |
 
 ** TODOs
 #+begin_src sh :results output verbatim :exports results
@@ -251,7 +261,6 @@ src/bits/app.clj:;; TODO Use Malli (or clojure.spec) to coerce and parse/validat
 src/bits/asset.clj:;; TODO Make content-type explicit or more intelligent.
 src/bits/auth.clj:;; TODO: I18n - user-facing strings need locale-aware source
 src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
-src/bits/datomic.clj:;; TODO Remote this in favour of `datomic.api/q`.
 src/bits/middleware.clj:            ;; TODO Rename :sid to :session/id
 src/bits/service.clj:                     ;; TODO Improve 404 response
 src/bits/ui.clj:  ;; TODO: I18n - error presentation
