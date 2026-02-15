@@ -1,6 +1,6 @@
 #+title:    Migrate from Datahike to Datomic Pro
 #+date:     2026-02-14
-#+status:   todo
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal

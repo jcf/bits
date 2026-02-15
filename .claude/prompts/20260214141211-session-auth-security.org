@@ -1,6 +1,6 @@
 #+title:    Session and Auth Security
 #+date:     2026-02-14
-#+status:   todo
+#+status:   doing
 #+property: header-args :dir ../..
 
 * Goal
