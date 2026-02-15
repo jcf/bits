@@ -1,6 +1,6 @@
 #+title:    Creator Profile Page
 #+date:     2026-02-10
-#+status:   doing
+#+status:   done
 #+property: header-args :dir ../..
 
 * Goal
@@ -96,10 +96,10 @@ Subdomain-based only. When ~:session/realm~ contains ~:creator/handle~ (from
 Mechanical transformation to Hiccup, using semantic Tailwind classes from the theme.
 
 * Verification
-- [ ] Visit ~https://jcf.bits.page.test/~ → renders profile
-- [ ] Components are pure: same input → same output
-- [ ] All classes use semantic tokens (~bg-surface~, not ~bg-[#0c0c0e]~)
-- [ ] Mobile layout works (sticky CTA, adjusted sizes)
+- [X] Visit ~https://jcf.bits.page.test/~ → renders profile
+- [X] Components are pure: same input → same output
+- [X] All classes use semantic tokens (~bg-surface~, not ~bg-[#0c0c0e]~)
+- [X] Mobile layout works (sticky CTA, adjusted sizes)
 
 * Implementation Log
 ** 2026-02-13: Initial implementation
@@ -109,8 +109,7 @@ Mechanical transformation to Hiccup, using semantic Tailwind classes from the th
 - Namespace placed under ~bits.ui.*~ hierarchy (not top-level ~bits.creator~)
 - Creator data sourced from ~:session/realm~ (contains both tenant and creator attrs)
 
-*** TODO
-- Regenerate Tailwind CSS: ~(bits.dev.assets/generate-tailwind-css! (:buster system))~
-- Test at ~https://jcf.bits.page.test/~
-- Wire up real post data from database
-- Wire up real viewer count from presence system
+** 2026-02-15: Complete
+- Post data wired up via ~realm-by-domain-query~ in ~bits.middleware~
+- Viewer count uses placeholder; presence system tracked separately
+  (see ~20260215184852-presence-system.org~)
