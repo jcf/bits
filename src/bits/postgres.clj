@@ -279,6 +279,10 @@
   (span/with-span! {:name ::->connectable}
     (or (::conn x) (:datasource x) (:conn x) x)))
 
+(defn assoc-conn
+  [postgres conn]
+  (assoc postgres ::conn conn))
+
 ;;; ------------------------------------------------------------------------------------------------------------------
 ;;; Execute!
 

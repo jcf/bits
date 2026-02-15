@@ -4,6 +4,7 @@
    [bits.cryptex :as cryptex]
    [bits.spec]
    [buddy.core.codecs :as codecs]
+   [buddy.core.hash :as hash]
    [buddy.core.mac :as mac]
    [buddy.core.nonce :as nonce]
    [buddy.hashers :as hashers]
@@ -16,7 +17,7 @@
   "constant-time-dummy-password-bits")
 
 ;;; ----------------------------------------------------------------------------
-;;; Keymaster API
+;;; Argon
 
 (defn derive
   [keymaster cryptex]
@@ -27,7 +28,7 @@
   (hashers/verify (cryptex/reveal cryptex) hash))
 
 ;;; ----------------------------------------------------------------------------
-;;; Keymaster Component
+;;; Keymaster
 
 (defrecord Keymaster [argon dummy-hash idle-timeout-days]
   component/Lifecycle
@@ -94,3 +95,10 @@
   [randomizer]
   (span/with-span! {:name ::random-nonce}
     (codecs/bytes->b64-str (random-bytes randomizer 16) true)))
+
+;;; ----------------------------------------------------------------------------
+;;; SHA256
+
+(defn sha256
+  [s]
+  (codecs/bytes->hex (hash/sha256 s)))
