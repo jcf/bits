@@ -21,10 +21,28 @@
 ;;; Connection
 
 (defn connect
-  [uri]
-  (span/with-span! {:name ::connect}
-    (d/create-database uri)
-    (d/connect uri)))
+  ([uri]
+   (connect uri {}))
+  ([uri options]
+   (span/with-span! {:name ::connect}
+     (let [{:keys [max-retries
+                   retry-delay-ms]
+            :or   {max-retries    5
+                   retry-delay-ms 1000}} options]
+       (loop [n 1]
+         (let [result
+               (try
+                 (d/create-database uri)
+                 (d/connect uri)
+                 (catch clojure.lang.ExceptionInfo ex
+                   (if (< n max-retries)
+                     ::retry
+                     (throw (ex-info "Unable to connect to transactor?!" {:uri uri} ex)))))]
+           (if (identical? result ::retry)
+             (do
+               (Thread/sleep retry-delay-ms)
+               (recur (inc n)))
+             result)))))))
 
 (defn disconnect
   [conn]
