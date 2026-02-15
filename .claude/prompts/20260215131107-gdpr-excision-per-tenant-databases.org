@@ -1,0 +1,236 @@
+#+title:  GDPR Excision with Per-Tenant Databases
+#+author: James Conroy-Finn
+#+date:   2026-02-15
+
+* Overview
+Implement GDPR Article 17 ("right to erasure") using per-tenant Datomic
+databases. Each creator gets their own database. Creator deletion = drop
+database. User (subscriber) deletion = excision within tenant's database.
+
+* Architectural Decision
+Per-tenant Datomic databases (WordPress model):
+
+- Each creator/tenant gets their own Datomic database
+- Users are tenant-scoped (same email can exist in multiple tenants)
+- Creator says "delete my data" → drop their database
+- User (subscriber) says "delete my data" → excision within that tenant's database
+- Clean isolation, simpler GDPR compliance
+
+* Connection Management
+** Connection Pool
+Maintain an in-memory map of tenant-id → Datomic connection. When serving a
+tenant:
+
+1. Check if connection exists in pool
+2. If not, establish connection and cache it
+3. Put connection into request map as =:datomic=
+
+Downstream code sees =:datomic= - no "platform connection" or "tenant
+connection" distinctions. The middleware handles resolution transparently.
+
+#+begin_src clojure
+;; Conceptual - connection resolution is transparent to handlers
+(defn wrap-datomic
+  [handler]
+  (fn [request]
+    (let [tenant-id (get-in request [:session/realm :tenant/id])
+          conn      (get-or-create-connection! tenant-id)]
+      (handler (assoc request :datomic conn)))))
+#+end_src
+
+** Pool Lifecycle
+- Connections established lazily on first request to tenant
+- Connections closed when tenant is deleted
+- Consider connection health checks and reconnection
+
+* Multi-Database Architecture
+** Tenant Database Creation
+When a creator signs up:
+
+1. Create new Datomic database (e.g., =datomic:sql://bits-{tenant-id}?...=)
+2. Transact tenant schema
+3. Store database URI in platform database
+
+** Platform Database
+Stores tenant metadata:
+
+#+begin_src clojure
+:tenant/id           UUID
+:tenant/datomic-uri  String, tenant's database URI
+:tenant/created-at   Instant
+:tenant/status       Keyword (:active, :pending-deletion, :deleted)
+#+end_src
+
+** Per-Tenant Schema
+Each tenant database contains:
+
+#+begin_src clojure
+;; Users (subscribers)
+:user/id             UUID, unique within tenant
+:user/email          String, unique within tenant
+:user/password-hash  String
+:user/created-at     Instant
+
+;; Creator profile
+:creator/handle
+:creator/display-name
+;; etc.
+
+;; Posts, content, etc.
+#+end_src
+
+* Creator Deletion
+Creator requests account deletion → delete their entire tenant.
+
+** Deletion Request Schema (Platform DB)
+#+begin_src clojure
+:tenant-deletion/id           UUID
+:tenant-deletion/tenant       Ref
+:tenant-deletion/status       Keyword (:pending, :in-progress, :completed, :cancelled)
+:tenant-deletion/requested-at Instant
+:tenant-deletion/scheduled-at Instant (configurable cooling-off)
+:tenant-deletion/completed-at Instant
+#+end_src
+
+** Processing
+1. Mark status =:in-progress=
+2. Remove connection from pool
+3. Delete the Datomic database (=d/delete-database=)
+4. Clean up PostgreSQL (sessions, auth attempts for this tenant)
+5. Mark status =:completed=
+
+No excision needed - entire database is gone.
+
+** Subscriber Notification
+When creator deletes their account, subscribers need to be notified. Consider:
+
+- Email notification before deletion (during cooling-off period)
+- Grace period for subscribers to export their data
+
+* User (Subscriber) Deletion
+User within a tenant requests deletion → excision in that tenant's database.
+
+** Deletion Request Schema (Tenant DB)
+#+begin_src clojure
+:user-deletion/id           UUID
+:user-deletion/user         Ref
+:user-deletion/status       Keyword
+:user-deletion/requested-at Instant
+:user-deletion/scheduled-at Instant
+:user-deletion/completed-at Instant
+#+end_src
+
+** Excision Plan
+Build transaction to excise user and related entities:
+
+#+begin_src clojure
+(defn excision-plan
+  [db user-eid]
+  (let [memberships (d/q '[:find [?m ...] :in $ ?u
+                           :where [?m :membership/user ?u]]
+                         db user-eid)]
+    (mapv #(hash-map :db/excise %)
+          (into [user-eid] memberships))))
+#+end_src
+
+** Processing
+1. Delete PostgreSQL data (sessions, auth attempts)
+2. Execute excision transaction
+3. Wait for =d/sync-excise=
+4. User can re-register with same email (clean slate)
+
+* User-Facing Flow
+** Creator Deletion Page
+#+begin_quote
+*Delete Your Creator Account*
+
+This will permanently delete:
+- Your creator profile
+- All your posts and content
+- All subscriber accounts on your platform
+
+Your subscribers will be notified and their data will be removed.
+
+*Your account will be deleted on: [date at time]*
+#+end_quote
+
+** Subscriber Deletion Page
+#+begin_quote
+*Delete Your Account*
+
+This will permanently remove your account from [Creator Name].
+
+You can register again with the same email if you change your mind.
+
+*Your account will be deleted on: [date at time]*
+#+end_quote
+
+** Pending State
+Show scheduled deletion time with cancel button. After cooling-off passes, show
+"Your account is being deleted" with no actions available.
+
+* Reaper Enhancement
+** Configuration
+#+begin_src clojure
+:reaper {:interval-hours    1
+         :cooling-off-days  7  ; configurable per request
+         :excision-enabled  true}
+#+end_src
+
+** Processing Loop
+#+begin_src clojure
+(defn reap!
+  [reaper]
+  ;; Process tenant deletions (platform level)
+  (process-tenant-deletions! reaper)
+
+  ;; Process user deletions (per-tenant)
+  (doseq [tenant (active-tenants reaper)]
+    (process-user-deletions! reaper tenant)))
+#+end_src
+
+** Cooling-Off Adjustment
+Support staff can adjust =scheduled-at= via email request to delay or expedite
+deletion.
+
+* PostgreSQL Cleanup
+Sessions and auth attempts are tenant-scoped:
+
+#+begin_src clojure
+(defn delete-user-sessions!
+  [postgres tenant-id user-id]
+  (postgres/execute! postgres
+    {:delete-from :sessions
+     :where [:and
+             [:= :tenant-id tenant-id]
+             [:= :user-id user-id]]}))
+
+(defn delete-tenant-sessions!
+  [postgres tenant-id]
+  (postgres/execute! postgres
+    {:delete-from :sessions
+     :where [:= :tenant-id tenant-id]}))
+#+end_src
+
+* Migration Considerations
+Current state has single Datomic database. Migration path:
+
+1. Create platform database (tracks tenants)
+2. For existing tenant, create their database and migrate data
+3. Update connection resolution to use pool
+4. Verify isolation
+
+* Open Questions
+1. *Email verification*: Track verified emails per-tenant or globally?
+2. *Data export*: Should users be able to export their data before deletion?
+3. *Cross-tenant identity*: Any need for "login with Bits account" across tenants?
+
+* Implementation Order
+1. Connection pool infrastructure
+2. Platform database with tenant metadata
+3. Tenant database creation on signup
+4. Database resolution middleware (transparent to handlers)
+5. Creator deletion flow
+6. User deletion flow with excision
+7. Reaper enhancement
+8. Tests
