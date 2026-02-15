@@ -49,6 +49,8 @@ in {
     ./nix/modules/claude-code.nix
   ];
 
+  outputs.datomic-pro = datomic-pro;
+
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";
     CLUSTER_KEYSTORE_PASSWORD = "correct-horse-battery-staple";

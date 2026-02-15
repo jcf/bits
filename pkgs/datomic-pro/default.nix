@@ -27,22 +27,23 @@ stdenv.mkDerivation (finalAttrs: {
     mkdir -p $out/share/datomic-pro
     cp -R * $out/share/datomic-pro/
 
-    # Quiet logging config
-    cat > $out/share/datomic-pro/resources/logback.xml << 'EOF'
+    # Quiet logging config - overwrite bin/logback.xml (Datomic launcher uses this)
+    cat > $out/share/datomic-pro/bin/logback.xml << 'EOF'
     <configuration>
       <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
       <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
           <charset>UTF-8</charset>
-          <pattern>%d{"HH:mm:ss.SSS"} %blue(%-5level) %yellow(%logger{36}) %msg%n</pattern>
+          <pattern>%d{"HH:mm:ss.SSS"} %-5level %logger{36} %msg%n</pattern>
         </encoder>
       </appender>
       <root level="WARN">
         <appender-ref ref="CONSOLE" />
       </root>
-      <logger name="datomic" level="WARN" />
+      <logger name="org.apache.activemq" level="OFF" />
     </configuration>
     EOF
+    cp $out/share/datomic-pro/bin/logback.xml $out/share/datomic-pro/resources/logback.xml
 
     makeWrapper ${jre}/bin/java $out/bin/datomic-transactor \
       --set-default "JAVA_OPTS" "-XX:+UseG1GC -XX:MaxGCPauseMillis=50" \
