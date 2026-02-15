@@ -31,6 +31,18 @@
   (span/with-span! {:name ::disconnect}
     (d/release conn)))
 
+(defn conn
+  [datomic]
+  {:post [(some? %)]}
+  (:conn datomic))
+
+;;; ----------------------------------------------------------------------------
+;;; Database
+
+(defn db
+  [datomic]
+  (-> datomic conn d/db))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Component
 
@@ -54,26 +66,3 @@
   [config]
   {:pre [(s/valid? ::config config)]}
   (map->Datomic config))
-
-;;; ----------------------------------------------------------------------------
-;;; Query helpers
-
-(defn db
-  [datomic]
-  (d/db (:conn datomic)))
-
-(defn transact!
-  [datomic tx-data]
-  (span/with-span! {:name ::transact!}
-    @(d/transact (:conn datomic) tx-data)))
-
-(defn pull
-  [datomic selector eid]
-  (span/with-span! {:name ::pull}
-    (d/pull (db datomic) selector eid)))
-
-;; TODO Remote this in favour of `datomic.api/q`.
-(defn q
-  [datomic query & inputs]
-  (span/with-span! {:name ::q}
-    (apply d/q query (db datomic) inputs)))

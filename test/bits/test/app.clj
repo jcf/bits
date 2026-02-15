@@ -9,6 +9,7 @@
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
+   [datomic.api :as d]
    [hato.client :as http]
    [java-time.api :as time]
    [ring.util.response :as response])
@@ -147,4 +148,4 @@
   (let [{:keys [datomic
                 keymaster]} service
         txes                (user-txes email (hash-password keymaster password))]
-    (datomic/transact! datomic txes)))
+    @(d/transact (datomic/conn datomic) txes)))

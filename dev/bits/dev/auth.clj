@@ -21,9 +21,9 @@
         password  "password"
         txes      (user-txes
                    "dev@bits.page" (crypto/derive keymaster (cryptex/cryptex password)))]
-    (datomic/transact! (:datomic system) txes))
+    @(d/transact (datomic/conn (:datomic system)) txes))
 
-  (datomic/q (:datomic system) credential/user-by-email-query "dev@bits.page")
+  (d/q credential/user-by-email-query (datomic/db (:datomic system)) "dev@bits.page")
 
   (postgres/execute! (:postgres system)
                      {:select   [:*]

@@ -20,7 +20,7 @@
     (let [user-txes          [{:user/id            (random-uuid)
                                :user/email         "user@example.com"
                                :user/password-hash (hash-password keymaster "password")}]
-          {:keys [db-after]} (sut/transact! datomic user-txes)]
+          {:keys [db-after]} @(d/transact (sut/conn datomic) user-txes)]
       (is (match?
            [{:user/email         "user@example.com"
              :user/password-hash #"^argon2id"}]
@@ -37,7 +37,7 @@
             :creator/links        [{:link/icon  :link.icon/instagram
                                     :link/label "Instagram"
                                     :link/url   "https://instagram.com/charliecollie"}]}]
-          {:keys [db-after]} (sut/transact! datomic creator-txes)]
+          {:keys [db-after]} @(d/transact (sut/conn datomic) creator-txes)]
       (is (match?
            [{:creator/bio          "Charlie likes treats and special ball."
              :creator/display-name "Charles Montgomery"

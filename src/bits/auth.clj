@@ -13,6 +13,7 @@
    [bits.request :as request]
    [bits.session :as session]
    [bits.ui :as ui]
+   [datomic.api :as d]
    [io.pedestal.log :as log]
    [next.jdbc :as jdbc]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
@@ -66,7 +67,7 @@
 (defn- find-user-by-email
   "Look up user by email. Returns {:user/id :user/password-hash} or nil."
   [database email]
-  (datomic/q database credential/user-by-email-query email))
+  (d/q credential/user-by-email-query (datomic/db database) email))
 
 (defn authenticate
   [request]

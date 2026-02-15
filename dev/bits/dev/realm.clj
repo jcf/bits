@@ -100,7 +100,7 @@
     :creator/bio          "Aspiring barista. Froth enthusiast. Decaf only — can't have caffeine, what with being a dog."}])
 
 (comment
-  (datomic/transact! (:datomic system) (seed-txes))
+  @(d/transact (datomic/conn (:datomic system)) (seed-txes))
 
   (d/q '[:find (pull ?e [*
                          {:creator/posts [*]}

@@ -5,11 +5,12 @@
    [bits.test.app :as t]
    [bits.test.browser :as browser]
    [bits.test.fixture :as fixture]
-   [clojure.test :refer [deftest is]]))
+   [clojure.test :refer [deftest is]]
+   [datomic.api :as d]))
 
 (deftest login
   (t/with-system [{:keys [service]} (t/system)]
-    (datomic/transact! (:datomic service) (fixture/realm-txes))
+    @(d/transact (datomic/conn (:datomic service)) (fixture/realm-txes))
     (let [email    "bits@example.com"
           password "password"]
       (t/create-user! service email password)
