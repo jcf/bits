@@ -17,7 +17,7 @@
   com.stuartsierra/component               {:mvn/version "1.2.0"}
   com.zaxxer/HikariCP                      {:mvn/version "7.0.2" :exclusions [org.slf4j/slf4j-api]}
   dev.invetica/winnow                      {:git/url "https://github.com/jcf/winnow"
-                                            :git/sha "7e1a42487c5efb26b7d830c2da7c4139a021dc35"}
+                                            :git/sha "99be3f9062affa308602de1c41fed1e53eb8823f"}
   dev.weavejester/medley                   {:mvn/version "1.9.0"}
   dev.weavejester/ragtime.core             {:mvn/version "0.12.1"}
   dev.weavejester/ragtime.next-jdbc        {:mvn/version "0.12.1"}
