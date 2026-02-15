@@ -1,0 +1,62 @@
+#+title:    Remove redundant indirection around Datomic API
+#+date:     2026-02-15
+#+status:   done
+#+property: header-args :dir ../..
+
+* Changes
+- Added =bits.datomic/conn= accessor for connection access
+- Removed =bits.datomic/transact!=, =pull=, and =q= wrappers
+- Kept =bits.datomic/db= for database snapshot access
+- Updated all callers to use =datomic.api= directly with explicit db/conn
+
+Files modified:
+- =src/bits/datomic.clj= - removed wrappers
+- =src/bits/auth.clj= - use =d/q= with =(datomic/db ...)=
+- =test/bits/datomic_test.clj= - use =d/transact= with =(sut/conn ...)=
+- =test/bits/auth_test.clj= - use =d/transact= with =(datomic/conn ...)=
+- =test/bits/service_test.clj= - use =d/transact= with =(datomic/conn ...)=
+- =test/bits/test/app.clj= - use =d/transact= with =(datomic/conn ...)=
+- =dev/bits/dev/realm.clj= - updated comment block examples
+- =dev/bits/dev/auth.clj= - updated comment block examples
+
+* Original Problem
+From =bits.datomic=:
+
+#+begin_src clojure
+;;; ----------------------------------------------------------------------------
+;;; Query helpers
+
+(defn db
+  [datomic]
+  (d/db (:conn datomic)))
+
+(defn transact!
+  [datomic tx-data]
+  (span/with-span! {:name ::transact!}
+    @(d/transact (:conn datomic) tx-data)))
+
+(defn pull
+  [datomic selector eid]
+  (span/with-span! {:name ::pull}
+    (d/pull (db datomic) selector eid)))
+
+;; TODO Remote this in favour of `datomic.api/q`.
+(defn q
+  [datomic query & inputs]
+  (span/with-span! {:name ::q}
+    (apply d/q query (db datomic) inputs)))
+#+end_src
+
+While instantiating a snapshot of the database from the =Datomic= component is
+helpful and avoids leaking internal state of the =Datomic= component, the other
+functions are deeply flawed.
+
+We should extract queries from functions that perform IO, and avoid creating
+databases inside opaque functions - doing so unnecessarily limits functions that
+could by helpful elsewhere.
+
+We should remove these wrappers entirely and update the codebase accordingly.
+Pervasive use of the Datomic API might become a problem - a UI namespace almost
+certainly shouldn't be querying the database directly - but namespaces that run
+on the backend shouldn't be afraid of idiomatically leveraging our Datomic
+infrastructure.
