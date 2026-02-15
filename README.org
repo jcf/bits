@@ -210,12 +210,15 @@ done
 #+end_src
 
 #+results:
-| Status  | Date         | Title                |
-|---------+--------------+----------------------|
-| =DOING= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]      |
-| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]      |
-| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]] |
-| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]        |
+| Status  | Date         | Title                     |
+|---------+--------------+---------------------------|
+| =DOING= | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]]      |
+| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]             |
+| =DOING= | =2026-02-13= | [[file:.claude/prompts/20260213223741-shop-tab.org][Shop Tab]]                  |
+| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223744-about-tab.org][About Tab]]                 |
+| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223747-purchase-flow.org][Purchase Flow]]             |
+| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223749-posts-feed.org][Posts Feed]]                |
+| =DOING= | =2026-02-14= | [[file:.claude/prompts/20260214141211-session-auth-security.org][Session and Auth Security]] |
 
 ** =DONE=
 #+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
@@ -228,9 +231,14 @@ done
 #+end_src
 
 #+results:
-| Status | Date         | Title           |
-|--------+--------------+-----------------|
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220001-prompt-workflow.org][Prompt Workflow]] |
+| Status | Date         | Title                                |
+|--------+--------------+--------------------------------------|
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220001-prompt-workflow.org][Prompt Workflow]]                      |
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]                      |
+| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]                      |
+| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212174601-asset-pipeline.org][Asset Pipeline]]                       |
+| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212180101-sse-retry-delay.org][SSE Retry Delay Configuration]]        |
+| =DONE= | =2026-02-14= | [[file:.claude/prompts/20260214191109-migrate-from-datahike-to-datomic-pro.org][Migrate from Datahike to Datomic Pro]] |
 
 ** TODOs
 #+begin_src sh :results output verbatim :exports results
@@ -238,11 +246,16 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: src/bits/assets.clj:;; TODO Make content-type explicit or more intelligent.
-: src/bits/auth.clj:;; TODO: I18n - user-facing strings need locale-aware source
-: src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
-: src/bits/datahike.clj:;; TODO Remove this generated garbage.
-: src/bits/domain.clj:;; TODO Combine with bits.schema.
-: src/bits/service.clj:                     ;; TODO Improve 404 response
-: src/bits/ui.clj:  ;; TODO: I18n - error presentation
-: src/bits/ui.clj:;; TODO: I18n - user-facing strings need locale-aware source
+#+begin_example
+src/bits/app.clj:;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
+src/bits/asset.clj:;; TODO Make content-type explicit or more intelligent.
+src/bits/auth.clj:;; TODO: I18n - user-facing strings need locale-aware source
+src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
+src/bits/datomic.clj:;; TODO Remote this in favour of `datomic.api/q`.
+src/bits/middleware.clj:            ;; TODO Rename :sid to :session/id
+src/bits/service.clj:                     ;; TODO Improve 404 response
+src/bits/ui.clj:  ;; TODO: I18n - error presentation
+src/bits/ui.clj:;; TODO: I18n - user-facing strings need locale-aware source
+src/bits/ui/creator.clj:        ;; TODO: Real data from database
+test/bits/session_test.clj:                                           ;; FIXME Remove `:sid` from `data`.
+#+end_example
