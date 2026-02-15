@@ -9,6 +9,7 @@
    [bits.form :as form]
    [bits.middleware :as mw]
    [bits.morph :as morph]
+   [bits.postgres :as postgres]
    [bits.request :as request]
    [bits.session :as session]
    [bits.ui :as ui]
@@ -68,18 +69,19 @@
   (datomic/q database credential/user-by-email-query email))
 
 (defn authenticate
-  "Login action. Requires :keymaster, :datomic, and :postgres in request."
   [request]
   (span/with-span! {:name ::authenticate}
-    (let [{:keys [datomic keymaster postgres]} (mw/request->state request)
+    (let [{:keys [datomic keymaster postgres rate-limiter]} (mw/request->state request)
+          tenant-id                (get-in request [:session/realm :tenant/id])
 
           params                   (get-in request [:parameters :form])
           {:keys [email password]} params
           email-str                (cryptex/reveal email)
           ip-address               (request/remote-addr request)]
       (jdbc/with-transaction [tx (:datasource postgres)]
-        (let [rate-check (rate-limit/check tx {:email      email-str
-                                               :ip-address ip-address})]
+        (let [limiter    (assoc rate-limiter :postgres (postgres/assoc-conn postgres tx))
+              rate-check (rate-limit/check limiter tenant-id {:email      email-str
+                                                              :ip-address ip-address})]
           (if (anom/anomaly? rate-check)
             (do
               (log/info :msg        "Rate limited."
@@ -92,13 +94,13 @@
                                  (:valid (crypto/verify keymaster password (:user/password-hash user)))
                                  (do (crypto/verify keymaster password (:dummy-hash keymaster))
                                      false))]
-              (rate-limit/record-attempt! tx {:email      email-str
-                                              :ip-address ip-address
-                                              :success    password-ok?})
+              (rate-limit/record-attempt! limiter tenant-id {:email      email-str
+                                                             :ip-address ip-address
+                                                             :success    password-ok?})
               (if password-ok?
                 (let [session-store (mw/request->session-store request)
                       old-sid       (get-in request [:session :sid])
-                      new-sid       (session/rotate-session! session-store old-sid (:user/id user))]
+                      new-sid       (session/rotate-session! session-store tenant-id old-sid (:user/id user))]
                   (log/debug :msg     "Redirecting user..."
                              :user/id (:user/id user))
                   (morph/redirect "/" {:session (assoc (session/new-session session-store)
@@ -110,7 +112,8 @@
   [request]
   (span/with-span! {:name ::sign-out}
     (let [session-store (mw/request->session-store request)
+          tenant-id     (get-in request [:session/realm :tenant/id])
           sid           (get-in request [:session :sid])]
       (when sid
-        (session/clear-user! session-store sid))
+        (session/clear-user! session-store tenant-id sid))
       (morph/redirect "/" {:session (session/new-session session-store)}))))

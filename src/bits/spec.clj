@@ -36,6 +36,20 @@
   (s/map-of qualified-keyword? :bits.morph/action))
 
 ;;; ----------------------------------------------------------------------------
+;;; Rate limiter
+
+(s/def :bits.auth.rate-limit/email-max-attempts pos-int?)
+(s/def :bits.auth.rate-limit/email-window-minutes pos-int?)
+(s/def :bits.auth.rate-limit/ip-max-attempts pos-int?)
+(s/def :bits.auth.rate-limit/ip-window-minutes pos-int?)
+
+(s/def :bits.auth.rate-limit/config
+  (s/keys :req-un [:bits.auth.rate-limit/email-max-attempts
+                   :bits.auth.rate-limit/email-window-minutes
+                   :bits.auth.rate-limit/ip-max-attempts
+                   :bits.auth.rate-limit/ip-window-minutes]))
+
+;;; ----------------------------------------------------------------------------
 ;;; Service
 
 (s/def :bits.service/actions :bits.morph/actions)

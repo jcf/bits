@@ -1,6 +1,7 @@
 (ns bits.app
   (:require
    [bits.asset :as asset]
+   [bits.auth.rate-limit :as rate-limit]
    [bits.boot :as boot]
    [bits.crypto :as crypto]
    [bits.datomic :as datomic]
@@ -61,6 +62,10 @@
                              :memory      (* 64 1024)
                              :parallelism 1}}
      :postgres      {:database-url database-url}
+     :rate-limiter  {:email-window-minutes 15
+                     :email-max-attempts   5
+                     :ip-window-minutes    15
+                     :ip-max-attempts      20}
      :reaper        {:interval-hours 1}
      :service       {:actions          next/actions
                      :cookie-name      "__Host-bits"
@@ -84,17 +89,19 @@
   [config]
   {:bootstrapper  (boot/make-bootstrapper     (:bootstrapper config))
    :buster        (asset/make-buster          (:buster config))
-   :datomic       (datomic/make-datomic      (:datomic config))
+   :datomic       (datomic/make-datomic       (:datomic config))
    :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:postgres config))
    :postgres      (postgres/make-postgres     (:postgres config))
    :randomizer    (crypto/make-randomizer     (:randomizer config))
+   :rate-limiter  (rate-limit/make-limiter    (:rate-limiter config))
    :reaper        (reaper/make-reaper         (:reaper config))
    :service       (service/make-service       (:service config))
    :session-store (session/make-session-store (:session-store config))})
 
 (def dependencies
   {:postgres      [:migrator :randomizer]
+   :rate-limiter  [:postgres]
    :reaper        [:postgres :session-store]
    :service       [:bootstrapper
                    :buster
@@ -102,6 +109,7 @@
                    :keymaster
                    :postgres
                    :randomizer
+                   :rate-limiter
                    :session-store]
    :session-store [:postgres :randomizer]})
 
