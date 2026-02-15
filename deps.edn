@@ -61,7 +61,8 @@
   {:jvm-opts    ["-XX:+UseG1GC"
                  "-XX:MaxGCPauseMillis=100"
                  "-Xms1g"
-                 "-Xmx16g"]
+                 "-Xmx16g"
+                 "--enable-native-access=ALL-UNNAMED"]
    :extra-paths ["dev" "dev-resources"]
    :extra-deps
    {com.stuartsierra/component.repl {:mvn/version "1.0.0"}
