@@ -358,18 +358,21 @@
 ;;; Footer
 
 (defn page-footer
-  []
-  [:footer {:class ["text-center" "py-12" "px-4" "text-xs" "text-muted"]}
-   [:a {:href "/" :class ["text-muted" "no-underline" "hover:text-secondary"]}
-    "bits.page"]
-   " · "
-   [:a {:href "#" :class ["text-muted" "no-underline" "hover:text-secondary"]}
-    "Terms"]
-   " · "
-   [:a {:href "#" :class ["text-muted" "no-underline" "hover:text-secondary"]}
-    "Privacy"]
-   [:div {:class ["mt-2" "text-[0.6875rem]" "opacity-60"]}
-    "Self-hostable. Open source. Your data, your rules."]])
+  [request]
+  (let [platform-domain (mw/request->platform-domain request)]
+    [:footer {:class ["text-center" "py-12" "px-4" "text-xs" "text-muted"]}
+     ;; TODO Extract platform/realm domain
+     [:a {:href  (str "https://" platform-domain "/")
+          :class ["text-muted" "no-underline" "hover:text-secondary"]}
+      "bits.page"]
+     " · "
+     [:a {:href "#" :class ["text-muted" "no-underline" "hover:text-secondary"]}
+      "Terms"]
+     " · "
+     [:a {:href "#" :class ["text-muted" "no-underline" "hover:text-secondary"]}
+      "Privacy"]
+     [:div {:class ["mt-2" "text-[0.6875rem]" "opacity-60"]}
+      "Self-hostable. Open source. Your data, your rules."]]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Sticky CTA (mobile)
@@ -437,5 +440,5 @@
                       :viewer-count viewer-count
                       :stats        stats})
      (feed {:creator creator :posts posts})
-     (page-footer)
+     (page-footer request)
      (sticky-cta {:price (:price stats)}))))
