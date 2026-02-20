@@ -17,8 +17,8 @@
       (browser/with-driver [driver service]
         (browser/goto driver "/")
         (browser/click driver {:tag :a :fn/text "Login"})
-        (browser/fill driver :email email)
-        (browser/fill driver :password password)
+        (browser/wait-to-fill driver :email email)
+        (browser/wait-to-fill driver :password password)
         (browser/click driver "button[type='submit']")
         (browser/wait-to-click driver {:tag :button :fn/has-text "Sign out"})
         (is (= "/" (browser/current-path driver)))))))

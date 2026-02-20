@@ -11,7 +11,7 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Driver lifecycle
 
-(def ^:private ^:const screenshot-dir "target/screenshots")
+(def ^:const ^:private session-dir "target/browser-sessions")
 
 (defrecord Driver [etaoin service])
 
@@ -33,21 +33,6 @@
 (defn quit
   [driver]
   (e/quit (->etaoin driver)))
-
-(defmacro with-driver
-  [[binding service] & body]
-  `(let [~binding (make-driver ~service)]
-     (try
-       ~@body
-       (catch Throwable t#
-         (fs/create-dirs ~screenshot-dir)
-         (screenshot ~binding (str (fs/file ~screenshot-dir
-                                            (str (time/format "yyyyMMdd-HHmmssSSS"
-                                                              (time/local-date-time))
-                                                 ".png"))))
-         (throw t#))
-       (finally
-         (quit ~binding)))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Navigation
@@ -76,6 +61,13 @@
 (defn fill
   [driver field-name value]
   (e/fill (->etaoin driver) {:name (name field-name)} value))
+
+(defn wait-to-fill
+  [driver selector value]
+  (let [e (->etaoin driver)
+        q (->query selector)]
+    (e/wait-visible e q)
+    (e/fill e q value)))
 
 (defn click
   [driver selector]
@@ -116,7 +108,7 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
 
-(defn get-source
+(defn- get-source
   [driver]
   (e/get-source (->etaoin driver)))
 
@@ -127,3 +119,31 @@
   ([driver path]
    (log/debug :msg "Capturing screenshot..." :path path)
    (e/screenshot (->etaoin driver) path)))
+
+;;; ----------------------------------------------------------------------------
+;;; Helpful Driver
+
+(defn with-driver*
+  [service body-fn]
+  (let [driver (make-driver service)]
+    (try
+      (body-fn driver)
+      (catch Throwable t
+        (let [ts  (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
+              dir (fs/file session-dir ts)]
+          (fs/create-dirs dir)
+          (screenshot driver (str (fs/file dir "screenshot.png")))
+          (spit (fs/file dir "page-source.html") (get-source driver))
+          (spit (fs/file dir "console.edn")
+                (with-out-str
+                  (pprint/pprint (e/get-logs (->etaoin driver)))))
+          (throw (ex-info "Browser session failed?!"
+                          {:dir       (str dir)
+                           :timestamp ts}
+                          t))))
+      (finally
+        (quit driver)))))
+
+(defmacro with-driver
+  [[binding service] & body]
+  `(with-driver* ~service (^:once fn* [~binding] ~@body)))
