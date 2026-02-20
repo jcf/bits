@@ -1,0 +1,201 @@
+#+title:   Linear
+#+startup: content
+
+We use Linear to keep on top of the backlog of tasks associated with new
+features, improvements, and bugs we need to squash.
+
+* Estimation
+:PROPERTIES:
+:CUSTOM_ID: estimation
+:END:
+We use Fibonacci-scale story points to estimate the relative size of
+work. Points measure complexity and effort, not time. A task that takes
+one person a day might be a 2 for an expert or an 8 for someone learning
+the domain.
+
+** Quick Reference
+| Pts | Size          | Layers | Tests          | Example                              |
+|-----+---------------+--------+----------------+--------------------------------------|
+|   1 | Single file   |      1 | None/minimal   | Fix typo, config tweak               |
+|   2 | Few files     |      1 | Few unit tests | Add schema attr, new spec            |
+|   3 | One feature   |      1 | Some tests     | New Hiccup component, action handler |
+|   5 | Multi-file    |   1--2 | Good coverage  | New tab view, component lifecycle    |
+|   8 | Cross-cutting |     3+ | Comprehensive  | Schema + middleware + config + tests |
+|  13 | *Decompose*   |    --- | ---            | Session hardening, OAuth provider    |
+|  21 | *Decompose*   |    --- | ---            | Per-tenant DBs, GDPR excision        |
+
+*Rule of thumb:* If it touches 3+ layers with comprehensive tests, it's an 8. If
+it's bigger than that, decompose it.
+
+** The Scale
+| Points | Complexity  | Status                    |
+|--------+-------------+---------------------------|
+|      1 | Trivial     | Ready to work             |
+|      2 | Small       | Ready to work             |
+|      3 | Moderate    | Ready to work             |
+|      5 | Significant | Ready to work             |
+|      8 | Large       | Ready to work             |
+|     13 | Too large   | Decompose before starting |
+|     21 | Epic        | Decompose before starting |
+
+Issues estimated at 13 or 21 must be broken down into smaller tasks before work
+begins. Filter Linear for =estimate >= 8= to find decomposition candidates
+during planning.
+
+** Point Definitions
+*** 1 Point --- Trivial
+Single-file fix, typo, config tweak, no coordination needed.
+
+- Fix a typo in documentation
+- Update a dependency version in deps.edn
+- Add a missing environment variable to devenv.nix
+- Suppress a logging warning in configuration
+
+*** 2 Points --- Small
+Small, well-understood change with minimal testing impact.
+
+- Add a new Tailwind color token to the theme template
+- Add a new attribute to Datomic schema
+- Fix a CSS layout issue in a Hiccup component
+- Add a missing spec to bits.spec
+
+*** 3 Points --- Moderate
+Single feature in one layer, requires some tests.
+
+- Add a new Hiccup UI component in bits.ui.*
+- Add a new action handler in bits.next
+- Implement a form with Malli coercion validation
+- Add a new middleware function with tests
+
+*** 5 Points --- Significant
+Multi-file feature, requires good test coverage, may touch a couple of layers.
+
+- Add a new tab view with components and actions
+- Implement a new component with lifecycle (record + factory + spec)
+- Add PostgreSQL migration with queries and session integration
+- Create a UI namespace with multiple related components
+
+*** 8 Points --- Large
+Cross-cutting feature, multiple layers, comprehensive testing, may require
+domain knowledge or iteration.
+
+- Migrate database backend (schema, deps, config, tests)
+- Add multi-step modal with SSE state transitions
+- Implement tenant-scoped feature with middleware, schema, and tests
+- Build real-time feature with client/server coordination
+
+*** 13 Points --- Too Large
+Architectural change, new subsystem, significant coordination. *Must be
+decomposed before work begins.*
+
+- Session security hardening (tenant scoping, hashing, drift detection)
+- Add OAuth/OIDC identity provider (Sign in with Bits)
+- Implement horizontal scaling for real-time features
+- Major refactor affecting multiple components and their dependencies
+
+*** 21 Points --- Epic
+Fundamental restructuring or new capability. *Must be decomposed before work
+begins.*
+
+- Per-tenant Datomic databases with connection pooling
+- GDPR excision infrastructure with deletion workflows
+- Complete redesign of a core user flow
+- Adding payment processing with multiple providers
+
+** Estimation Guidelines
+*** Issues Must Be Deliverables
+Each issue must represent a complete, measurable piece of value. An issue is
+done when it is *implemented, tested, and documented*.
+
+Do not create separate issues for:
+
+- "Write the tests"
+- "Write the documentation"
+- "Implement the feature"
+
+These are parts of one deliverable---the working, tested, documented
+feature.
+
+*** Decomposition Means Zero Points on Parent
+Sub-issues are for *decomposition only*. When you decompose an issue:
+
+- All work moves to the sub-issues
+- The parent becomes a tracking container with *0 points*
+- Each sub-issue is a complete deliverable
+
+*Strict rule:* A parent with sub-issues always has 0 points.
+
+| Situation                                 | Action                                        |
+|-------------------------------------------+-----------------------------------------------|
+| Decomposing a large issue                 | Create sub-issues, set parent to 0 points     |
+| Estimating a sub-issue                    | Estimate normally; verify parent has 0 points |
+| Found parent with estimate AND sub-issues | Remove the parent's estimate                  |
+
+*Don't use sub-issues for associated tasks.* If you have a reminder or follow-up
+that isn't part of decomposition, use Linear's "Related issues" feature instead.
+Related issues are separate deliverables with their own estimates---no
+double-counting risk.
+
+*** Compare, Don't Calculate
+Estimate by comparing to known tasks, not by adding up hours. Ask: "Is this
+bigger or smaller than our 8-point reference?"
+
+*** Uncertainty Increases Points
+If you don't fully understand the problem space, estimate higher. A "probably
+simple" task with unknowns might be a 5 instead of a 3.
+
+*** Include Testing
+Points include all work: implementation, tests, documentation, code review
+iterations. A feature with comprehensive test requirements is larger than one
+without.
+
+*** Avoid Anchoring on Time
+"This will take a day" is not estimation. Two people might take different
+amounts of time on the same 5-point task based on familiarity with the code.
+
+*** Re-estimate When Scope Changes
+If requirements change mid-task, update the estimate. This helps calibrate
+future estimates.
+
+** Velocity
+:PROPERTIES:
+:CUSTOM_ID: velocity
+:END:
+Velocity measures how many points a developer completes per week. Use
+this to forecast project target dates.
+
+*** Adjusting Velocity
+Re-calculate velocity after each completed sprint:
+
+#+begin_example
+velocity = points_completed / weeks_elapsed
+#+end_example
+
+Update project target dates using =/forecast= when velocity changes
+significantly (±20% or more).
+
+*** Scaling
+Adding developers doesn't double velocity due to coordination overhead.  Rough
+multipliers:
+
+| Team size | Effective multiplier |
+|-----------+----------------------|
+| 1         | 1.0×                 |
+| 2         | 1.7×                 |
+| 3         | 2.2×                 |
+
+** Decomposition
+When an issue is estimated at 13 or 21:
+
+1. Identify independent deliverables within the work
+2. Create child issues for each deliverable
+3. Estimate each child issue (should be 8 or less)
+4. Keep the parent as an epic or project for tracking
+
+Signs that decomposition is needed:
+
+- Multiple unrelated acceptance criteria
+- Work spans more than two major system layers
+- Requires sequential phases (research, then implementation, then
+  migration)
+- Different people could work on different parts independently
