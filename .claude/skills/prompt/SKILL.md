@@ -15,6 +15,7 @@ Develop a detailed plan for a feature or task, then capture it in Linear.
 ### 1. Understand the Goal
 
 Ask clarifying questions:
+
 - What problem does this solve?
 - Who is affected?
 - What does success look like?
@@ -22,6 +23,7 @@ Ask clarifying questions:
 ### 2. Explore the Codebase
 
 Use Glob, Grep, and Read to:
+
 - Find relevant files and modules
 - Understand existing patterns
 - Identify what needs to change
@@ -29,6 +31,7 @@ Use Glob, Grep, and Read to:
 ### 3. Define Success Criteria
 
 Work with the user to establish:
+
 - Specific, testable outcomes
 - Edge cases to handle
 - What's explicitly out of scope
@@ -36,6 +39,7 @@ Work with the user to establish:
 ### 4. Outline the Approach
 
 Document:
+
 - Files that need modification
 - New components or modules required
 - Dependencies or prerequisites
@@ -44,6 +48,7 @@ Document:
 ### 5. Present the Plan
 
 Summarise the plan in markdown with:
+
 - **Goal**: One sentence summary
 - **Success criteria**: Bullet list
 - **Files involved**: With brief notes on changes
@@ -53,6 +58,7 @@ Summarise the plan in markdown with:
 ### 6. Create Linear Issue
 
 Once the user approves the plan:
+
 1. Load Linear tools via ToolSearch
 2. Create issue with:
    - Title from the goal
