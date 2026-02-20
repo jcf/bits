@@ -1,5 +1,6 @@
 (ns bits.test.browser
   (:require
+   [babashka.fs :as fs]
    [bits.test.app :as t]
    [clojure.pprint :as pprint]
    [etaoin.api :as e]
@@ -9,6 +10,8 @@
 
 ;;; ----------------------------------------------------------------------------
 ;;; Driver lifecycle
+
+(def ^:private ^:const screenshot-dir "target/screenshots")
 
 (defrecord Driver [etaoin service])
 
@@ -36,6 +39,13 @@
   `(let [~binding (make-driver ~service)]
      (try
        ~@body
+       (catch Throwable t#
+         (fs/create-dirs ~screenshot-dir)
+         (screenshot ~binding (str (fs/file ~screenshot-dir
+                                            (str (time/format "yyyyMMdd-HHmmssSSS"
+                                                              (time/local-date-time))
+                                                 ".png"))))
+         (throw t#))
        (finally
          (quit ~binding)))))
 
