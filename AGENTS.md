@@ -8,11 +8,12 @@ Do not include `Co-Authored-By` trailers in commit messages.
 
 Use `just` for all common tasks (not `bin/*` scripts):
 
+- `just` - **Default task**: runs all quality checks (lint, test, format). Use this
+  to verify the project is working.
 - `just test` - Run all tests
 - `just test :e2e` - Run E2E tests only
 - `just lint` - Run linting
 - `just fmt` - Format code
-- `just check` - Run all quality checks
 
 See `just --list` for all available commands.
 
