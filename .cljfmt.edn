@@ -11,5 +11,9 @@
  :extra-indents
  {bits.form/action-button                 [[:block 1]]
   bits.form/form                          [[:block 2]]
+  bits.ui/card                            [[:block 1]]
+  bits.ui/page-center                     [[:block 1]]
+  bits.ui/page-title                      [[:block 1]]
+  bits.ui/text-muted                      [[:block 1]]
   clojure.test.check.clojure-test/defspec [[:block 1]]
   clojure.test.check.properties/for-all   [[:block 1]]}}
