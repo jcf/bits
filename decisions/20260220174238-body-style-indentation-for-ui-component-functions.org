@@ -1,0 +1,49 @@
+#+title:  Body-style indentation for UI component functions
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2026-02-20
+
+* Context
+UI component functions like ~page-center~, ~page-title~, ~text-muted~, and ~card~
+take an attrs map followed by child elements. When nested, function-call style
+indentation (aligning with first argument) wastes horizontal space.
+
+#+begin_src clojure
+;; Function-call style (wastes horizontal space)
+(page-center {:class "foo"}
+             [:h1 "Title"]
+             [:p "Body"])
+#+end_src
+
+* Options Considered
+** Function-call style (default)
+Align subsequent arguments with the first argument. Standard for most function
+calls but creates deep nesting with wrapper components.
+
+** Body-style with 2-space indent
+Treat the first argument as special (like a binding vector in ~let~) and indent
+body forms 2 spaces from the opening paren. Used by ~defn~, ~let~, ~when~,
+~with-open~, and similar forms.
+
+** Body-style with 1-space indent
+Non-standard. No precedent in Clojure ecosystem.
+
+* Decision
+Use body-style indentation with 2-space indent for UI component functions.
+
+#+begin_src clojure
+(page-center {:class "foo"}
+  [:h1 "Title"]
+  [:p "Body"])
+#+end_src
+
+This matches the Clojure community standard for body forms and is consistent with
+~defn~, ~let~, ~when~, ~with-open~, and other macros. Configured via:
+
+- ~.cljfmt.edn~ with ~:extra-indents~ using ~[[:block 1]]~
+- ~.dir-locals.el~ with ~define-clojure-indent~ using ~1~
+
+* Consequences
+- Reduced horizontal nesting when composing UI components
+- Consistent with standard Clojure indentation conventions
+- Requires configuration in both cljfmt and Emacs for full tooling support
+- New UI component functions need to be added to both configuration files
