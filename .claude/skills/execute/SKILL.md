@@ -1,65 +1,26 @@
 ---
 name: execute
-description: Select and execute a prompt from .claude/prompts/
-allowed-tools: Glob, Read, Bash, Edit, Write, AskUserQuestion
+description: Execute a Linear issue
+allowed-tools: ToolSearch, mcp__linear__list_issues, mcp__linear__get_issue, mcp__linear__update_issue, Read, Glob, Grep, Bash, Edit, Write, AskUserQuestion
 ---
 
-# Execute Prompt
-
-Execute a prompt from `.claude/prompts/`.
+Execute work for a Linear issue.
 
 ## Usage
 
-- `/execute` - List prompts, select interactively
-- `/execute <slug>` - Execute specific prompt by slug (filename without extension)
-- `/execute --all` - Include completed prompts in selection
+- `/execute` - List open issues, select one
+- `/execute BITS-17` - Execute specific issue
 
 ## Process
 
-### Step 1: Find Prompts
-
-List available prompts:
-
-!`ls -1 .claude/prompts/*.org 2>/dev/null | while read f; do st=$(grep -m1 '^#+status:' "$f" | sed 's/#+status: *//'); title=$(grep -m1 '^#+title:' "$f" | sed 's/#+title: *//'); base=$(basename "$f" .org); echo "[$st] $title ($base)"; done`
-
-### Step 2: Select Prompt
-
-If `$ARGUMENTS` contains a slug, use it directly.
-
-Otherwise, use AskUserQuestion to let the user select from the list above.
-Skip prompts with status `done` unless `--all` was specified.
-
-### Step 3: Read and Parse
-
-Read the selected prompt file. Note the:
-
-- Title (`#+title:`)
-- Status (`#+status:` - todo, doing, done)
-- Goals and success criteria
-
-### Step 4: Execute
-
-Follow this process:
-
-1. **Understand** - Read the prompt thoroughly
-2. **Improve** - Consider better approaches, edge cases
-3. **Derisk** - What could go wrong? Address assumptions
-4. **Plan** - Formulate concrete steps with checkpoints
-5. **Present** - Show the plan before executing
-6. **Implement** - Make changes systematically
-7. **Verify** - Run tests to confirm success
-
-### Step 5: Update Status
-
-As work progresses, update the prompt's `#+status:` field:
-
-- `todo` - Not started
-- `doing` - In progress
-- `done` - Completed
-
-## Important
-
-- Follow all guidelines in CLAUDE.md
-- Run tests after changes
-- Keep commits focused
-- Update the prompt doc with important decisions and status changes
+1. Load Linear tools via ToolSearch
+2. If no argument: list Bits team issues (Todo/In Progress), present via AskUserQuestion
+3. Fetch full issue details
+4. Update status to "In Progress"
+5. Follow execution steps:
+   - Understand the requirements
+   - Plan the implementation
+   - Present plan for approval
+   - Implement changes
+   - Verify with tests
+6. On completion: update status to "Done"
