@@ -25,13 +25,13 @@
   (list
    (ui/nav-header request "/counter")
    (ui/page-center {:class "space-y-2"}
-                   [:header
-                    (ui/page-title {}
-                                   "Count: "
-                                   [:span {:class "font-bold"} (:count @!counter)])]
-                   [:section {:class "flex space-x-2"}
-                    (ui/icon-button {:data-action "counter/inc"} plus-icon)
-                    (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
+     [:header
+      (ui/page-title {}
+        "Count: "
+        [:span {:class "font-bold"} (:count @!counter)])]
+     [:section {:class "flex space-x-2"}
+      (ui/icon-button {:data-action "counter/inc"} plus-icon)
+      (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Email
@@ -39,18 +39,18 @@
 (defn- email-form
   [{:keys [email error success]}]
   (ui/card {:id "email-demo"}
-           (ui/card-title "Email Validation")
-           [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
-            (when error (ui/text-error error))
-            (when success (ui/text-success success))
-            (ui/input {:type        "email"
-                       :name        "email"
-                       :value       (or email "")
-                       :class       "rounded-md"
-                       :placeholder "you@example.com"})
-            (ui/button-primary {:type        "button"
-                                :data-action "email/validate"}
-                               "Submit")]))
+    (ui/card-title "Email Validation")
+    [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
+     (when error (ui/text-error error))
+     (when success (ui/text-success success))
+     (ui/input {:type        "email"
+                :name        "email"
+                :value       (or email "")
+                :class       "rounded-md"
+                :placeholder "you@example.com"})
+     (ui/button-primary {:type        "button"
+                         :data-action "email/validate"}
+                        "Submit")]))
 
 (defn email-view
   ([request] (email-view request {}))
@@ -58,7 +58,7 @@
    (list
     (ui/nav-header request "/email")
     (ui/page-center {}
-                    (email-form form-state)))))
+      (email-form form-state)))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Explore
@@ -76,23 +76,23 @@
      (ui/nav-header request "/")
      (ui/page-center
       {}
-      (if-not (seq tenants)
-        (list
-         (ui/page-title {} "No tenants found")
-         (ui/text-muted {:class ["mt-4"]}
-                        "Please create a tenant or two."))
-        [:ul {:class "space-y-2"}
-         (for [{:keys [creator/display-name
-                       tenant/domains
-                       creator/handle]} (sort-by :creator/handle tenants)
-               :let                     [{domain-name :domain/name} (first domains)]]
-           [:li
-            [:a {:href  (str "https://" domain-name "/")
-                 :class "group text-accent space-x-2"}
-             [:span {:class "font-bold group-hover:underline group-hover:decoration-2"}
-              (or display-name handle)]
-             [:span {:class "text-muted"}
-              (str " — " domain-name)]]])])))))
+       (if-not (seq tenants)
+         (list
+          (ui/page-title {} "No tenants found")
+          (ui/text-muted {:class ["mt-4"]}
+            "Please create a tenant or two."))
+         [:ul {:class "space-y-2"}
+          (for [{:keys [creator/display-name
+                        tenant/domains
+                        creator/handle]} (sort-by :creator/handle tenants)
+                :let                     [{domain-name :domain/name} (first domains)]]
+            [:li
+             [:a {:href  (str "https://" domain-name "/")
+                  :class "group text-accent space-x-2"}
+              [:span {:class "font-bold group-hover:underline group-hover:decoration-2"}
+               (or display-name handle)]
+              [:span {:class "text-muted"}
+               (str " — " domain-name)]]])])))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Redirect
@@ -100,17 +100,17 @@
 (defn- redirect-demo
   []
   (ui/card {}
-           (ui/card-title "Redirect Demo")
-           (ui/button-primary {:type        "button"
-                               :data-action "demo/redirect"}
-                              "Go to example.com")))
+    (ui/card-title "Redirect Demo")
+    (ui/button-primary {:type        "button"
+                        :data-action "demo/redirect"}
+                       "Go to example.com")))
 
 (defn redirect-view
   [request]
   (list
    (ui/nav-header request "/redirect")
    (ui/page-center {}
-                   (redirect-demo))))
+     (redirect-demo))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Cursors
@@ -166,9 +166,9 @@
         (cursor-label cid))
 
       (ui/page-center {}
-                      (ui/page-title {} "Presence Cursors")
-                      (ui/text-muted {:class ["mt-4"]}
-                                     (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")))])))
+        (ui/page-title {} "Presence Cursors")
+        (ui/text-muted {:class ["mt-4"]}
+          (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")))])))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions

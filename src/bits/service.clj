@@ -67,9 +67,9 @@
 (defn- realm-not-found-view
   [_request]
   (ui/page-center {}
-                  (ui/page-title {} "Realm not found")
-                  (ui/text-muted {:class ["mt-4"]}
-                                 "Want your own Bits? We want to hear from you!")))
+    (ui/page-title {} "Realm not found")
+    (ui/text-muted {:class ["mt-4"]}
+      "Want your own Bits? We want to hear from you!")))
 
 (def realms
   (medley/index-by

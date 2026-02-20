@@ -208,9 +208,9 @@
 (defn not-found-view
   [_request]
   (page-center {}
-               (page-title {} "Page not found")
-               (text-muted {:class ["mt-4"]}
-                           "The page you're looking for doesn't exist.")))
+    (page-title {} "Page not found")
+    (text-muted {:class ["mt-4"]}
+      "The page you're looking for doesn't exist.")))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Layout

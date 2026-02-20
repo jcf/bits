@@ -29,26 +29,26 @@
     (list
      (ui/nav-header request "/login")
      (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
-                     [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-                      [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
-                                    "tracking-tight" "text-primary"]}
-                       "Sign in to your account"]]
-                     [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-                      (when error
-                        (ui/alert-error error))
-                      (form/form request :auth/login
-                        [:div
-                         (ui/input-top {:type        "email"
-                                        :name        "email"
-                                        :placeholder "Email address"
-                                        :required    true
-                                        :autofocus   true})
-                         (ui/input-bottom {:type        "password"
-                                           :name        "password"
-                                           :placeholder "Password"
-                                           :required    true})]
-                        [:div {:class "mt-6"}
-                         (ui/button-primary {} "Sign in")])]))))
+       [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+        [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
+                      "tracking-tight" "text-primary"]}
+         "Sign in to your account"]]
+       [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+        (when error
+          (ui/alert-error error))
+        (form/form request :auth/login
+          [:div
+           (ui/input-top {:type        "email"
+                          :name        "email"
+                          :placeholder "Email address"
+                          :required    true
+                          :autofocus   true})
+           (ui/input-bottom {:type        "password"
+                             :name        "password"
+                             :placeholder "Password"
+                             :required    true})]
+          [:div {:class "mt-6"}
+           (ui/button-primary {} "Sign in")])]))))
 
 (defn authenticated-view
   [request]
@@ -56,10 +56,10 @@
     (list
      (ui/nav-header request "/")
      (ui/page-center {:class "space-y-4"}
-                     (ui/page-title {:class "text-2xl"} "Welcome!")
-                     (ui/text-muted {} (str "Signed in as user " user-id))
-                     (form/form request :auth/sign-out
-                       (ui/button-secondary {} "Sign out"))))))
+       (ui/page-title {:class "text-2xl"} "Welcome!")
+       (ui/text-muted {} (str "Signed in as user " user-id))
+       (form/form request :auth/sign-out
+         (ui/button-secondary {} "Sign out"))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
