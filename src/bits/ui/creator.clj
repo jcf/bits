@@ -393,12 +393,14 @@
 
 (defn creator-layout
   [request & content]
-  (let [buster     (mw/request->buster request)
-        asset-path #(asset/asset-path buster %)]
+  (let [buster           (mw/request->buster request)
+        csrf-cookie-name (mw/request->csrf-cookie-name request)
+        asset-path       #(asset/asset-path buster %)]
     [:html {:lang "en"}
      [:head
       [:meta {:charset "UTF-8"}]
       [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
+      [:meta {:name "csrf-cookie" :content csrf-cookie-name}]
       [:title "Bits"]
       [:link {:rel "icon" :href (asset-path "/favicon.ico") :sizes "any"}]
       [:link {:rel "icon" :type "image/svg+xml" :href (asset-path "/favicon.svg")}]

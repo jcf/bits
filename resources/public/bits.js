@@ -163,7 +163,14 @@
   // Action Dispatch
 
   function getCsrf() {
-    const match = document.cookie.match(/(^|; )__Host-bits-csrf=([^;]+)/);
+    const meta = document.querySelector('meta[name="csrf-cookie"]');
+    if (!meta) {
+      log.warn("Page is missing required meta[name='csrf-cookie']?!");
+      return null;
+    }
+    const match = document.cookie.match(
+      new RegExp(`(^|; )${meta.content}=([^;]+)`),
+    );
     return match ? match[2] : null;
   }
 

@@ -73,6 +73,10 @@
   [request]
   (get-in request [:session :nonce]))
 
+(defn request->csrf-cookie-name
+  [request]
+  (get-state request :csrf-cookie-name))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Database
 
