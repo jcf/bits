@@ -1,10 +1,12 @@
 (ns bits.service
   (:require
    [bits.coerce :as coerce]
+   [bits.html :as html]
    [bits.middleware :as mw]
    [bits.middleware.session :as middleware.session]
    [bits.morph :as morph]
    [bits.response]
+   [bits.ui :as ui]
    [clojure.core.async :as a]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
@@ -113,11 +115,10 @@
      (ring/routes
       (ring/create-resource-handler {:path "/"})
       (ring/create-default-handler
-       {:not-found (fn [_request]
-                     ;; TODO Improve 404 response
+       {:not-found (fn [request]
                      {:status  404
-                      :headers {"content-type" "text/plain"}
-                      :body    "Not found.\n"})}))
+                      :headers {"content-type" "text/html; charset=utf-8"}
+                      :body    (html/html (ui/layout request (ui/not-found-view request)))})}))
      {:middleware middleware})))
 
 ;;; ----------------------------------------------------------------------------
