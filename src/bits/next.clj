@@ -229,7 +229,7 @@
 (def realms
   (medley/index-by
    :realm/type
-   #{{:realm/layout ui.creator/creator-layout
+   #{{:realm/layout ui/layout
       :realm/type   :realm.type/creator
       :realm/view   ui.creator/creator-profile-view}
      {:realm/layout ui/layout
@@ -276,9 +276,16 @@
     (apply layout-fn request content)))
 
 (def routes
-  [["/"         (morphable home-layout home-view)]
-   ["/cursors"  (morphable ui/layout cursors-view {:on-close remove-cursor!})]
-   ["/counter"  (morphable ui/layout counter-view)]
-   ["/email"    (morphable ui/layout email-view)]
-   ["/login"    (morphable ui/layout login-view-wrapper)]
-   ["/redirect" (morphable ui/layout redirect-view)]])
+  [["/"         (assoc (morphable home-layout home-view)
+                       :bits/page (fn [request]
+                                    {:page/title (-> request :session/realm :creator/display-name)}))]
+   ["/cursors"  (assoc (morphable ui/layout cursors-view {:on-close remove-cursor!})
+                       :bits/page {:page/title "Cursors"})]
+   ["/counter"  (assoc (morphable ui/layout counter-view)
+                       :bits/page {:page/title "Counter"})]
+   ["/email"    (assoc (morphable ui/layout email-view)
+                       :bits/page {:page/title "Email"})]
+   ["/login"    (assoc (morphable ui/layout login-view-wrapper)
+                       :bits/page {:page/title "Login"})]
+   ["/redirect" (assoc (morphable ui/layout redirect-view)
+                       :bits/page {:page/title "Redirect"})]])

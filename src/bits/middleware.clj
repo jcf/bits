@@ -250,6 +250,20 @@
          :body   "Invalid CSRF token"}))))
 
 ;;; ----------------------------------------------------------------------------
+;;; Page
+
+(def page-middleware
+  {:name    ::page
+   :compile (fn [route-data _opts]
+              (when-let [page-data (:bits/page route-data)]
+                (let [page-fn (if (fn? page-data)
+                                page-data
+                                (constantly page-data))]
+                  (fn [handler]
+                    (fn [request]
+                      (handler (assoc request :bits/page (page-fn request))))))))})
+
+;;; ----------------------------------------------------------------------------
 ;;; Assets
 
 (defn wrap-assets

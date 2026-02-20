@@ -108,7 +108,8 @@
      (ring/router routes
                   {:data {:coercion   coercion.malli/coercion
                           :middleware [exception-middleware
-                                       ring.coercion/coerce-request-middleware]}})
+                                       ring.coercion/coerce-request-middleware
+                                       mw/page-middleware]}})
      (ring/routes
       (ring/create-resource-handler {:path "/"})
       (ring/create-default-handler

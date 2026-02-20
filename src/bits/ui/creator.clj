@@ -392,29 +392,6 @@
     (str "Subscribe — " price "/month")]])
 
 ;;; ----------------------------------------------------------------------------
-;;; Layout
-
-(defn creator-layout
-  [request & content]
-  (let [buster           (mw/request->buster request)
-        csrf-cookie-name (mw/request->csrf-cookie-name request)
-        asset-path       #(asset/asset-path buster %)]
-    [:html {:lang "en"}
-     [:head
-      [:meta {:charset "UTF-8"}]
-      [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
-      [:meta {:name "csrf-cookie" :content csrf-cookie-name}]
-      [:title "Bits"]
-      [:link {:rel "icon" :href (asset-path "/favicon.ico") :sizes "any"}]
-      [:link {:rel "icon" :type "image/svg+xml" :href (asset-path "/favicon.svg")}]
-      [:link {:rel "apple-touch-icon" :href (asset-path "/apple-touch-icon.png")}]
-      [:link {:rel "stylesheet" :href (asset-path "/app.css")}]
-      [:script {:src (asset-path "/idiomorph@0.7.4.min.js")}]
-      [:script {:src (asset-path "/bits.js")}]]
-     [:body {:class ["min-h-screen" "bg-surface" "text-primary" "font-sans"]}
-      (into [:main#morph] content)]]))
-
-;;; ----------------------------------------------------------------------------
 ;;; View
 
 (defn creator-profile-view

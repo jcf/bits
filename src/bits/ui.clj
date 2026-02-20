@@ -209,14 +209,16 @@
 
 (defn layout
   [request & content]
-  (let [buster           (mw/request->buster request)
+  (let [title            (get-in request [:bits/page :page/title] "Bits")
+        buster           (mw/request->buster request)
         csrf-cookie-name (mw/request->csrf-cookie-name request)
         asset-path       #(asset/asset-path buster %)]
     [:html {:class ["min-h-screen"] :lang "en"}
      [:head
-      [:meta {:name "viewport" :content "width=device-width"}]
+      [:meta {:charset "UTF-8"}]
+      [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
       [:meta {:name "csrf-cookie" :content csrf-cookie-name}]
-      [:title "Bits"]
+      [:title title]
       [:link {:rel "icon" :href (asset-path "/favicon.ico") :sizes "any"}]
       [:link {:rel "icon" :type "image/svg+xml" :href (asset-path "/favicon.svg")}]
       [:link {:rel "apple-touch-icon" :href (asset-path "/apple-touch-icon.png")}]
