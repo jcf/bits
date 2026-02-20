@@ -83,9 +83,8 @@
 (defn alert-error
   [message]
   ;; TODO: I18n - error presentation
-  [:div {:class ["rounded-md" "bg-red-50" "p-4" "mb-4"
-                 "dark:bg-red-500/15"
-                 "dark:outline" "dark:outline-red-500/25"]
+  [:div {:class ["rounded-md" "bg-red-500/15" "p-4" "mb-4"
+                 "outline" "outline-red-500/25"]
          :role  "alert"}
    [:div {:class ["flex"]}
     [:div {:class ["shrink-0"]}
@@ -97,8 +96,7 @@
               :clip-rule "evenodd"
               :fill-rule "evenodd"}]]]
     [:div {:class ["ml-3"]}
-     [:p {:class ["text-sm" "font-medium"
-                  "text-red-800" "dark:text-red-200"]}
+     [:p {:class ["text-sm" "font-medium" "text-red-200"]}
       message]]]])
 
 ;;; ----------------------------------------------------------------------------
@@ -181,7 +179,7 @@
 
 (defn text-error
   [& children]
-  (into [:p {:class ["text-sm" "text-red-600" "dark:text-red-400"]}]
+  (into [:p {:class ["text-sm" "text-red-400"]}]
         children))
 
 (defn text-success
