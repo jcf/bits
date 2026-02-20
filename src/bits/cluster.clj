@@ -10,7 +10,7 @@
    [steffan-westcott.clj-otel.api.trace.span :as span]
    [taoensso.nippy :as nippy])
   (:import
-   (java.net InetAddress InetSocketAddress)
+   (java.net InetAddress)
    (org.jgroups BytesMessage JChannel Receiver)
    (org.jgroups.protocols ASYM_ENCRYPT
                           BARRIER
@@ -127,9 +127,7 @@
                       nil)
                     (^void viewAccepted [_ ^org.jgroups.View view]
                       (span/with-span! {:name ::view-accepted}
-                        (let [members  (.getMembers view)
-                              view-map (view->map view)]
-                          (reset! (:view peer) view-map)))
+                        (reset! (:view peer) (view->map view)))
                       nil)))))
 
 (defn- join
@@ -158,9 +156,8 @@
 (defn send!
   [peer event]
   (span/with-span! {:name ::send!}
-    (let [{:keys [chan peer-name]} peer
-          bytes                    (event->bytes peer event)]
-      (.send chan (BytesMessage. nil ^bytes bytes)))))
+    (let [bytes (event->bytes peer event)]
+      (.send (:chan peer) (BytesMessage. nil ^bytes bytes)))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Component

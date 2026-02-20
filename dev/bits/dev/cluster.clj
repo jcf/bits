@@ -1,8 +1,7 @@
 (ns bits.dev.cluster
   (:require
    [bits.cluster :as cluster]
-   [com.stuartsierra.component.repl :refer [system]]
-   [java-time.api :as time]))
+   [com.stuartsierra.component.repl :refer [system]]))
 
 (comment
   (deref (:view (:cluster system)))
