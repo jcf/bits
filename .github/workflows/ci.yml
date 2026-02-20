@@ -14,15 +14,16 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@main
 
-      - uses: cachix/cachix-action@v15
-        with:
-          name: devenv
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
@@ -36,6 +37,9 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
 
     services:
       postgres:
@@ -57,9 +61,7 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@main
 
-      - uses: cachix/cachix-action@v15
-        with:
-          name: devenv
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
