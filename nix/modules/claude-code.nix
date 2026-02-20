@@ -142,6 +142,14 @@ in {
         args = ["mcp"];
         env.DEVENV_ROOT = root;
       };
+      github = {
+        type = "http";
+        url = "https://api.githubcopilot.com/mcp/";
+      };
+      linear = {
+        type = "http";
+        url = "https://mcp.linear.app/mcp";
+      };
     };
   };
 }
