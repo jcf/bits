@@ -103,7 +103,7 @@
     (ui/card-title "Redirect Demo")
     (ui/button-primary {:type        "button"
                         :data-action "demo/redirect"}
-                       "Go to example.com")))
+                       "Go to jcf.dev")))
 
 (defn redirect-view
   [request]
@@ -176,7 +176,7 @@
 (def actions
   {:counter/inc    (fn [_req] (swap! !counter update :count inc))
    :counter/dec    (fn [_req] (swap! !counter update :count dec))
-   :demo/redirect  (fn [_req] (morph/redirect "https://example.com"))
+   :demo/redirect  (fn [_req] (morph/redirect "https://jcf.dev"))
    :email/validate (fn [request]
                      (let [email (get-in request [:params "email"] "")]
                        (cond
