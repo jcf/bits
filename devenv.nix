@@ -46,6 +46,7 @@
   };
 in {
   imports = [
+    ./nix/modules/brotli.nix
     ./nix/modules/claude-code.nix
   ];
 
