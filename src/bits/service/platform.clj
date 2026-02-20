@@ -1,19 +1,16 @@
-(ns bits.next
+(ns bits.service.platform
   (:require
-   [bits.auth :as auth]
    [bits.html :as html]
    [bits.middleware :as mw]
    [bits.morph :as morph]
    [bits.ui :as ui]
-   [bits.ui.creator :as ui.creator]
    [clojure.string :as str]
-   [datomic.api :as d]
-   [medley.core :as medley]))
+   [datomic.api :as d]))
 
 ;;; ----------------------------------------------------------------------------
-;;; Demo: Counter
+;;; Counter
 
-(defonce !state (atom {:count 0}))
+(defonce !counter (atom {:count 0}))
 
 (def ^:private plus-icon
   [:svg {:viewBox "0 0 20 20" :fill "currentColor" :aria-hidden "true" :class "size-5"}
@@ -31,15 +28,15 @@
                    [:header
                     (ui/page-title {}
                                    "Count: "
-                                   [:span {:class "font-bold"} (:count @!state)])]
+                                   [:span {:class "font-bold"} (:count @!counter)])]
                    [:section {:class "flex space-x-2"}
                     (ui/icon-button {:data-action "counter/inc"} plus-icon)
                     (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
 
 ;;; ----------------------------------------------------------------------------
-;;; Demo: Email
+;;; Email
 
-(defn email-form
+(defn- email-form
   [{:keys [email error success]}]
   (ui/card {:id "email-demo"}
            (ui/card-title "Email Validation")
@@ -98,9 +95,9 @@
               (str " — " domain-name)]]])])))))
 
 ;;; ----------------------------------------------------------------------------
-;;; Demo: Redirect
+;;; Redirect
 
-(defn redirect-demo
+(defn- redirect-demo
   []
   (ui/card {}
            (ui/card-title "Redirect Demo")
@@ -116,7 +113,7 @@
                    (redirect-demo))))
 
 ;;; ----------------------------------------------------------------------------
-;;; Demo: Cursors
+;;; Cursors
 
 (defonce !cursors (atom {}))
 
@@ -128,16 +125,16 @@
   [channel-id]
   (swap! !cursors dissoc channel-id))
 
-(def cursor-colors
+(def ^:private cursor-colors
   ["bg-red-500"    "bg-blue-500"   "bg-green-500"  "bg-yellow-500"
    "bg-purple-500" "bg-pink-500"   "bg-indigo-500" "bg-teal-500"
    "bg-orange-500" "bg-cyan-500"   "bg-lime-500"   "bg-rose-500"])
 
-(defn cursor-color
+(defn- cursor-color
   [channel-id]
   (nth cursor-colors (mod (hash channel-id) (count cursor-colors))))
 
-(defn cursor-styles
+(defn- cursor-styles
   [request cursors]
   [:style {:id "cursor-positions" :nonce (mw/request->nonce request)}
    (html/raw
@@ -146,7 +143,7 @@
                 (format ".cursor[data-channel=\"%s\"] { left: %dpx; top: %dpx; }"
                         (subs channel-id 0 6) x y))))])
 
-(defn cursor-label
+(defn- cursor-label
   [channel-id]
   (let [short-id (subs channel-id 0 6)
         color    (cursor-color channel-id)]
@@ -175,18 +172,10 @@
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
-;;;
-;;; Raw action definitions. Plain functions need no params. Use a map with
-;;; :handler and :params when the action requires coerced parameters.
-;;; Normalized at system start, not at load time.
 
 (def actions
-  {:auth/login     {:handler auth/authenticate
-                    :params  [[:email :email]
-                              [:password :password]]}
-   :auth/sign-out  auth/sign-out
-   :counter/inc    (fn [_req] (swap! !state update :count inc))
-   :counter/dec    (fn [_req] (swap! !state update :count dec))
+  {:counter/inc    (fn [_req] (swap! !counter update :count inc))
+   :counter/dec    (fn [_req] (swap! !counter update :count dec))
    :demo/redirect  (fn [_req] (morph/redirect "https://example.com"))
    :email/validate (fn [request]
                      (let [email (get-in request [:params "email"] "")]
@@ -208,84 +197,3 @@
                            y          (parse-long (get-in request [:params "y"] "0"))]
                        (when (and channel-id x y (< x 10000) (< y 10000))
                          (update-cursor! channel-id x y))))})
-
-;;; ----------------------------------------------------------------------------
-;;; Realm
-
-(def ^:const ^:private platform-tenant-id
-  #uuid "00000000-0000-0000-0000-000000000000")
-
-(def ^:const ^:private unknown-tenant-id
-  #uuid "00000000-0000-0000-0000-100000000000")
-
-(defn realm-not-found-view
-  [_request]
-  (ui/page-center
-   {}
-   (ui/page-title {} "Realm not found")
-   (ui/text-muted {:class ["mt-4"]}
-                  "Want your own Bits? We want to hear from you!")))
-
-(def realms
-  (medley/index-by
-   :realm/type
-   #{{:realm/layout ui/layout
-      :realm/type   :realm.type/creator
-      :realm/view   ui.creator/creator-profile-view}
-     {:realm/layout ui/layout
-      :realm/type   :realm.type/platform
-      :realm/view   explore-view
-      :tenant/id    platform-tenant-id}
-     {:realm/layout ui/layout
-      :realm/status 404
-      :realm/type   :realm.type/unknown
-      :realm/view   realm-not-found-view
-      :tenant/id    unknown-tenant-id}}))
-
-;;; ----------------------------------------------------------------------------
-;;; Routes
-
-(defn- login-view-wrapper
-  [request]
-  (auth/login-view request {}))
-
-;;; ----------------------------------------------------------------------------
-;;; Routes
-
-(defn morphable
-  ([layout-fn view-fn]
-   (morphable layout-fn view-fn {}))
-  ([layout-fn view-fn options]
-   (let [status #(get-in % [:session/realm :realm/status] 200)]
-     {:get  (fn [request]
-              {:status  (status request)
-               :headers {"content-type" "text/html; charset=utf-8"}
-               :body    (html/html (layout-fn request (view-fn request)))})
-      :post (morph/render-handler view-fn options)})))
-
-(defn- home-view
-  [request]
-  (let [view-fn (get-in request [:session/realm :realm/view])]
-    (assert (fn? view-fn) "No :realm/view in session realm?!")
-    (view-fn request)))
-
-(defn- home-layout
-  [request & content]
-  (let [layout-fn (get-in request [:session/realm :realm/layout])]
-    (assert (fn? layout-fn) "No :realm/layout in session realm?!")
-    (apply layout-fn request content)))
-
-(def routes
-  [["/"         (assoc (morphable home-layout home-view)
-                       :bits/page (fn [request]
-                                    {:page/title (-> request :session/realm :creator/display-name)}))]
-   ["/cursors"  (assoc (morphable ui/layout cursors-view {:on-close remove-cursor!})
-                       :bits/page {:page/title "Cursors"})]
-   ["/counter"  (assoc (morphable ui/layout counter-view)
-                       :bits/page {:page/title "Counter"})]
-   ["/email"    (assoc (morphable ui/layout email-view)
-                       :bits/page {:page/title "Email"})]
-   ["/login"    (assoc (morphable ui/layout login-view-wrapper)
-                       :bits/page {:page/title "Login"})]
-   ["/redirect" (assoc (morphable ui/layout redirect-view)
-                       :bits/page {:page/title "Redirect"})]])

@@ -1,15 +1,19 @@
 (ns bits.service
   (:require
+   [bits.auth :as auth]
    [bits.coerce :as coerce]
    [bits.html :as html]
    [bits.middleware :as mw]
    [bits.middleware.session :as middleware.session]
    [bits.morph :as morph]
    [bits.response]
+   [bits.service.creator :as creator]
+   [bits.service.platform :as platform]
    [bits.ui :as ui]
    [clojure.core.async :as a]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
+   [medley.core :as medley]
    [org.httpkit.server :as server]
    [reitit.coercion :as coercion]
    [reitit.coercion.malli :as coercion.malli]
@@ -52,6 +56,94 @@
      ::coercion/response-coercion (coercion-error-handler 500)})))
 
 ;;; ----------------------------------------------------------------------------
+;;; Realms
+
+(def ^:const ^:private platform-tenant-id
+  #uuid "00000000-0000-0000-0000-000000000000")
+
+(def ^:const ^:private unknown-tenant-id
+  #uuid "00000000-0000-0000-0000-100000000000")
+
+(defn- realm-not-found-view
+  [_request]
+  (ui/page-center {}
+                  (ui/page-title {} "Realm not found")
+                  (ui/text-muted {:class ["mt-4"]}
+                                 "Want your own Bits? We want to hear from you!")))
+
+(def realms
+  (medley/index-by
+   :realm/type
+   #{{:realm/layout ui/layout
+      :realm/type   :realm.type/creator
+      :realm/view   creator/creator-profile-view}
+     {:realm/layout ui/layout
+      :realm/type   :realm.type/platform
+      :realm/view   platform/explore-view
+      :tenant/id    platform-tenant-id}
+     {:realm/layout ui/layout
+      :realm/status 404
+      :realm/type   :realm.type/unknown
+      :realm/view   realm-not-found-view
+      :tenant/id    unknown-tenant-id}}))
+
+;;; ----------------------------------------------------------------------------
+;;; Actions
+
+(def actions
+  (merge
+   platform/actions
+   {:auth/login    {:handler auth/authenticate
+                    :params  [[:email :email]
+                              [:password :password]]}
+    :auth/sign-out auth/sign-out}))
+
+;;; ----------------------------------------------------------------------------
+;;; Routes
+
+(defn- morphable
+  ([layout-fn view-fn]
+   (morphable layout-fn view-fn {}))
+  ([layout-fn view-fn options]
+   (let [status #(get-in % [:session/realm :realm/status] 200)]
+     {:get  (fn [request]
+              {:status  (status request)
+               :headers {"content-type" "text/html; charset=utf-8"}
+               :body    (html/html (layout-fn request (view-fn request)))})
+      :post (morph/render-handler view-fn options)})))
+
+(defn- home-view
+  [request]
+  (let [view-fn (get-in request [:session/realm :realm/view])]
+    (assert (fn? view-fn) "No :realm/view in session realm?!")
+    (view-fn request)))
+
+(defn- home-layout
+  [request & content]
+  (let [layout-fn (get-in request [:session/realm :realm/layout])]
+    (assert (fn? layout-fn) "No :realm/layout in session realm?!")
+    (apply layout-fn request content)))
+
+(defn- login-view-wrapper
+  [request]
+  (auth/login-view request {}))
+
+(def routes
+  [["/"         (assoc (morphable home-layout home-view)
+                       :bits/page (fn [request]
+                                    {:page/title (-> request :session/realm :creator/display-name)}))]
+   ["/cursors"  (assoc (morphable ui/layout platform/cursors-view {:on-close platform/remove-cursor!})
+                       :bits/page {:page/title "Cursors"})]
+   ["/counter"  (assoc (morphable ui/layout platform/counter-view)
+                       :bits/page {:page/title "Counter"})]
+   ["/email"    (assoc (morphable ui/layout platform/email-view)
+                       :bits/page {:page/title "Email"})]
+   ["/login"    (assoc (morphable ui/layout login-view-wrapper)
+                       :bits/page {:page/title "Login"})]
+   ["/redirect" (assoc (morphable ui/layout platform/redirect-view)
+                       :bits/page {:page/title "Redirect"})]])
+
+;;; ----------------------------------------------------------------------------
 ;;; Broadcast
 
 (defn broadcast!
@@ -63,19 +155,15 @@
 ;;; App
 
 (defn make-app
-  "Builds Ring handler. Normalizes actions and builds schema at startup.
-   Routes and actions come from service fields - pass a test service for testing."
+  "Builds Ring handler. Normalizes actions and builds schema at startup."
   [service]
-  (let [{:keys [actions
-                channels
+  (let [{:keys [channels
                 cookie-name
                 cookie-secure
                 csrf-cookie-name
                 csrf-secret
-                realms
                 refresh-ch
                 refresh-mult
-                routes
                 session-store]} service
 
         actions       (morph/normalize-actions actions)
@@ -124,8 +212,7 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Service
 
-(defrecord Service [actions
-                    channels
+(defrecord Service [channels
                     cookie-name
                     cookie-secure
                     csrf-cookie-name
@@ -136,10 +223,8 @@
                     keymaster
                     max-refresh-ms
                     postgres
-                    realms
                     refresh-ch
                     refresh-mult
-                    routes
                     server-name
                     session-store
                     sse-reconnect-ms

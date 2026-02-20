@@ -6,7 +6,6 @@
    [bits.cluster :as cluster]
    [bits.crypto :as crypto]
    [bits.datomic :as datomic]
-   [bits.next :as next]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
    [bits.service :as service]
@@ -90,8 +89,7 @@
                      :ip-window-minutes    15
                      :ip-max-attempts      20}
      :reaper        {:interval-hours 1}
-     :service       {:actions          next/actions
-                     :cookie-name      "__Host-bits"
+     :service       {:cookie-name      "__Host-bits"
                      :cookie-secure    true
                      :csrf-cookie-name "__Host-bits-csrf"
                      :csrf-secret      (env-or :csrf-secret "default-csrf-secret-change-in-prod")
@@ -99,8 +97,6 @@
                      :http-port        (parse-long (env-or :port "3000"))
                      :max-refresh-ms   50
                      :platform-domain  (env :platform-domain)
-                     :realms           next/realms
-                     :routes           next/routes
                      :server-name      "Bits"
                      :sse-reconnect-ms (parse-long (env-or :sse-reconnect-ms "1000"))}
      :session-store {:idle-timeout-days 30}}))
