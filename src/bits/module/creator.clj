@@ -1,5 +1,6 @@
-(ns bits.service.creator
+(ns bits.module.creator
   (:require
+   [bits.locale :refer [tru]]
    [bits.middleware :as mw]
    [bits.tailwind :as tw]
    [java-time.api :as time]))
@@ -129,9 +130,9 @@
                  "rounded-2xl"]}
    [:div {:class ["flex" "items-baseline" "gap-2" "mb-2"]}
     [:span {:class ["font-serif" "text-[1.75rem]" "text-primary"]} price]
-    [:span {:class ["text-sm" "text-muted"]} "/ month"]]
+    [:span {:class ["text-sm" "text-muted"]} (tru "/ month")]]
    [:p {:class ["text-[0.8125rem]" "text-muted" "mb-4"]}
-    "Support development. Cancel anytime."]
+    (tru "Support development. Cancel anytime.")]
    [:button {:class ["block" "w-full" "py-3.5"
                      "border-none" "rounded-lg"
                      "bg-accent" "text-surface"
@@ -140,15 +141,15 @@
                      "tracking-wide"
                      "transition-opacity" "duration-150"
                      "hover:opacity-90"]}
-    "Subscribe"]
+    (tru "Subscribe")]
    [:div {:class ["flex" "justify-center" "gap-6" "mt-4"
                   "text-xs" "text-muted"]}
     [:span {:class ["flex" "items-center" "gap-1"]}
      users-icon
-     (str supporter-count " supporters")]
+     (tru "{0} supporters" supporter-count)]
     [:span {:class ["flex" "items-center" "gap-1"]}
      calendar-icon
-     (str post-count " posts")]]])
+     (tru "{0} posts" post-count)]]])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Presence Indicator
@@ -158,16 +159,16 @@
   [:div {:class ["inline-flex" "items-center" "gap-1.5"
                  "text-xs" "text-muted" "mb-8"]}
    [:span {:class ["w-1.5" "h-1.5" "bg-success" "rounded-full" "animate-pulse"]}]
-   (str viewer-count " people here now")])
+   (tru "{0} people here now" viewer-count)])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Feed Tabs
 
 (defn feed-tabs
   [{:keys [active-tab]}]
-  (let [tabs [{:id :posts :label "Posts"}
-              {:id :media :label "Media"}
-              {:id :about :label "About"}]]
+  (let [tabs [{:id :posts :label (tru "Posts")}
+              {:id :media :label (tru "Media")}
+              {:id :about :label (tru "About")}]]
     [:div {:class ["flex" "gap-0"
                    "border-b" "border-border-subtle"
                    "mb-8"]}
@@ -191,7 +192,7 @@
   [{:keys [creator viewer-count stats]}]
   (let [{:creator/keys [bio display-name handle links]} creator
         {:keys [price supporter-count post-count]}      stats]
-    [:div {:class ["max-w-[40rem]" "-mt-14" "mx-auto" "px-4"
+    [:div {:class ["w-full" "max-w-[40rem]" "-mt-14" "mx-auto" "px-4"
                    "relative" "z-10"]}
      ;; Avatar row
      [:div {:class ["flex" "items-end" "gap-4" "mb-6"]}
@@ -246,7 +247,7 @@
                      "no-underline"
                      "transition-colors" "duration-150"
                      "hover:border-muted" "hover:text-primary"]}
-         "Dashboard"]
+         (tru "Dashboard")]
         (list
          [:a {:href  "/login"
               :class ["px-3.5" "py-1.5"
@@ -256,7 +257,7 @@
                       "transition-colors" "duration-150"
                       "hover:border-muted" "hover:text-primary"]
               :key   "login"}
-          "Log in"]
+          (tru "Log in")]
          [:a {:href  "/signup"
               :class ["px-3.5" "py-1.5"
                       "border" "border-accent" "rounded-md"
@@ -265,7 +266,7 @@
                       "transition-colors" "duration-150"
                       "hover:opacity-90"]
               :key   "signup"}
-          "Sign up"]))]]))
+          (tru "Sign up")]))]]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Banner
@@ -366,12 +367,12 @@
       "bits.page"]
      " · "
      [:a {:href "#" :class ["text-muted" "no-underline" "hover:text-secondary"]}
-      "Terms"]
+      (tru "Terms")]
      " · "
      [:a {:href "#" :class ["text-muted" "no-underline" "hover:text-secondary"]}
-      "Privacy"]
+      (tru "Privacy")]
      [:div {:class ["mt-2" "text-[0.6875rem]" "opacity-60"]}
-      "Self-hostable. Open source. Your data, your rules."]]))
+      (tru "Self-hostable. Open source. Your data, your rules.")]]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Sticky CTA (mobile)
@@ -388,7 +389,7 @@
                      "bg-accent" "text-surface"
                      "font-sans" "text-[0.9375rem]" "font-semibold"
                      "cursor-pointer"]}
-    (str "Subscribe — " price "/month")]])
+    (tru "Subscribe — {0}/month" price)]])
 
 ;;; ----------------------------------------------------------------------------
 ;;; View
@@ -418,3 +419,11 @@
      (feed {:creator creator :posts posts})
      (page-footer request)
      (sticky-cta {:price (:price stats)}))))
+
+;;; ----------------------------------------------------------------------------
+;;; Module
+
+(def module
+  {:name    :bits.module/creator
+   :routes  []
+   :actions {}})

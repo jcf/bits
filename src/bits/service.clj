@@ -1,14 +1,16 @@
 (ns bits.service
   (:require
-   [bits.auth :as auth]
    [bits.coerce :as coerce]
    [bits.html :as html]
+   [bits.locale :refer [tru]]
    [bits.middleware :as mw]
    [bits.middleware.session :as middleware.session]
+   [bits.module :as module]
+   [bits.module.creator :as creator]
+   [bits.module.platform :as platform]
+   [bits.module.session :as session]
    [bits.morph :as morph]
    [bits.response]
-   [bits.service.creator :as creator]
-   [bits.service.platform :as platform]
    [bits.ui :as ui]
    [clojure.core.async :as a]
    [com.stuartsierra.component :as component]
@@ -22,7 +24,9 @@
    [reitit.ring.middleware.exception :as exception]
    [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
-   [steffan-westcott.clj-otel.api.trace.span :as span]))
+   [steffan-westcott.clj-otel.api.trace.span :as span])
+  (:import
+   (java.util.concurrent Executors)))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Exception handling
@@ -67,9 +71,9 @@
 (defn- realm-not-found-view
   [_request]
   (ui/page-center {}
-    (ui/page-title {} "Realm not found")
+    (ui/page-title {} (tru "Realm not found"))
     (ui/text-muted {:class ["mt-4"]}
-      "Want your own Bits? We want to hear from you!")))
+      (tru "Want your own Bits? We want to hear from you!"))))
 
 (def realms
   (medley/index-by
@@ -88,60 +92,12 @@
       :tenant/id    unknown-tenant-id}}))
 
 ;;; ----------------------------------------------------------------------------
-;;; Actions
+;;; Modules
 
-(def actions
-  (merge
-   platform/actions
-   {:auth/login    {:handler auth/authenticate
-                    :params  [[:email :email]
-                              [:password :password]]}
-    :auth/sign-out auth/sign-out}))
-
-;;; ----------------------------------------------------------------------------
-;;; Routes
-
-(defn- morphable
-  ([layout-fn view-fn]
-   (morphable layout-fn view-fn {}))
-  ([layout-fn view-fn options]
-   (let [status #(get-in % [:session/realm :realm/status] 200)]
-     {:get  (fn [request]
-              {:status  (status request)
-               :headers {"content-type" "text/html; charset=utf-8"}
-               :body    (html/html (layout-fn request (view-fn request)))})
-      :post (morph/render-handler view-fn options)})))
-
-(defn- home-view
-  [request]
-  (let [view-fn (get-in request [:session/realm :realm/view])]
-    (assert (fn? view-fn) "No :realm/view in session realm?!")
-    (view-fn request)))
-
-(defn- home-layout
-  [request & content]
-  (let [layout-fn (get-in request [:session/realm :realm/layout])]
-    (assert (fn? layout-fn) "No :realm/layout in session realm?!")
-    (apply layout-fn request content)))
-
-(defn- login-view-wrapper
-  [request]
-  (auth/login-view request {}))
-
-(def routes
-  [["/"         (assoc (morphable home-layout home-view)
-                       :bits/page (fn [request]
-                                    {:page/title (-> request :session/realm :creator/display-name)}))]
-   ["/cursors"  (assoc (morphable ui/layout platform/cursors-view {:on-close platform/remove-cursor!})
-                       :bits/page {:page/title "Cursors"})]
-   ["/counter"  (assoc (morphable ui/layout platform/counter-view)
-                       :bits/page {:page/title "Counter"})]
-   ["/email"    (assoc (morphable ui/layout platform/email-view)
-                       :bits/page {:page/title "Email"})]
-   ["/login"    (assoc (morphable ui/layout login-view-wrapper)
-                       :bits/page {:page/title "Login"})]
-   ["/redirect" (assoc (morphable ui/layout platform/redirect-view)
-                       :bits/page {:page/title "Redirect"})]])
+(def modules
+  [creator/module
+   platform/module
+   session/module])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Broadcast
@@ -162,13 +118,14 @@
                 cookie-secure
                 csrf-cookie-name
                 csrf-secret
+                modules
                 refresh-ch
                 refresh-mult
                 session-store]} service
 
-        actions       (morph/normalize-actions actions)
+        actions       (:actions modules)
         action-schema (morph/actions->schema actions)
-        routes        (conj routes
+        routes        (conj (:routes modules)
                             ["/action"
                              {:post {:coercion   coerce/coercion
                                      :parameters {:form action-schema}
@@ -193,7 +150,8 @@
                         :secret        csrf-secret}]
          [mw/wrap-assets]
          [mw/wrap-user]
-         [mw/wrap-secure-headers]]]
+         [mw/wrap-secure-headers]
+         [mw/wrap-locale]]]
     (ring/ring-handler
      (ring/router routes
                   {:data {:coercion   coercion.malli/coercion
@@ -222,6 +180,7 @@
                     http-port
                     keymaster
                     max-refresh-ms
+                    modules
                     postgres
                     refresh-ch
                     refresh-mult
@@ -242,6 +201,8 @@
                                 :channels     channels
                                 :refresh-ch   refresh-ch
                                 :refresh-mult refresh-mult)]
+        (set-agent-send-executor! (Executors/newVirtualThreadPerTaskExecutor))
+        (set-agent-send-off-executor! (Executors/newVirtualThreadPerTaskExecutor))
         (assoc this :stop-fn (server/run-server (make-app this)
                                                 {:host                       http-host
                                                  :legacy-unsafe-remote-addr? false

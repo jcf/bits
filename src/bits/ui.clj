@@ -2,10 +2,9 @@
   (:require
    [bits.asset :as asset]
    [bits.form :as form]
+   [bits.locale :refer [tru]]
    [bits.middleware :as mw]
    [bits.tailwind :as tw]))
-
-;; TODO: I18n - user-facing strings need locale-aware source
 
 ;;; ----------------------------------------------------------------------------
 ;;; Input classes
@@ -103,11 +102,11 @@
 ;;; Navigation
 
 (def ^:private nav-links
-  [["/"          "Explore"]
-   ["/counter"   "Counter"]
-   ["/cursors"   "Cursors"]
-   ["/email"     "Email"]
-   ["/redirect"  "Redirect"]])
+  [["/"          (tru "Explore")]
+   ["/counter"   (tru "Counter")]
+   ["/cursors"   (tru "Cursors")]
+   ["/email"     (tru "Email")]
+   ["/redirect"  (tru "Redirect")]])
 
 (defn nav-header
   [request current-path]
@@ -131,10 +130,10 @@
                    "text-secondary"
                    "hover:text-primary"
                    "cursor-pointer"]}
-          "Sign out")
+          (tru "Sign out"))
         [:a {:href  "/login"
              :class (link-class "/login")}
-         "Login"])]]))
+         (tru "Login")])]]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Layout
@@ -208,9 +207,9 @@
 (defn not-found-view
   [_request]
   (page-center {}
-    (page-title {} "Page not found")
+    (page-title {} (tru "Page not found"))
     (text-muted {:class ["mt-4"]}
-      "The page you're looking for doesn't exist.")))
+      (tru "The page you''re looking for doesn''t exist."))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Layout

@@ -32,29 +32,25 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
 
-(defn- make-action-handler
-  [actions]
-  (morph/action-handler (morph/normalize-actions actions)))
-
 (defn- action-request
   [action]
-  {:parameters        {:form {:action action}}
+  {:parameters             {:form {:action action}}
    :bits.morph/refresh-ch (a/chan)})
 
 (deftest action-handler-unknown-action-returns-400
-  (let [handler  (make-action-handler {})
+  (let [handler  (morph/action-handler {})
         response (handler (action-request :nonexistent))]
     (is (match? {:status 400} response))))
 
 (deftest action-handler-redirect-sets-location-header
-  (let [handler  (make-action-handler {:go (fn [_] (morph/redirect "/target"))})
+  (let [handler  (morph/action-handler {:go {:handler (fn [_] (morph/redirect "/target"))}})
         response (handler (action-request :go))]
     (is (match? {:status  200
                  :headers {"location" "/target"}}
                 response))))
 
 (deftest action-handler-respond-returns-html
-  (let [handler  (make-action-handler {:show (fn [_] (morph/respond [:div "hi"]))})
+  (let [handler  (morph/action-handler {:show {:handler (fn [_] (morph/respond [:div "hi"]))}})
         response (handler (action-request :show))]
     (is (match? {:status  200
                  :headers {"content-type" "text/html; charset=utf-8"}}

@@ -1,4 +1,4 @@
-(ns bits.auth
+(ns bits.module.session
   (:require
    [bits.anomaly :as anom]
    [bits.auth.credential :as credential]
@@ -7,6 +7,7 @@
    [bits.crypto :as crypto]
    [bits.datomic :as datomic]
    [bits.form :as form]
+   [bits.locale :refer [tru]]
    [bits.middleware :as mw]
    [bits.morph :as morph]
    [bits.postgres :as postgres]
@@ -21,34 +22,31 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Views
 
-;; TODO: I18n - user-facing strings need locale-aware source
-
 (defn login-view
-  [request options]
-  (let [{:keys [error]} options]
-    (list
-     (ui/nav-header request "/login")
-     (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
-       [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-        [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
-                      "tracking-tight" "text-primary"]}
-         "Sign in to your account"]]
-       [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-        (when error
-          (ui/alert-error error))
-        (form/form request :auth/login
-          [:div
-           (ui/input-top {:type        "email"
-                          :name        "email"
-                          :placeholder "Email address"
-                          :required    true
-                          :autofocus   true})
-           (ui/input-bottom {:type        "password"
-                             :name        "password"
-                             :placeholder "Password"
-                             :required    true})]
-          [:div {:class "mt-6"}
-           (ui/button-primary {} "Sign in")])]))))
+  [request {:keys [error]}]
+  (list
+   (ui/nav-header request "/login")
+   (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
+     [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+      [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
+                    "tracking-tight" "text-primary"]}
+       (tru "Sign in to your account")]]
+     [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+      (when error
+        (ui/alert-error error))
+      (form/form request :auth/login
+        [:div
+         (ui/input-top {:type        "email"
+                        :name        "email"
+                        :placeholder (tru "Email address")
+                        :required    true
+                        :autofocus   true})
+         (ui/input-bottom {:type        "password"
+                           :name        "password"
+                           :placeholder (tru "Password")
+                           :required    true})]
+        [:div {:class "mt-6"}
+         (ui/button-primary {} (tru "Sign in"))])])))
 
 (defn authenticated-view
   [request]
@@ -56,16 +54,15 @@
     (list
      (ui/nav-header request "/")
      (ui/page-center {:class "space-y-4"}
-       (ui/page-title {:class "text-2xl"} "Welcome!")
-       (ui/text-muted {} (str "Signed in as user " user-id))
+       (ui/page-title {:class "text-2xl"} (tru "Welcome!"))
+       (ui/text-muted {} (tru "Signed in as user {0}" user-id))
        (form/form request :auth/sign-out
-         (ui/button-secondary {} "Sign out"))))))
+         (ui/button-secondary {} (tru "Sign out")))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
 
 (defn- find-user-by-email
-  "Look up user by email. Returns {:user/id :user/password-hash} or nil."
   [database email]
   (d/q credential/user-by-email-query (datomic/db database) email))
 
@@ -107,7 +104,7 @@
                   (morph/redirect "/" {:session (assoc (session/new-session session-store)
                                                        :sid     new-sid
                                                        :user/id (:user/id user))}))
-                (morph/respond (login-view request {:error "Invalid email or password."}))))))))))
+                (morph/respond (login-view request {:error (tru "Invalid email or password.")}))))))))))
 
 (defn sign-out
   [request]
@@ -118,3 +115,15 @@
       (when sid
         (session/clear-user! session-store tenant-id sid))
       (morph/redirect "/" {:session (session/new-session session-store)}))))
+
+;;; ----------------------------------------------------------------------------
+;;; Module
+
+(def module
+  {:name    :bits.module/session
+   :routes  [["/login" (assoc (morph/morphable ui/layout #(login-view % {}))
+                              :bits/page {:page/title "Login"})]]
+   :actions {:auth/login    {:handler authenticate
+                             :params  [[:email :email]
+                                       [:password :password]]}
+             :auth/sign-out sign-out}})

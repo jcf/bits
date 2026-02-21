@@ -6,6 +6,7 @@
    [bits.cluster :as cluster]
    [bits.crypto :as crypto]
    [bits.datomic :as datomic]
+   [bits.module :as module]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
    [bits.service :as service]
@@ -96,6 +97,7 @@
                      :http-host        "0.0.0.0"
                      :http-port        (parse-long (env-or :port "3000"))
                      :max-refresh-ms   50
+                     :modules          (module/must-combine! service/modules)
                      :platform-domain  (env :platform-domain)
                      :server-name      "Bits"
                      :sse-reconnect-ms (parse-long (env-or :sse-reconnect-ms "1000"))}

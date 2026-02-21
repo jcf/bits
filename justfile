@@ -147,6 +147,16 @@ market:
 css:
     clojure -M:dev -m bits.dev.assets
 
+# Extract translatable strings to .pot file
+[group('dev')]
+locales-extract:
+    clojure -T:build extract-strings
+
+# Build translation bundles from .po files
+[group('dev')]
+locales-build:
+    clojure -T:build build-translations
+
 # Format project files
 [group('dev')]
 fmt:
@@ -161,6 +171,11 @@ lint:
 [group('dev')]
 test *args:
     clojure -M:dev:test:runner:{{ os }} {{ args }}
+
+# Run tests with performance tracing output
+[group('dev')]
+perf *args:
+    OTEL_TRACES_EXPORTER=logging-otlp clojure -M:dev:test:otel:runner:{{ os }} {{ args }}
 
 # Build an AOT-compiled uberjar
 [group('build')]

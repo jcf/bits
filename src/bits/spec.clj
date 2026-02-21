@@ -150,7 +150,6 @@
 
 ;;; ----------------------------------------------------------------------------
 ;;; System
-
 (s/def :bits.system/buster :bits.asset/config)
 (s/def :bits.system/cluster :bits.cluster/config)
 (s/def :bits.system/datomic :bits.datomic/config)
@@ -170,4 +169,5 @@
                    :bits.system/rate-limiter
                    :bits.system/reaper
                    :bits.system/service
-                   :bits.system/session-store]))
+                   :bits.system/session-store
+                   :bits.system/translator]))

@@ -12,7 +12,7 @@
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 ;;; ----------------------------------------------------------------------------
-;;; System
+;;; Watch handlers
 
 (defn- asset-handler
   [watcher events]
@@ -27,13 +27,16 @@
       (service/broadcast!
        service (morph/stylesheet-event (asset/asset-path buster abs-path))))))
 
+;;; ----------------------------------------------------------------------------
+;;; System
+
 (set-init
  (fn [_system]
    (span/with-span! {:name ::initialize}
      (-> (app/system)
          (assoc ::watcher/watcher (watcher/make-watcher
-                                   {:path    "resources/public"
-                                    :handler asset-handler}))
+                                   {:watches [{:path    "resources/public"
+                                               :handler asset-handler}]}))
          (component/system-using
           (assoc app/dependencies ::watcher/watcher [:buster :service]))))))
 

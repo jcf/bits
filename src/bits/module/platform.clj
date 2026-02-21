@@ -1,6 +1,7 @@
-(ns bits.service.platform
+(ns bits.module.platform
   (:require
    [bits.html :as html]
+   [bits.locale :refer [tru]]
    [bits.middleware :as mw]
    [bits.morph :as morph]
    [bits.ui :as ui]
@@ -27,7 +28,7 @@
    (ui/page-center {:class "space-y-2"}
      [:header
       (ui/page-title {}
-        "Count: "
+        (tru "Count: ")
         [:span {:class "font-bold"} (:count @!counter)])]
      [:section {:class "flex space-x-2"}
       (ui/icon-button {:data-action "counter/inc"} plus-icon)
@@ -39,7 +40,7 @@
 (defn- email-form
   [{:keys [email error success]}]
   (ui/card {:id "email-demo"}
-    (ui/card-title "Email Validation")
+    (ui/card-title (tru "Email Validation"))
     [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
      (when error (ui/text-error error))
      (when success (ui/text-success success))
@@ -50,7 +51,7 @@
                 :placeholder "you@example.com"})
      (ui/button-primary {:type        "button"
                          :data-action "email/validate"}
-                        "Submit")]))
+                        (tru "Submit"))]))
 
 (defn email-view
   ([request] (email-view request {}))
@@ -78,9 +79,9 @@
       {}
        (if-not (seq tenants)
          (list
-          (ui/page-title {} "No tenants found")
+          (ui/page-title {} (tru "No tenants found"))
           (ui/text-muted {:class ["mt-4"]}
-            "Please create a tenant or two."))
+            (tru "Please create a tenant or two.")))
          [:ul {:class "space-y-2"}
           (for [{:keys [creator/display-name
                         tenant/domains
@@ -100,10 +101,10 @@
 (defn- redirect-demo
   []
   (ui/card {}
-    (ui/card-title "Redirect Demo")
+    (ui/card-title (tru "Redirect Demo"))
     (ui/button-primary {:type        "button"
                         :data-action "demo/redirect"}
-                       "Go to jcf.dev")))
+                       (tru "Go to jcf.dev"))))
 
 (defn redirect-view
   [request]
@@ -166,34 +167,61 @@
         (cursor-label cid))
 
       (ui/page-center {}
-        (ui/page-title {} "Presence Cursors")
+        (ui/page-title {} (tru "Presence Cursors"))
         (ui/text-muted {:class ["mt-4"]}
           (str (count cursors) " cursor" (when (not= 1 (count cursors)) "s") " active")))])))
 
 ;;; ----------------------------------------------------------------------------
-;;; Actions
+;;; Home (realm-based)
 
-(def actions
-  {:counter/inc    (fn [_req] (swap! !counter update :count inc))
-   :counter/dec    (fn [_req] (swap! !counter update :count dec))
-   :demo/redirect  (fn [_req] (morph/redirect "https://jcf.dev"))
-   :email/validate (fn [request]
-                     (let [email (get-in request [:params "email"] "")]
-                       (cond
-                         (str/blank? email)
-                         (morph/respond (email-view request {:email email
-                                                             :error "Email is required"}))
+(defn- home-view
+  [request]
+  (let [view-fn (get-in request [:session/realm :realm/view])]
+    (assert (fn? view-fn) "No :realm/view in session realm?!")
+    (view-fn request)))
 
-                         (not (str/includes? email "@"))
-                         (morph/respond (email-view request {:email email
-                                                             :error "Please enter a valid email address"}))
+(defn- home-layout
+  [request & content]
+  (let [layout-fn (get-in request [:session/realm :realm/layout])]
+    (assert (fn? layout-fn) "No :realm/layout in session realm?!")
+    (apply layout-fn request content)))
 
-                         :else
-                         (morph/respond (email-view request {:email   email
-                                                             :success (str "Welcome, " email "!")})))))
-   :cursor/move    (fn [request]
-                     (let [channel-id (get-in request [:params "channel"])
-                           x          (parse-long (get-in request [:params "x"] "0"))
-                           y          (parse-long (get-in request [:params "y"] "0"))]
-                       (when (and channel-id x y (< x 10000) (< y 10000))
-                         (update-cursor! channel-id x y))))})
+;;; ----------------------------------------------------------------------------
+;;; Module
+
+(def module
+  {:name    :bits.module/platform
+   :routes  [["/"         (assoc (morph/morphable home-layout home-view)
+                                 :bits/page (fn [request]
+                                              {:page/title (-> request :session/realm :creator/display-name)}))]
+             ["/counter"  (assoc (morph/morphable ui/layout counter-view)
+                                 :bits/page {:page/title "Counter"})]
+             ["/cursors"  (assoc (morph/morphable ui/layout cursors-view {:on-close remove-cursor!})
+                                 :bits/page {:page/title "Cursors"})]
+             ["/email"    (assoc (morph/morphable ui/layout email-view)
+                                 :bits/page {:page/title "Email"})]
+             ["/redirect" (assoc (morph/morphable ui/layout redirect-view)
+                                 :bits/page {:page/title "Redirect"})]]
+   :actions {:counter/inc    (fn [_req] (swap! !counter update :count inc))
+             :counter/dec    (fn [_req] (swap! !counter update :count dec))
+             :demo/redirect  (fn [_req] (morph/redirect "https://jcf.dev"))
+             :email/validate (fn [request]
+                               (let [email (get-in request [:params "email"] "")]
+                                 (cond
+                                   (str/blank? email)
+                                   (morph/respond (email-view request {:email email
+                                                                       :error (tru "Email is required")}))
+
+                                   (not (str/includes? email "@"))
+                                   (morph/respond (email-view request {:email email
+                                                                       :error (tru "Please enter a valid email address")}))
+
+                                   :else
+                                   (morph/respond (email-view request {:email   email
+                                                                       :success (tru "Welcome, {0}!" email)})))))
+             :cursor/move    (fn [request]
+                               (let [channel-id (get-in request [:params "channel"])
+                                     x          (parse-long (get-in request [:params "x"] "0"))
+                                     y          (parse-long (get-in request [:params "y"] "0"))]
+                                 (when (and channel-id x y (< x 10000) (< y 10000))
+                                   (update-cursor! channel-id x y))))}})

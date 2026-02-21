@@ -18,12 +18,6 @@
    (java.time Instant)
    (java.util.concurrent Executors)))
 
-(set-agent-send-executor!
- (Executors/newVirtualThreadPerTaskExecutor))
-
-(set-agent-send-off-executor!
- (Executors/newVirtualThreadPerTaskExecutor))
-
 ;;; ----------------------------------------------------------------------------
 ;;; SSE Formatting
 
@@ -195,22 +189,25 @@
                              (a/>!! <cancel :stop)
                              (a/untap refresh-mult <refresh))})))))
 
+;; FIXME Relocate `morphable`.
+;;
+;; This is tightly coupled to our service layer and middleware and doesn't
+;; belong in `bits.morph`. We need a better home for this
+(defn morphable
+  "Create route handler map with GET (full page) and POST (SSE stream).
+   Options passed to render-handler (e.g., :on-close)."
+  ([layout-fn view-fn]
+   (morphable layout-fn view-fn {}))
+  ([layout-fn view-fn options]
+   (let [status #(get-in % [:session/realm :realm/status] 200)]
+     {:get  (fn [request]
+              {:status  (status request)
+               :headers {"content-type" "text/html; charset=utf-8"}
+               :body    (html/html (layout-fn request (view-fn request)))})
+      :post (render-handler view-fn options)})))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Action registry
-;;;
-;;; Actions are normalized once at load time, not per-request.
-;;; Specs are in bits.spec to avoid cyclic dependencies.
-
-(defn- normalize-entry
-  [entry]
-  (if (fn? entry)
-    {:handler entry}
-    entry))
-
-(defn normalize-actions
-  "Normalize action registry at load time. Converts fn → {:handler fn}."
-  [actions]
-  (into {} (map (fn [[k v]] [k (normalize-entry v)])) actions))
 
 (defn actions->schema
   "Build a Malli multi schema from a normalized actions registry.

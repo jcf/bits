@@ -2,6 +2,7 @@
   (:require
    [bits.anomaly :as anom]
    [bits.crypto :as crypto]
+   [bits.locale :refer [tru]]
    [bits.postgres :as postgres]
    [bits.spec]
    [clojure.spec.alpha :as s]
@@ -61,12 +62,12 @@
       (let [{:keys [email-failures ip-failures]} (failure-counts limiter source)]
         (cond
           (<= email-max-attempts (or email-failures 0))
-          (anom/busy {::anom/message        "Too many attempts. Please try again later."
+          (anom/busy {::anom/message        (tru "Too many attempts. Please try again later.")
                       ::reason              ::email
                       ::retry-after-seconds (* email-window-minutes 60)})
 
           (<= ip-max-attempts (or ip-failures 0))
-          (anom/busy {::anom/message        "Too many attempts. Please try again later."
+          (anom/busy {::anom/message        (tru "Too many attempts. Please try again later.")
                       ::reason              ::ip
                       ::retry-after-seconds (* ip-window-minutes 60)}))))))
 

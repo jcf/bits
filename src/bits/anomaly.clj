@@ -50,3 +50,12 @@
 (defn not-found   [opts] (assoc opts ::category ::not-found))
 (defn unavailable [opts] (assoc opts ::category ::unavailable))
 (defn unsupported [opts] (assoc opts ::category ::unsupported))
+
+;;; ----------------------------------------------------------------------------
+;;; Exceptions
+
+(defn ->exception
+  ([anom]
+   (ex-info (::message anom) anom))
+  ([anom cause]
+   (ex-info (::message anom) anom cause)))

@@ -1,6 +1,5 @@
 (ns ^:e2e bits.auth-test
   (:require
-   [bits.auth]
    [bits.datomic :as datomic]
    [bits.test.app :as t]
    [bits.test.browser :as browser]

@@ -4,6 +4,7 @@
    [bits.crypto :as crypto]
    [bits.csp :as csp]
    [bits.datomic :as datomic]
+   [bits.locale :as locale]
    [bits.request :as request]
    [bits.session :as session]
    [buddy.core.bytes :as buddy.bytes]
@@ -28,41 +29,19 @@
   {:post [(some? %)]}
   (get-in request [::state k]))
 
-(defn request->buster
-  [request]
-  (get-state request :buster))
-
-(defn request->datomic
-  [request]
-  (get-state request :datomic))
-
-(defn request->keymaster
-  [request]
-  (get-state request :keymaster))
-
-(defn request->postgres
-  [request]
-  (get-state request :postgres))
-
-(defn request->randomizer
-  [request]
-  (get-state request :randomizer))
-
-(defn request->session-store
-  [request]
-  (get-state request :session-store))
+(defn request->buster           [request] (get-state request :buster))
+(defn request->csrf-cookie-name [request] (get-state request :csrf-cookie-name))
+(defn request->datomic          [request] (get-state request :datomic))
+(defn request->keymaster        [request] (get-state request :keymaster))
+(defn request->platform-domain  [request] (get-state request :platform-domain))
+(defn request->postgres         [request] (get-state request :postgres))
+(defn request->randomizer       [request] (get-state request :randomizer))
+(defn request->realms           [request] (get-state request :realms))
+(defn request->session-store    [request] (get-state request :session-store))
 
 (defn request->state
   [request]
   (::state request))
-
-(defn request->platform-domain
-  [request]
-  (get-state request :platform-domain))
-
-(defn request->realms
-  [request]
-  (get-state request :realms))
 
 (defn request->db
   [request]
@@ -72,10 +51,6 @@
 (defn request->nonce
   [request]
   (get-in request [:session :nonce]))
-
-(defn request->csrf-cookie-name
-  [request]
-  (get-state request :csrf-cookie-name))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Database
@@ -279,3 +254,13 @@
                    "cache-control" "public, max-age=31536000, immutable"}
          :body    (io/input-stream resource)}
         (handler request)))))
+
+;;; ----------------------------------------------------------------------------
+;;; Locale
+
+(defn wrap-locale
+  [handler]
+  (fn [request]
+    (locale/with-locale (locale/string->locale "en")
+      (handler request))))
+
