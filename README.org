@@ -73,8 +73,8 @@ done
 #+end_src
 
 #+results:
-: ✅ https://bits.page.test
 : ✅ http://localhost:3000
+: ✅ https://bits.page.test
 : ✅ https://charlie.bits.page.test
 : ✅ https://charlie.bits.page.test
 : ✅ https://jcf.bits.page.test
@@ -112,6 +112,7 @@ done
 - [[file:decisions/20260212183128-vanilla-js-over-clojurescript-for-bits-js.org][Vanilla JS over ClojureScript for bits.js]]
 - [[file:decisions/20260214190732-datahike-vs-datomic-for-distributed-coordination-appendix-crypto-shredding.org][Crypto-Shredding for GDPR Compliance]]
 - [[file:decisions/20260214190732-datahike-vs-datomic-for-distributed-coordination.org][Datahike vs Datomic for distributed coordination]]
+- [[file:decisions/20260220174238-body-style-indentation-for-ui-component-functions.org][Body-style indentation for UI component functions]]
 
 ** Dev tasks
 #+begin_src sh :results output verbatim :exports results
@@ -132,17 +133,18 @@ Available recipes:
     css                                # Regenerate Tailwind CSS from template
     fmt                                # Format project files
     lint                               # Run lints
+    locales-build                      # Build translation bundles from .po files
+    locales-extract                    # Extract translatable strings to .pot file
     market                             # Run the marketing site
     mkcert                             # Create self-signed SSL certificates via mkcert
     nrepl *args
+    perf *args                         # Run tests with performance tracing output
     setup                              # Setup a local development environment
     tailwind                           # Watch source code for Tailwind classes
     test *args                         # Run tests
 
     [docs]
     decide +title                      # Create a new decision record
-    execute *args                      # Execute a prompt in a new Claude Code session
-    prompt +title                      # Create a new prompt
 
     [iac]
     apply dir                          # Apply one or all Terraform projects
@@ -168,17 +170,17 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- Clojure                  61         5760         4587          402          771
+ Clojure                  63         6036         4798          431          807
  CSS                       2           84           69            4           11
  Dockerfile                1           72           50            6           16
- Edn                       2          119          106            1           12
+ Edn                       2          130          116            1           13
  HCL                      12          389          323           13           53
- JavaScript                5          310          255           20           35
+ JavaScript                5          317          262           20           35
  JSON                      4           59           59            0            0
- Just                      1          370          241           65           64
+ Just                      1          258          164           51           43
  MDX                       1           56            0           39           17
- Nix                       3          501          413           14           74
- Org                      13         2124         1877            6          241
+ Nix                       4          520          432           14           74
+ Org                      15         2375         2076            5          294
  SQL                       4           43           37            0            6
  SVG                       2           12           12            0            0
  TOML                      1           46           41            0            5
@@ -190,81 +192,30 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  |- CSS                    1          171          151            0           20
  (Total)                              247          223            0           24
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1          352            0          228          124
+ Markdown                  1          353            0          229          124
  |- Clojure                1          238          152           50           36
  |- Org                    1           19           12            0            7
  |- Rust                   1           68           49           10            9
- (Total)                              677          213          288          176
+ (Total)                              678          213          289          176
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   131        16144        12660          860         2624
+ Total                   136        16597        13029          875         2693
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-051e32a-dirty @ 2026/02/15 23:44
+a5eba27 @ 2026/02/21 19:56
 #+end_example
 
-* Prompts
-We maintain version-controlled prompt docs that describe sessions with language
-models where we plan, generate, and review functionality.
-
-** =TODO=
-#+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
-fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
-  title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
-  st=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
-  date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
-  [[ $st = "DONE" ]] || echo -e "=$st=\t=$date=\t[[file:$file][$title]]" || true
-done
-#+end_src
-
-#+results:
-| Status  | Date         | Title                                   |
-|---------+--------------+-----------------------------------------|
-| =TODO=  | =2026-02-10= | [[file:.claude/prompts/20260210220005-demo-creators.org][Demo Creators]]                           |
-| =DOING= | =2026-02-13= | [[file:.claude/prompts/20260213223741-shop-tab.org][Shop Tab]]                                |
-| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223744-about-tab.org][About Tab]]                               |
-| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223747-purchase-flow.org][Purchase Flow]]                           |
-| =TODO=  | =2026-02-13= | [[file:.claude/prompts/20260213223749-posts-feed.org][Posts Feed]]                              |
-| =DOING= | =2026-02-14= | [[file:.claude/prompts/20260214141211-session-auth-security.org][Session and Auth Security]]               |
-| ==      | =2026-02-15= | [[file:.claude/prompts/20260215131107-gdpr-excision-per-tenant-databases.org][GDPR Excision with Per-Tenant Databases]] |
-| =TODO=  | =2026-02-15= | [[file:.claude/prompts/20260215184852-presence-system.org][Presence System]]                         |
-
-** =DONE=
-#+begin_src sh :results output table :colnames '("Status" "Date" "Title") :exports results
-fd --type file '\.org$' .claude/prompts | sort | while read -r file; do
-  title=$(awk -F':[[:space:]]*' '/^#\+title:/ { print $2; exit }' "$file")
-  st=$(awk -F':[[:space:]]*' '/^#\+status:/ { print toupper($2); exit }' "$file" | xargs)
-  date=$(awk -F':[[:space:]]*' '/^#\+date:/ { print $2; exit }' "$file" | xargs)
-  [[ $st = "DONE" ]] && echo -e "=$st=\t=$date=\t[[file:$file][$title]]" || true
-done
-#+end_src
-
-#+results:
-| Status | Date         | Title                                           |
-|--------+--------------+-------------------------------------------------|
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220001-prompt-workflow.org][Prompt Workflow]]                                 |
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220002-tenancy-routing.org][Tenancy Routing]]                                 |
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220003-fonts-and-theme.org][Fonts and Theme]]                                 |
-| =DONE= | =2026-02-10= | [[file:.claude/prompts/20260210220004-creator-profile-page.org][Creator Profile Page]]                            |
-| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212174601-asset-pipeline.org][Asset Pipeline]]                                  |
-| =DONE= | =2026-02-12= | [[file:.claude/prompts/20260212180101-sse-retry-delay.org][SSE Retry Delay Configuration]]                   |
-| =DONE= | =2026-02-14= | [[file:.claude/prompts/20260214191109-migrate-from-datahike-to-datomic-pro.org][Migrate from Datahike to Datomic Pro]]            |
-| =DONE= | =2026-02-15= | [[file:.claude/prompts/20260215141122-remove-redundant-indirection-around-datomic-api.org][Remove redundant indirection around Datomic API]] |
-
-** TODOs
+* TODOs
 #+begin_src sh :results output verbatim :exports results
 rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-#+begin_example
-src/bits/app.clj:;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
-src/bits/asset.clj:;; TODO Make content-type explicit or more intelligent.
-src/bits/auth.clj:;; TODO: I18n - user-facing strings need locale-aware source
-src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
-src/bits/middleware.clj:            ;; TODO Rename :sid to :session/id
-src/bits/service.clj:                     ;; TODO Improve 404 response
-src/bits/ui.clj:  ;; TODO: I18n - error presentation
-src/bits/ui.clj:;; TODO: I18n - user-facing strings need locale-aware source
-src/bits/ui/creator.clj:        ;; TODO: Real data from database
-test/bits/session_test.clj:                                           ;; FIXME Remove `:sid` from `data`.
-#+end_example
+: src/bits/app.clj:;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
+: src/bits/asset.clj:;; TODO Make content-type explicit or more intelligent.
+: src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
+: src/bits/middleware.clj:            ;; TODO Rename :sid to :session/id
+: src/bits/module/creator.clj:        ;; TODO: Real data from database
+: src/bits/module/creator.clj:     ;; TODO Extract platform/realm domain
+: src/bits/morph.clj:;; FIXME Relocate `morphable`.
+: src/bits/ui.clj:  ;; TODO: I18n - error presentation
+: test/bits/session_test.clj:                                           ;; FIXME Remove `:sid` from `data`.
