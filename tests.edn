@@ -6,6 +6,9 @@
 
   :reporter kaocha.report.progress/report
 
+  :profiles
+  {:ci {:reporter kaocha.report/documentation}}
+
   :tests
   [{:id                       :unit
     :kaocha.filter/skip-meta  [:e2e]
