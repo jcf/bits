@@ -28,9 +28,6 @@ jobs:
       - name: Install devenv
         run: nix profile install nixpkgs#devenv
 
-      - name: Build devenv shell
-        run: devenv ci
-
       - name: Check formatting
         run: devenv shell -- treefmt --fail-on-change
 
@@ -67,7 +64,7 @@ jobs:
         run: nix profile install nixpkgs#devenv
 
       - name: Build devenv shell
-        run: devenv ci
+        run: devenv shell -- echo '🚀 Happy hacking!'
 
       - name: Cache Maven deps
         uses: actions/cache@v4
@@ -84,12 +81,12 @@ jobs:
           DATABASE_URL: jdbc:postgresql://localhost:5432/bits_test?user=bits&password=please
         run: devenv shell -- clojure -M:test:runner:linux-x86_64
 
-      - name: Upload screenshots
+      - name: Upload captured browser sessions
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-screenshots
-          path: target/screenshots/
+          name: browser-sessions
+          path: target/browser-sessions
           if-no-files-found: ignore
 
   build:
