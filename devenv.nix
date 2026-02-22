@@ -7,6 +7,7 @@
   datomic-pro = pkgs.callPackage ./pkgs/datomic-pro {};
   jaeger = pkgs.callPackage ./pkgs/jaeger {};
   jdk = pkgs.temurin-bin-25;
+  otel-agent = pkgs.callPackage ./pkgs/opentelemetry-javaagent {};
 
   dev = {
     upstreams = {
@@ -60,6 +61,7 @@ in {
     DATOMIC_URI = "datomic:sql://bits?jdbc:postgresql://127.0.0.1:5432/datomic?user=datomic&password=datomic";
     DOMAIN_PAGE = dev.hosts.page.domain;
     DOMAIN_WWW = dev.hosts.www.domain;
+    OTEL_JAVAAGENT_PATH = "${otel-agent}/lib/opentelemetry-javaagent.jar";
     PLATFORM_DOMAIN = dev.hosts.page.domain;
     SSE_RECONNECT_MS = "50";
   };
@@ -78,6 +80,7 @@ in {
 
     # Observability
     jaeger
+    otel-agent
 
     # Development
     fd
