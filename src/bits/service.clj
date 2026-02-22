@@ -147,9 +147,7 @@
                               mw/page-middleware]}})
 
         handler
-        (ring/routes
-         (ring/create-default-handler
-          {:not-found not-found-handler}))
+        (ring/routes (ring/create-default-handler {:not-found not-found-handler}))
 
         middleware
         [[morph/wrap-refresh refresh-ch refresh-mult]
