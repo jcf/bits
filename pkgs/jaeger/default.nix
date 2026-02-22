@@ -2,8 +2,7 @@
   fetchzip,
   lib,
   stdenv,
-}:
-let
+}: let
   version = "2.15.1";
 
   platforms = {
@@ -28,29 +27,29 @@ let
   platform = platforms.${stdenv.hostPlatform.system}
     or (throw "Unsupported platform: ${stdenv.hostPlatform.system}");
 in
-stdenv.mkDerivation {
-  inherit version;
-  pname = "jaeger";
+  stdenv.mkDerivation {
+    inherit version;
+    pname = "jaeger";
 
-  src = fetchzip {
-    url = "https://github.com/jaegertracing/jaeger/releases/download/v${version}/jaeger-${version}-${platform.name}.tar.gz";
-    hash = platform.hash;
-  };
+    src = fetchzip {
+      url = "https://github.com/jaegertracing/jaeger/releases/download/v${version}/jaeger-${version}-${platform.name}.tar.gz";
+      hash = platform.hash;
+    };
 
-  dontConfigure = true;
-  dontBuild = true;
+    dontConfigure = true;
+    dontBuild = true;
 
-  installPhase = ''
-    runHook preInstall
-    mkdir -p $out/bin
-    cp jaeger $out/bin/
-    runHook postInstall
-  '';
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/bin
+      cp jaeger $out/bin/
+      runHook postInstall
+    '';
 
-  meta = with lib; {
-    homepage = "https://www.jaegertracing.io/";
-    description = "Jaeger distributed tracing platform";
-    license = licenses.asl20;
-    platforms = builtins.attrNames platforms;
-  };
-}
+    meta = with lib; {
+      homepage = "https://www.jaegertracing.io/";
+      description = "Jaeger distributed tracing platform";
+      license = licenses.asl20;
+      platforms = builtins.attrNames platforms;
+    };
+  }
