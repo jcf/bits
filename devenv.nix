@@ -61,6 +61,10 @@ in {
     DOMAIN_WWW = dev.hosts.www.domain;
     PLATFORM_DOMAIN = dev.hosts.page.domain;
     SSE_RECONNECT_MS = "50";
+
+    # OpenTelemetry
+    OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+    OTEL_SERVICE_NAME = "bits";
   };
 
   packages = with pkgs; [
@@ -81,6 +85,9 @@ in {
     tokei
     tree
     zsh
+
+    # Observability
+    jaeger
 
     # Browsers
     chromedriver
@@ -119,6 +126,11 @@ in {
 
   processes.transactor = {
     exec = "datomic-transactor conf/datomic.dev.properties";
+    process-compose.is_tty = true;
+  };
+
+  processes.jaeger = {
+    exec = "jaeger-all-in-one";
     process-compose.is_tty = true;
   };
 
