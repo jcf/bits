@@ -29,6 +29,7 @@
 /.nrepl-port
 /certs/
 /resources/public/app.css
+/result
 /screenshot-*.png
 /target
 node_modules/

@@ -5,6 +5,7 @@
 }: let
   root = config.devenv.root;
   datomic-pro = pkgs.callPackage ./pkgs/datomic-pro {};
+  jaeger = pkgs.callPackage ./pkgs/jaeger {};
   jdk = pkgs.temurin-bin-25;
 
   dev = {
@@ -79,6 +80,9 @@ in {
     # Database
     datomic-pro
 
+    # Observability
+    jaeger
+
     # Development
     fd
     just
@@ -127,7 +131,7 @@ in {
   };
 
   processes.jaeger = {
-    exec = "jaeger-all-in-one";
+    exec = "jaeger";
     process-compose.is_tty = true;
   };
 
