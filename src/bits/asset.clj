@@ -73,18 +73,17 @@
 
 (defn parse-path
   [resource-path]
-  (span/with-span! {:name ::parse-path}
-    (let [asset-path   (string/remove-prefix resource-path "public")
-          path         (fs/path asset-path)
-          [prefix ext] (fs/split-ext path)
-          content-type (ext->content-type ext)]
-      {::asset-path    asset-path
-       ::content-type  content-type
-       ::ext           ext
-       ::formatter     (str prefix "." "%s" "." ext)
-       ::resource-path resource-path
-       ::path          path
-       ::prefix        prefix})))
+  (let [asset-path   (string/remove-prefix resource-path "public")
+        path         (fs/path asset-path)
+        [prefix ext] (fs/split-ext path)
+        content-type (ext->content-type ext)]
+    {::asset-path    asset-path
+     ::content-type  content-type
+     ::ext           ext
+     ::formatter     (str prefix "." "%s" "." ext)
+     ::resource-path resource-path
+     ::path          path
+     ::prefix        prefix}))
 
 (defn stomach
   [buster]
