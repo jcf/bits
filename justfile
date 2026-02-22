@@ -132,7 +132,7 @@ nrepl *args:
         "{{ BLUE }}{{ BOLD }}==>{{ NORMAL }} {{ BOLD }}Starting nREPL on localhost:9999...{{ NORMAL }}"
 
     exec clojure \
-        -M:dev:test:logging:nrepl:{{ os }} \
+        -M:dev:test:logging:otel:nrepl:{{ os }} \
         --report stderr \
         --main bits.nrepl \
         --host localhost \
