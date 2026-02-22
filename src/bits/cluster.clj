@@ -1,5 +1,6 @@
 (ns bits.cluster
   (:require
+   [bits.anomaly :as anom]
    [bits.crypto :as crypto]
    [bits.spec]
    [clojure.spec.alpha :as s]
@@ -135,7 +136,11 @@
   [peer]
   (let [{:keys [chan cluster-name peer-name]} peer]
     (try
-      (.connect chan cluster-name)
+      (span/with-span! {:name ::connect}
+        (let [ret (.connect chan cluster-name)]
+          (log/info :msg  "Cluster available!"
+                    :peer peer)
+          ret))
       (catch Exception ex
         (log/warn :msg          "Failed to join cluster?!"
                   :cluster-name cluster-name
@@ -153,11 +158,20 @@
              :event/peer (:peer-name peer)}
             event))))
 
+(defn connected?
+  [peer]
+  (some-> peer :chan .isConnected))
+
 (defn send!
   [peer event]
-  (span/with-span! {:name ::send!}
-    (let [bytes (event->bytes peer event)]
-      (.send (:chan peer) (BytesMessage. nil ^bytes bytes)))))
+  (if-not (connected? peer)
+    (anom/busy {::anom/message "Not connected."
+                :event         event
+                :peer          peer})
+    (span/with-span! {:name ::send!}
+      (let [bytes (event->bytes peer event)]
+        (.send (:chan peer) (BytesMessage. nil ^bytes bytes))
+        event))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Component
@@ -178,8 +192,8 @@
         (attach-receiver peer (fn [_ event]
                                 (log/info :msg   "Event received."
                                           :event event)))
-        (span/with-span! {:name ::join}
-          (join peer))
+        ;; Join takes ~2 seconds, which we don't want or need to wait for.
+        (future (join peer))
         peer)))
   (stop [this]
     (span/with-span! {:name ::stop}
