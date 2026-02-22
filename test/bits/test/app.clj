@@ -14,6 +14,8 @@
    [java-time.api :as time]
    [ring.util.response :as response])
   (:import
+   (io.opentelemetry.api GlobalOpenTelemetry)
+   (io.opentelemetry.instrumentation.httpclient JavaHttpClientTelemetry)
    (java.net CookieManager CookiePolicy)))
 
 (defn- system-ex-info
@@ -112,8 +114,14 @@
 
 (defn http-client
   ([] (http-client {}))
-  ([options]
-   (http/build-http-client (merge {:connect-timeout 100} options))))
+  ([{:keys [connect-timeout]
+     :or   {connect-timeout 100}}]
+   (let [client (-> (java.net.http.HttpClient/newBuilder)
+                    (.connectTimeout (time/millis connect-timeout))
+                    (.build))]
+     (-> (JavaHttpClientTelemetry/builder (GlobalOpenTelemetry/get))
+         (.build)
+         (.wrap client)))))
 
 (defn- cleanup-hato-response
   [response]

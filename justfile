@@ -198,7 +198,11 @@ test *args:
 # Run tests with performance tracing output
 [group('test')]
 perf *args:
-    OTEL_TRACES_EXPORTER=logging-otlp clojure -M:dev:test:otel:runner:{{ os }} {{ args }}
+    env \
+        OTEL_TRACES_EXPORTER=logging-otlp \
+        clojure \
+            -M:dev:test:otel:runner:{{ os }} \
+            {{ args }}
 
 # ------------------------------------------------------------------------------
 # Build

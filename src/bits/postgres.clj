@@ -27,6 +27,8 @@
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (com.zaxxer.hikari HikariDataSource)
+   (io.opentelemetry.api GlobalOpenTelemetry)
+   (io.opentelemetry.instrumentation.jdbc.datasource JdbcTelemetry)
    (java.sql PreparedStatement ResultSet ResultSetMetaData)
    (java.sql ResultSet ResultSetMetaData)))
 
@@ -428,24 +430,25 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Postgres
 
-(defrecord Postgres [crypto database-url datasource]
+(defrecord Postgres [crypto database-url datasource pool]
   component/Lifecycle
   (start [this]
     (span/with-span! {:name ::start-postgres}
-      (let [ds (jdbc.connection/->pool HikariDataSource {:jdbcUrl database-url})]
+      (let [pool (jdbc.connection/->pool HikariDataSource {:jdbcUrl database-url})
+            otel (GlobalOpenTelemetry/get)
+            ds   (.wrap (JdbcTelemetry/create otel) pool)]
         (span/with-span! {:name ::verify-connection}
           (with-open [conn (get-connection ds)]
             (log/trace :msg        "Connection established! Closing."
-                       :datasource ds)
-            (.close ^java.sql.Connection conn)))
-        (assoc this :datasource ds))))
+                       :datasource ds)))
+        (assoc this :datasource ds :pool pool))))
   (stop [this]
     (span/with-span! {:name ::stop-postgres}
-      (when-let [ds (:datasource this)]
+      (when-let [pool (:pool this)]
         (log/trace :msg          "Shutting down connection pool..."
                    :database-url database-url)
-        (.close ^com.zaxxer.hikari.HikariDataSource ds))
-      (assoc this :datasource nil)))
+        (.close ^HikariDataSource pool))
+      (assoc this :datasource nil :pool nil)))
 
   next.jdbc.protocols/Connectable
   (get-connection [this opts]
