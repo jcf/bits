@@ -86,9 +86,6 @@ in {
     tree
     zsh
 
-    # Observability
-    jaeger
-
     # Browsers
     chromedriver
     geckodriver
