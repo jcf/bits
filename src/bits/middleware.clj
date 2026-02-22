@@ -11,7 +11,8 @@
    [clojure.java.io :as io]
    [clojure.string :as str]
    [datomic.api :as d]
-   [ring.util.response :as response]))
+   [ring.util.response :as response]
+   [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; State injection
@@ -248,11 +249,14 @@
           {::asset/keys [content-type
                          resource]
            :as          a} (asset/lookup buster request)]
-      (if (some? a)
-        {:status  200
-         :headers {"content-type"  content-type
-                   "cache-control" "public, max-age=31536000, immutable"}
-         :body    (io/input-stream resource)}
+      (if (and (identical? :get (:request-method request))
+               (some? a))
+        (do
+          (span/add-span-data! {:name (str "GET " (:uri request))})
+          {:status  200
+           :headers {"content-type"  content-type
+                     "cache-control" "public, max-age=31536000, immutable"}
+           :body    (io/input-stream resource)})
         (handler request)))))
 
 ;;; ----------------------------------------------------------------------------
@@ -263,4 +267,3 @@
   (fn [request]
     (locale/with-locale (locale/string->locale "en")
       (handler request))))
-
