@@ -135,7 +135,8 @@
         (ring/router
          routes
          {:data {:coercion   coercion.malli/coercion
-                 :middleware [exception-middleware
+                 :middleware [trace.http/wrap-reitit-route
+                              exception-middleware
                               ring.coercion/coerce-request-middleware
                               mw/page-middleware]}})
 
@@ -170,7 +171,6 @@
          [mw/wrap-secure-headers]
          [mw/wrap-locale]]]
     (-> (ring/ring-handler router handler {:middleware middleware})
-        trace.http/wrap-reitit-route
         (trace.http/wrap-server-span {:create-span? true}))))
 
 ;;; ----------------------------------------------------------------------------
