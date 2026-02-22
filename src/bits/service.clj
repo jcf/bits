@@ -123,6 +123,12 @@
                 refresh-mult
                 session-store]} service
 
+        not-found-handler
+        (fn [request]
+          {:status  404
+           :headers {"content-type" "text/html; charset=utf-8"}
+           :body    (html/html (ui/layout request (ui/not-found-view request)))})
+
         actions       (:actions modules)
         action-schema (morph/actions->schema actions)
         routes        (conj (:routes modules)
@@ -142,12 +148,8 @@
 
         handler
         (ring/routes
-         (ring/create-resource-handler {:path "/"})
          (ring/create-default-handler
-          {:not-found (fn [request]
-                        {:status  404
-                         :headers {"content-type" "text/html; charset=utf-8"}
-                         :body    (html/html (ui/layout request (ui/not-found-view request)))})}))
+          {:not-found not-found-handler}))
 
         middleware
         [[morph/wrap-refresh refresh-ch refresh-mult]
