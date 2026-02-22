@@ -98,9 +98,10 @@
     org.clj-commons/hickory    {:mvn/version "0.7.7"}}}
 
   :otel
-  {:extra-deps
+  {:jvm-opts   ["-Dotel.java.global-autoconfigure.enabled=true"]
+   :extra-deps
    {com.github.steffan-westcott/clj-otel-sdk-extension-autoconfigure {:mvn/version "0.2.10"}
-    io.opentelemetry/opentelemetry-exporter-logging-otlp             {:mvn/version "1.56.0"}}}
+    io.opentelemetry/opentelemetry-exporter-otlp                     {:mvn/version "1.54.1"}}}
 
   :build
   {:deps       {io.github.clojure/tools.build         {:git/tag "v0.10.12" :git/sha "97c5562"}

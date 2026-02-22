@@ -62,10 +62,6 @@ in {
     DOMAIN_WWW = dev.hosts.www.domain;
     PLATFORM_DOMAIN = dev.hosts.page.domain;
     SSE_RECONNECT_MS = "50";
-
-    # OpenTelemetry
-    OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
-    OTEL_SERVICE_NAME = "bits";
   };
 
   packages = with pkgs; [
@@ -139,6 +135,12 @@ in {
   process.managers.process-compose.tui.enable = false;
 
   process.managers.process-compose.settings.processes = {
+    nrepl = {
+      environment = [
+        "OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317"
+        "OTEL_SERVICE_NAME=bits"
+      ];
+    };
     transactor = {
       depends_on.postgres.condition = "process_healthy";
     };
