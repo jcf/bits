@@ -178,7 +178,8 @@
         (attach-receiver peer (fn [_ event]
                                 (log/info :msg   "Event received."
                                           :event event)))
-        (join peer)
+        (span/with-span! {:name ::join}
+          (join peer))
         peer)))
   (stop [this]
     (span/with-span! {:name ::stop}
