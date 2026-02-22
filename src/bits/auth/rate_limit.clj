@@ -6,7 +6,9 @@
    [bits.postgres :as postgres]
    [bits.spec]
    [clojure.spec.alpha :as s]
+   [com.stuartsierra.component :as component]
    [java-time.api :as time]
+   [steffan-westcott.clj-otel.api.metrics.instrument :as instrument]
    [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 ;;; ----------------------------------------------------------------------------
@@ -14,9 +16,14 @@
 
 (defn record-attempt!
   [limiter tenant-id params]
-  (let [{:keys [postgres]}                 limiter
+  {:pre [(contains? limiter :attempt-counter)]}
+  (let [{:keys [attempt-counter postgres]} limiter
         {:keys [email ip-address success]} params]
     (span/with-span! {:name ::record-attempt!}
+      (instrument/add! attempt-counter
+                       {:value      1
+                        :attributes {"tenant_id" (str tenant-id)
+                                     "success"   (str (boolean success))}})
       (postgres/execute-one! postgres
                              {:insert-into :authentication-attempts
                               :values      [{:tenant-id tenant-id
@@ -48,6 +55,14 @@
                [:not :success]
                [:> :attempted-at cutoff]]})))
 
+(defn- record-rate-limit!
+  [limiter tenant-id reason]
+  {:pre [(contains? limiter :rate-limit-counter)]}
+  (instrument/add! (:rate-limit-counter limiter)
+                   {:value      1
+                    :attributes {"tenant_id" (str tenant-id)
+                                 "reason"    (name reason)}}))
+
 (defn check
   [limiter tenant-id params]
   (let [{:keys [email-max-attempts
@@ -62,14 +77,18 @@
       (let [{:keys [email-failures ip-failures]} (failure-counts limiter source)]
         (cond
           (<= email-max-attempts (or email-failures 0))
-          (anom/busy {::anom/message        (tru "Too many attempts. Please try again later.")
-                      ::reason              ::email
-                      ::retry-after-seconds (* email-window-minutes 60)})
+          (do
+            (record-rate-limit! limiter tenant-id ::email)
+            (anom/busy {::anom/message        (tru "Too many attempts. Please try again later.")
+                        ::reason              ::email
+                        ::retry-after-seconds (* email-window-minutes 60)}))
 
           (<= ip-max-attempts (or ip-failures 0))
-          (anom/busy {::anom/message        (tru "Too many attempts. Please try again later.")
-                      ::reason              ::ip
-                      ::retry-after-seconds (* ip-window-minutes 60)}))))))
+          (do
+            (record-rate-limit! limiter tenant-id ::ip)
+            (anom/busy {::anom/message        (tru "Too many attempts. Please try again later.")
+                        ::reason              ::ip
+                        ::retry-after-seconds (* ip-window-minutes 60)})))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Cleanup
@@ -93,7 +112,27 @@
                     email-window-minutes
                     ip-max-attempts
                     ip-window-minutes
-                    postgres])
+                    postgres
+                    ;; Instruments
+                    attempt-counter
+                    rate-limit-counter]
+  component/Lifecycle
+  (start [this]
+    (assoc this
+           :attempt-counter
+           (instrument/instrument {:name            "auth.login.attempt"
+                                   :instrument-type :counter
+                                   :unit            "{attempt}"
+                                   :description     "Login attempts"})
+           :rate-limit-counter
+           (instrument/instrument {:name            "auth.rate_limit.triggered"
+                                   :instrument-type :counter
+                                   :unit            "{trigger}"
+                                   :description     "Rate limit triggers"})))
+  (stop [this]
+    (assoc this
+           :attempt-counter    nil
+           :rate-limit-counter nil)))
 
 (defn make-limiter
   [config]
