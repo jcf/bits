@@ -101,7 +101,8 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Navigation
 
-(def ^:private nav-links
+(defn- nav-links
+  []
   [["/"          (tru "Explore")]
    ["/counter"   (tru "Counter")]
    ["/cursors"   (tru "Cursors")]
@@ -118,7 +119,7 @@
                              ["text-secondary" "hover:text-primary"])))]
     [:header {:class ["flex" "justify-between" "border-b" "border-border-subtle"]}
      [:nav {:class ["flex" "gap-4" "p-4"]}
-      (for [[path label] nav-links]
+      (for [[path label] (nav-links)]
         [:a {:href  path
              :class (link-class path)}
          label])]

@@ -12,9 +12,15 @@
 (def class-dir "target/classes")
 (def uber-file "target/bits.jar")
 
+;;; ----------------------------------------------------------------------------
+;;; Clean
+
 (defn clean
   [_]
   (b/delete {:path "target"}))
+
+;;; ----------------------------------------------------------------------------
+;;; JAR
 
 (defn uber
   [_]
@@ -31,7 +37,7 @@
            :main      'bits.main}))
 
 ;;; ----------------------------------------------------------------------------
-;;; Locale string extraction
+;;; Locales
 
 (def ^:private translation-vars
   #{'bits.locale/tru
@@ -112,7 +118,7 @@
     (with-open [w (io/writer filename)]
       (.write (PoWriter.) catalog w))))
 
-(defn extract-strings
+(defn locales-extract
   [_]
   (let [entries (-> (analyze-sources ["src"])
                     group-by-message)]

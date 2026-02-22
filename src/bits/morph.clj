@@ -15,8 +15,7 @@
    [org.httpkit.server :as server]
    [ring.util.response :as response])
   (:import
-   (java.time Instant)
-   (java.util.concurrent Executors)))
+   (java.time Instant)))
 
 ;;; ----------------------------------------------------------------------------
 ;;; SSE Formatting

@@ -5,7 +5,6 @@
    [bits.locale :refer [tru]]
    [bits.middleware :as mw]
    [bits.middleware.session :as middleware.session]
-   [bits.module :as module]
    [bits.module.creator :as creator]
    [bits.module.platform :as platform]
    [bits.module.session :as session]

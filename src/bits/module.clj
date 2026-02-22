@@ -1,7 +1,6 @@
 (ns bits.module
   (:require
    [bits.anomaly :as anom]
-   [bits.data :refer [keyset]]
    [clojure.spec.alpha :as s]
    [medley.core :as medley]))
 
@@ -14,9 +13,6 @@
 
 (s/def :bits/module
   (s/keys :req-un [::actions ::name ::routes]))
-
-(s/def :bits/modules
-  (s/coll-of :bits/module))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Normalization

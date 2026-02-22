@@ -9,6 +9,7 @@ _default:
     @just fmt
     @just lint
     @just test
+    @just compile
 
 # ------------------------------------------------------------------------------
 # Docs
@@ -111,6 +112,17 @@ setup:
     pnpm install
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ NORMAL }}"
 
+# Format project files
+[group('dev')]
+fmt:
+    treefmt
+
+# Clean up generated classes and screenshots
+[group('dev')]
+clean:
+    @rm -r target/classes
+    @rm -r target/screenshots
+
 [group('dev')]
 nrepl *args:
     #!/usr/bin/env zsh
@@ -147,35 +159,49 @@ market:
 css:
     clojure -M:dev -m bits.dev.assets
 
-# Extract translatable strings to .pot file
+# Import clj-kondo configs
 [group('dev')]
+clj-kondo-import:
+    clj-kondo --lint "$(clojure -Spath)" --dependencies --skip-lint --copy-configs
+
+# ------------------------------------------------------------------------------
+# Locales
+
+# Extract translatable strings to .pot file
+[group('locales')]
 locales-extract:
-    clojure -T:build extract-strings
+    clojure -T:build locales-extract
 
 # Build translation bundles from .po files
-[group('dev')]
+[group('locales')]
 locales-build:
     clojure -T:build build-translations
 
-# Format project files
-[group('dev')]
-fmt:
-    treefmt
+# ------------------------------------------------------------------------------
+# Test
 
 # Run lints
-[group('dev')]
+[group('test')]
 lint:
     clj-kondo --lint dev src test
 
+# Compile bits.main
+[group('test')]
+compile:
+    clojure -M:dev --report stderr -m bits.dev.compile
+
 # Run tests
-[group('dev')]
+[group('test')]
 test *args:
     clojure -M:dev:test:runner:{{ os }} {{ args }}
 
 # Run tests with performance tracing output
-[group('dev')]
+[group('test')]
 perf *args:
     OTEL_TRACES_EXPORTER=logging-otlp clojure -M:dev:test:otel:runner:{{ os }} {{ args }}
+
+# ------------------------------------------------------------------------------
+# Build
 
 # Build an AOT-compiled uberjar
 [group('build')]
