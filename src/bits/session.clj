@@ -65,21 +65,25 @@
                                        [:= :tenant-id tenant-id]
                                        [:= :sid-hash (crypto/sha256 sid)]]}))))
 
-(defn update-session!
-  "Update session data and extend expiry."
+(defn upsert-session!
+  "Insert or update session atomically. Used by write-session."
   [store tenant-id sid data]
   (let [{:keys [postgres idle-timeout-days]} store
         now (time/offset-date-time)]
-    (span/with-span! {:name ::update-session!}
+    (span/with-span! {:name ::upsert-session!}
       (postgres/execute-one! postgres
-                             {:update :sessions
-                              :set    {:data        [:lift data]
-                                       :accessed-at now
-                                       :expires-at  [:+ now
-                                                     [:make-interval :days idle-timeout-days]]}
-                              :where  [:and
-                                       [:= :tenant-id tenant-id]
-                                       [:= :sid-hash (crypto/sha256 sid)]]}))))
+                             {:insert-into   :sessions
+                              :values        [{:sid-hash   (crypto/sha256 sid)
+                                               :tenant-id  tenant-id
+                                               :data       [:lift data]
+                                               :expires-at [:+ now
+                                                            [:make-interval :days idle-timeout-days]]}]
+                              :on-conflict   [:sid-hash :tenant-id]
+                              :do-update-set {:data        [:lift data]
+                                              :accessed-at now
+                                              :expires-at  [:+ now
+                                                            [:make-interval :days idle-timeout-days]]}
+                              :returning     [:sid-hash :user-id :created-at :data]}))))
 
 (defn rotate-session!
   "Delete old session, create new session with user-id. Returns new sid.
@@ -172,9 +176,7 @@
                           (and new-sid (not= new-sid sid)) new-sid
                           (some? sid)                      sid
                           :else                            (crypto/random-sid (:randomizer this)))]
-      (if (get-session this tenant-id effective-sid)
-        (update-session! this tenant-id effective-sid data)
-        (create-session! this tenant-id effective-sid data))
+      (upsert-session! this tenant-id effective-sid data)
       (assoc key :sid effective-sid)))
 
   (delete-session [this {:keys [tenant-id sid]}]
