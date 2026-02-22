@@ -1,6 +1,7 @@
 (ns bits.string
   (:import
-   (org.apache.commons.lang3 StringUtils)))
+   (org.apache.commons.lang3 StringUtils))
+  (:require [clojure.string :as str]))
 
 (set! *warn-on-reflection* true)
 
@@ -17,3 +18,6 @@
 (defn keyword->string
   [kw]
   (subs (str kw) 1))
+
+(def present?
+  (complement str/blank?))

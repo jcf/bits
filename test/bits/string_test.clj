@@ -2,6 +2,7 @@
   (:require
    [bits.string :as sut]
    [clojure.string :as str]
+   [clojure.test :refer [are deftest]]
    [clojure.test.check.clojure-test :refer [defspec]]
    [clojure.test.check.generators :as gen]
    [clojure.test.check.properties :as prop]))
@@ -46,3 +47,16 @@
       (and (= ns-part (namespace kw))
            (= name-part (name kw))
            (= s (str ns-part "/" name-part))))))
+
+;;; ----------------------------------------------------------------------------
+;;; Present?
+
+(deftest present?
+  (are [in] (sut/present? in)
+    "a"
+    " a ")
+  (are [in] (not (sut/present? in))
+    ""
+    " "
+    "\n"
+    "\t"))
