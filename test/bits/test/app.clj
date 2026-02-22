@@ -112,16 +112,26 @@
   []
   (CookieManager. nil CookiePolicy/ACCEPT_ALL))
 
+(defn- span-name-extractor
+  []
+  (reify io.opentelemetry.instrumentation.api.instrumenter.SpanNameExtractor
+    (extract [_ request]
+      (let [^java.net.http.HttpRequest req request]
+        (format "%s %s" (.method req) (.getPath (.uri req)))))))
+
 (defn http-client
   ([] (http-client {}))
-  ([{:keys [connect-timeout]
+  ([{:keys [connect-timeout cookie-handler]
      :or   {connect-timeout 100}}]
    (let [client (-> (java.net.http.HttpClient/newBuilder)
                     (.connectTimeout (time/millis connect-timeout))
+                    (cond-> cookie-handler (.cookieHandler cookie-handler))
                     (.build))]
      (-> (JavaHttpClientTelemetry/builder (GlobalOpenTelemetry/get))
+         (.setSpanNameExtractor (reify java.util.function.Function
+                                  (apply [_ _default] (span-name-extractor))))
          (.build)
-         (.wrap client)))))
+         (.newHttpClient client)))))
 
 (defn- cleanup-hato-response
   [response]
