@@ -23,6 +23,7 @@
    [reitit.ring.middleware.exception :as exception]
    [ring.middleware.cookies :as middleware.cookies]
    [ring.middleware.params :as middleware.params]
+   [steffan-westcott.clj-otel.api.trace.http :as trace.http]
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (java.util.concurrent Executors)))
@@ -130,6 +131,23 @@
                                      :parameters {:form action-schema}
                                      :handler    (morph/action-handler actions)}}])
 
+        router
+        (ring/router
+         routes
+         {:data {:coercion   coercion.malli/coercion
+                 :middleware [exception-middleware
+                              ring.coercion/coerce-request-middleware
+                              mw/page-middleware]}})
+
+        handler
+        (ring/routes
+         (ring/create-resource-handler {:path "/"})
+         (ring/create-default-handler
+          {:not-found (fn [request]
+                        {:status  404
+                         :headers {"content-type" "text/html; charset=utf-8"}
+                         :body    (html/html (ui/layout request (ui/not-found-view request)))})}))
+
         middleware
         [[morph/wrap-refresh refresh-ch refresh-mult]
          [morph/wrap-channels channels]
@@ -151,20 +169,9 @@
          [mw/wrap-user]
          [mw/wrap-secure-headers]
          [mw/wrap-locale]]]
-    (ring/ring-handler
-     (ring/router routes
-                  {:data {:coercion   coercion.malli/coercion
-                          :middleware [exception-middleware
-                                       ring.coercion/coerce-request-middleware
-                                       mw/page-middleware]}})
-     (ring/routes
-      (ring/create-resource-handler {:path "/"})
-      (ring/create-default-handler
-       {:not-found (fn [request]
-                     {:status  404
-                      :headers {"content-type" "text/html; charset=utf-8"}
-                      :body    (html/html (ui/layout request (ui/not-found-view request)))})}))
-     {:middleware middleware})))
+    (-> (ring/ring-handler router handler {:middleware middleware})
+        trace.http/wrap-reitit-route
+        (trace.http/wrap-server-span {:create-span? true}))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Service
