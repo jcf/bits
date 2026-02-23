@@ -438,7 +438,7 @@
             otel (GlobalOpenTelemetry/get)
             ds   (.wrap (JdbcTelemetry/create otel) pool)]
         (span/with-span! {:name ::verify-connection}
-          (with-open [conn (get-connection ds)]
+          (with-open [_conn (get-connection ds)]
             (log/trace :msg        "Connection established! Closing."
                        :datasource ds)))
         (assoc this :datasource ds :pool pool))))

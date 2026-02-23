@@ -1,6 +1,5 @@
 (ns bits.ledger
   (:require
-   [clojure.spec.alpha :as s]
    [datomic.api :as d]
    [java-time.api :as time]))
 
