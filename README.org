@@ -129,19 +129,16 @@ Available recipes:
     docker-run tag="bits:latest" *args # Run the Docker image against the local devenv database
 
     [dev]
+    clean                              # Clean up generated classes and screenshots
+    clj-kondo-import                   # Import clj-kondo configs
     cluster-certs                      # Generate cluster keystores
     css                                # Regenerate Tailwind CSS from template
     fmt                                # Format project files
-    lint                               # Run lints
-    locales-build                      # Build translation bundles from .po files
-    locales-extract                    # Extract translatable strings to .pot file
     market                             # Run the marketing site
     mkcert                             # Create self-signed SSL certificates via mkcert
     nrepl *args
-    perf *args                         # Run tests with performance tracing output
     setup                              # Setup a local development environment
     tailwind                           # Watch source code for Tailwind classes
-    test *args                         # Run tests
 
     [docs]
     decide +title                      # Create a new decision record
@@ -152,9 +149,19 @@ Available recipes:
     output dir *args                   # Interact with outputs one or all Terraform projects
     plan dir                           # Plan one or all Terraform projects
 
+    [locales]
+    locales-build                      # Build translation bundles from .po files
+    locales-extract                    # Extract translatable strings to .pot file
+
     [postgres]
     migration name                     # Create a new migration
     psql *args                         # Start an interactive psql session connected to the local development database
+
+    [test]
+    compile                            # Compile bits.main
+    lint                               # Run lints
+    perf *args                         # Run tests with performance tracing output
+    test *args                         # Run tests
 #+end_example
 
 ** SLOC
@@ -170,17 +177,17 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- Clojure                  63         6036         4798          431          807
+ Clojure                  66         6749         5328          505          916
  CSS                       2           84           69            4           11
- Dockerfile                1           72           50            6           16
- Edn                       2          130          116            1           13
+ Dockerfile                1           82           58            7           17
+ Edn                       2          136          121            1           14
  HCL                      12          389          323           13           53
  JavaScript                5          317          262           20           35
  JSON                      4           59           59            0            0
- Just                      1          258          164           51           43
+ Just                      1          288          179           60           49
  MDX                       1           56            0           39           17
- Nix                       4          520          432           14           74
- Org                      15         2375         2076            5          294
+ Nix                       6          626          525           15           86
+ Org                      15         2325         2031            5          289
  SQL                       4           43           37            0            6
  SVG                       2           12           12            0            0
  TOML                      1           46           41            0            5
@@ -198,10 +205,10 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  |- Rust                   1           68           49           10            9
  (Total)                              678          213          289          176
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   136        16597        13029          875         2693
+ Total                   141        17412        13635          960         2817
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-a5eba27 @ 2026/02/21 19:56
+b7e5dbd @ 2026/02/23 00:00
 #+end_example
 
 * TODOs
@@ -210,12 +217,15 @@ rg --glob '!README.org' 'TODO|FIXME' </dev/null | sort
 #+end_src
 
 #+results:
-: src/bits/app.clj:;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
-: src/bits/asset.clj:;; TODO Make content-type explicit or more intelligent.
-: src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
-: src/bits/middleware.clj:            ;; TODO Rename :sid to :session/id
-: src/bits/module/creator.clj:        ;; TODO: Real data from database
-: src/bits/module/creator.clj:     ;; TODO Extract platform/realm domain
-: src/bits/morph.clj:;; FIXME Relocate `morphable`.
-: src/bits/ui.clj:  ;; TODO: I18n - error presentation
-: test/bits/session_test.clj:                                           ;; FIXME Remove `:sid` from `data`.
+#+begin_example
+src/bits/app.clj:;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
+src/bits/asset.clj:;; TODO Make content-type explicit or more intelligent.
+src/bits/brotli.clj:                          ;; TODO: Default buffer size for brotli library, needs to be tuned.
+src/bits/middleware.clj:            ;; TODO Rename :sid to :session/id
+src/bits/module/creator.clj:        ;; TODO: Real data from database
+src/bits/module/creator.clj:     ;; TODO Extract platform/realm domain
+src/bits/morph.clj:;; FIXME Relocate `morphable`.
+src/bits/schema.clj:   ;; FIXME Avoid stringly typed entities - use `:db/ident`.
+src/bits/ui.clj:  ;; TODO: I18n - error presentation
+test/bits/session_test.clj:                                           ;; FIXME Remove `:sid` from `data`.
+#+end_example
