@@ -17,6 +17,39 @@ Use `just` for all common tasks (not `bin/*` scripts):
 
 See `just --list` for all available commands.
 
+## Forgejo CI
+
+CI runs on a self-hosted Forgejo instance at `git.lan.invetica.co.uk`. Workflows
+live in `.forgejo/workflows/`.
+
+### Mirrored Actions
+
+External network access is slow from the CI runner. GitHub Actions used in
+workflows must be mirrored to the local Forgejo instance under the `actions/`
+organization. Currently mirrored:
+
+- `actions/checkout` (from GitHub)
+- `actions/cache` (from GitHub)
+- `actions/upload-artifact` (from `code.forgejo.org/forgejo/upload-artifact`)
+
+**Important:** Some actions require Forgejo's patched forks rather than GitHub
+originals. The `upload-artifact` and `download-artifact` v4 actions use
+GitHub-specific APIs. Mirror Forgejo's forks from `code.forgejo.org/forgejo/`
+instead.
+
+To use a new action, first mirror it to Forgejo, then reference it normally:
+
+```yaml
+uses: actions/checkout@v4 # Resolves to git.lan.invetica.co.uk/actions/checkout
+```
+
+Do **not** use full GitHub URLs as this bypasses the mirror and is extremely slow.
+
+### Container Images
+
+The CI container (`bits-ci`) is built via the bootstrap workflow and pushed to
+the Forgejo registry. Update the `IMAGE` env var in `ci.yml` after rebuilding.
+
 ## Tailwind CSS
 
 Tailwind CSS is generated from a Selmer template at

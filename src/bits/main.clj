@@ -7,10 +7,11 @@
 
 (defn -main
   [& args]
-  ;; --warmup: Exit after class loading. Used during Docker build to generate
+  ;; --warmup: Exit after class loading. Used during container build to generate
   ;; the AppCDS class list for faster subsequent JVM startups.
   (when (some #{"--warmup"} args)
-    (log/info :msg "System initialized. Exiting.")
+    (require 'bits.app :reload-all)
+    (log/info :msg "Warmup complete. Exiting.")
     (System/exit 0))
 
   (component/start (app/system))

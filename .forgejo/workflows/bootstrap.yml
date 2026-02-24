@@ -1,0 +1,51 @@
+name: Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, morph]
+    paths:
+      - ".forgejo/scripts/**"
+      - ".forgejo/workflows/bootstrap.yml"
+      - "pkgs/bits-ci/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: nixos
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Attic cache
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: .forgejo/scripts/attic-setup.sh
+
+      - name: Build CI container
+        id: build
+        run: |
+          set -euo pipefail
+          output=$(.forgejo/scripts/build.sh bits-ci-amd64 2>&1) || {
+            echo "$output"
+            exit 1
+          }
+          image_path=$(echo "$output" | grep '^/nix/store/' | tail -1)
+          echo "image_path=$image_path" >> "$GITHUB_OUTPUT"
+
+      - name: Push closure to Attic cache
+        run: nix-store -qR "${{ steps.build.outputs.image_path }}" | xargs attic push invetica:invetica
+
+      - name: Push to Forgejo
+        env:
+          REGISTRY_USER: jcf
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
+        run: |
+          version="$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
+          image="git.lan.invetica.co.uk/jcf/bits-ci"
+          .forgejo/scripts/push-image.sh "${{ steps.build.outputs.image_path }}" "$image" "$version"
+          .forgejo/scripts/push-image.sh "${{ steps.build.outputs.image_path }}" "$image" "latest"

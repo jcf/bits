@@ -91,7 +91,7 @@
 (s/def :bits.service/http-host string?)
 (s/def :bits.service/http-port (s/or :zero zero? :pos-int pos-int?))
 (s/def :bits.service/max-refresh-ms pos-int?)
-(s/def :bits.service/platform-domain (s/nilable string?))
+(s/def :bits.service/platform-domain string?)
 (s/def :bits.service/realms (s/map-of qualified-keyword? :session/realm))
 (s/def :bits.service/routes vector?)
 (s/def :bits.service/server-name string?)

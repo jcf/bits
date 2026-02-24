@@ -1,18 +1,66 @@
 {
   config,
+  lib,
+  inputs,
   pkgs,
   ...
 }: let
   root = config.devenv.root;
+
+  # Version from flake source info
+  version = let
+    # lastModifiedDate is YYYYMMDDHHMMSS format
+    date = builtins.substring 0 8 (toString (inputs.self.lastModifiedDate or 0));
+    # shortRev for clean (abc1234), dirtyShortRev for dirty (abc1234-dirty)
+    rev = inputs.self.shortRev or inputs.self.dirtyShortRev or "dirty";
+  in
+    if date == "0"
+    then "dirty"
+    else "${date}-${rev}";
+
+  # Shared CI packages (keep in sync with bits-ci container)
+  ci = import ./nix/ci.nix {inherit pkgs;};
+
+  jdk = ci.jdk;
+
+  # Build uberjar with JDK 21 to avoid Clojure AOT + JDK 25 bytecode verification bug
+  # (ClassFormatError: Invalid index in LocalVariableTable). Runtime is still JDK 25.
+  jdk-build = pkgs.temurin-bin-21;
+
+  # clj-nix for deterministic Clojure dependency management
+  cljNix = inputs.clj-nix.packages.${pkgs.system};
+
+  bits-uberjar = pkgs.callPackage ./pkgs/bits-uberjar {
+    inherit version;
+    inherit (cljNix) fake-git mk-deps-cache;
+    jdk = jdk-build;
+  };
   datomic-pro = pkgs.callPackage ./pkgs/datomic-pro {};
   jaeger = pkgs.callPackage ./pkgs/jaeger {};
-  jdk = pkgs.temurin-bin-25;
   otel-agent = pkgs.callPackage ./pkgs/opentelemetry-javaagent {};
+
+  # Container builder for a specific Linux system
+  mkContainer = system:
+    pkgs.callPackage ./pkgs/bits-container {
+      inherit otel-agent version;
+      pkgsLinux = import inputs.nixpkgs {inherit system;};
+      otel-agent-properties = ./resources/otel-agent.properties;
+      uberjar = bits-uberjar;
+    };
+
+  # Default container for local dev (Apple Silicon + OrbStack)
+  bits-container = mkContainer "aarch64-linux";
+
+  # CI container builder
+  mkCiContainer = system:
+    pkgs.callPackage ./pkgs/bits-ci {
+      inherit version;
+      pkgsLinux = import inputs.nixpkgs {inherit system;};
+    };
 
   dev = {
     upstreams = {
       page = {port = 3000;};
-      www = {port = 3100;};
     };
 
     hosts = {
@@ -31,13 +79,6 @@
         certKey = "${root}/certs/_wildcard.bits.page.test-key.pem";
       };
 
-      www = {
-        domain = "www.usebits.app.test";
-        upstream = "www";
-        certPem = "${root}/certs/_wildcard.usebits.app.test.pem";
-        certKey = "${root}/certs/_wildcard.usebits.app.test-key.pem";
-      };
-
       custom-domains = {
         pattern = "~^(?<custom_domain>.+\\.test)$";
         upstream = "page";
@@ -52,6 +93,20 @@ in {
     ./nix/modules/claude-code.nix
   ];
 
+  cachix.enable = false;
+
+  tasks."test:clojure" = {
+    exec = "clojure -M:test:runner:linux-x86_64";
+    before = ["devenv:enterTest"];
+  };
+
+  outputs.bits-ci-amd64 = mkCiContainer "x86_64-linux";
+  outputs.bits-ci-arm64 = mkCiContainer "aarch64-linux";
+  outputs.bits-container = bits-container;
+  outputs.bits-container-amd64 = mkContainer "x86_64-linux";
+  outputs.bits-container-arm64 = mkContainer "aarch64-linux";
+  outputs.bits-uberjar = bits-uberjar;
+  outputs.bits-deps-cache = bits-uberjar.depsCache;
   outputs.datomic-pro = datomic-pro;
 
   env = {
@@ -60,7 +115,6 @@ in {
     DATABASE_URL = "postgres://bits:please@127.0.0.1:5432/bits_dev";
     DATOMIC_URI = "datomic:sql://bits?jdbc:postgresql://127.0.0.1:5432/datomic?user=datomic&password=datomic";
     DOMAIN_PAGE = dev.hosts.page.domain;
-    DOMAIN_WWW = dev.hosts.www.domain;
     OTEL_JAVAAGENT_PATH = "${otel-agent}/lib/opentelemetry-javaagent.jar";
     PLATFORM_DOMAIN = dev.hosts.page.domain;
     SSE_RECONNECT_MS = "50";
@@ -75,7 +129,6 @@ in {
     clojure-lsp
     jdk
 
-    # Database
     datomic-pro
 
     # Observability
@@ -101,37 +154,31 @@ in {
     alejandra
     prettier
     shfmt
+    tailwindcss_4
     taplo
     treefmt
   ];
 
-  languages.javascript.enable = true;
-  languages.javascript.pnpm.enable = true;
-  languages.javascript.pnpm.install.enable = true;
+  processes = lib.optionalAttrs (!config.devenv.isTesting) {
+    nrepl = {
+      exec = "just nrepl";
+      process-compose.is_tty = true;
+    };
 
-  processes.nrepl = {
-    exec = "just nrepl";
-    process-compose.is_tty = true;
-  };
+    tailwind = {
+      exec = "just tailwind";
+      process-compose.is_tty = true;
+    };
 
-  processes.market = {
-    exec = "just market";
-    process-compose.is_tty = true;
-  };
+    transactor = {
+      exec = "datomic-transactor conf/datomic.dev.properties";
+      process-compose.is_tty = true;
+    };
 
-  processes.tailwind = {
-    exec = "just tailwind";
-    process-compose.is_tty = true;
-  };
-
-  processes.transactor = {
-    exec = "datomic-transactor conf/datomic.dev.properties";
-    process-compose.is_tty = true;
-  };
-
-  processes.jaeger = {
-    exec = "jaeger";
-    process-compose.is_tty = true;
+    jaeger = {
+      exec = "jaeger";
+      process-compose.is_tty = true;
+    };
   };
 
   process.manager.implementation = "process-compose";
@@ -147,16 +194,10 @@ in {
     transactor = {
       depends_on.postgres.condition = "process_healthy";
     };
-    www = {
-      environment = [
-        "ASTRO_SITE=https://${dev.hosts.www.domain}"
-        "PORT=${toString dev.upstreams.www.port}"
-      ];
-    };
   };
 
   services.nginx = {
-    enable = true;
+    enable = !config.devenv.isTesting;
     httpConfig = let
       # Common proxy settings for SSE support
       proxySettings = upstream: ''
@@ -195,10 +236,6 @@ in {
         server localhost:${toString dev.upstreams.page.port} fail_timeout=0;
       }
 
-      upstream www {
-        server localhost:${toString dev.upstreams.www.port} fail_timeout=0;
-      }
-
       # ${dev.hosts.page.domain}
       server {
         listen 443 ssl;
@@ -232,7 +269,7 @@ in {
       # ${dev.hosts.custom-domains.pattern}
       server {
         listen 443 ssl default_server;
-        server_name ~^(?<custom_domain>(?!.*\.(bits\.page|usebits\.app)\.test$).+\.test)$;
+        server_name ~^(?<custom_domain>(?!.*\.bits\.page\.test$).+\.test)$;
 
         ssl_certificate ${dev.hosts.custom-domains.certPem};
         ssl_certificate_key ${dev.hosts.custom-domains.certKey};
@@ -241,21 +278,6 @@ in {
 
         location / {
           ${proxySettings dev.hosts.custom-domains.upstream}
-        }
-      }
-
-      # ${dev.hosts.www.domain}
-      server {
-        listen 443 ssl;
-        server_name ${dev.hosts.www.domain};
-
-        ssl_certificate ${dev.hosts.www.certPem};
-        ssl_certificate_key ${dev.hosts.www.certKey};
-
-        ${errorLocations}
-
-        location / {
-          ${proxySettings dev.hosts.www.upstream}
         }
       }
     '';
@@ -291,7 +313,7 @@ in {
     ];
 
     initialScript = ''
-      ALTER USER bits CREATEDB;
+      ALTER USER bits WITH PASSWORD 'please' CREATEDB;
       ALTER DATABASE bits_test OWNER TO bits;
 
       -- Datomic KV storage table

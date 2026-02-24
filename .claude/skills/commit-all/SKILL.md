@@ -1,12 +1,16 @@
 ---
 name: commit-all
 description: Create atomic commits from all unstaged changes
-allowed-tools: Bash(git status, git diff*, git add, git commit, git log)
+allowed-tools: Bash(just fmt, git status, git diff*, git add, git commit, git log)
 ---
 
 # Commit All Unstaged Changes
 
 Create atomic commits from all unstaged changes.
+
+## Step 1: Format Code
+
+!`just fmt`
 
 ## Current State
 

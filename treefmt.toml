@@ -2,13 +2,11 @@
 command = "prettier"
 options = ["--cache", "--write"]
 includes = [
-  "*.astro",
   "*.html",
   "*.js",
   "*.json",
   "*.jsx",
   "*.md",
-  "*.svelte",
   "*.ts",
   "*.tsx",
   "*.yaml",
@@ -16,7 +14,6 @@ includes = [
 ]
 excludes = [
   "node_modules/**",
-  "pnpm-lock.yaml",
   "resources/public/*.js"
 ]
 

@@ -1,6 +1,18 @@
 inputs:
+  clj-nix:
+    url: git+https://git.lan.invetica.co.uk/jcf/clj-nix
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
+      nix-fetcher-data:
+        follows: nix-fetcher-data
   devenv:
-    url: github:cachix/devenv
+    url: git+https://git.lan.invetica.co.uk/jcf/devenv
+  nix-fetcher-data:
+    url: git+https://git.lan.invetica.co.uk/jcf/nix-fetcher-data
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
   nixpkgs:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
   rust-overlay:

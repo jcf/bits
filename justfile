@@ -109,13 +109,12 @@ setup:
     @just mkcert
     @just cluster-certs
     devenv shell true
-    pnpm install
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ NORMAL }}"
 
 # Format project files
 [group('dev')]
-fmt:
-    treefmt
+fmt *args:
+    treefmt {{ args }}
 
 # Clean up generated classes and screenshots
 [group('dev')]
@@ -143,21 +142,15 @@ nrepl *args:
 [group('dev')]
 tailwind:
     mkdir -p resources/public
-    pnpm --filter @bits/tailwind \
-        exec tailwindcss \
-            --watch \
-            --input ../../resources/tailwind.css \
-            --output ../../resources/public/app.css
-
-# Run the marketing site
-[group('dev')]
-market:
-    pnpm --filter @bits/www dev
+    tailwindcss \
+        --watch \
+        --input resources/tailwind.css \
+        --output resources/public/app.css
 
 # Regenerate Tailwind CSS from template
 [group('dev')]
 css:
-    clojure -M:dev -m bits.dev.assets
+    clojure -M:dev --report stderr -m bits.dev.assets
 
 # Import clj-kondo configs
 [group('dev')]
@@ -170,15 +163,21 @@ clj-kondo-import:
 # Extract translatable strings to .pot file
 [group('locales')]
 locales-extract:
-    clojure -T:build locales-extract
+    clojure -T:build --report stderr locales-extract
 
 # Build translation bundles from .po files
 [group('locales')]
 locales-build:
-    clojure -T:build build-translations
+    clojure -T:build --report stderr build-translations
 
 # ------------------------------------------------------------------------------
 # Test
+
+# Run all quality checks (format + lint)
+[group('test')]
+check:
+    treefmt --fail-on-change
+    clj-kondo --lint dev src test
 
 # Run lints
 [group('test')]
@@ -207,20 +206,26 @@ perf *args:
 # ------------------------------------------------------------------------------
 # Build
 
+# Regenerate deps-lock.json
+[group('build')]
+deps-lock:
+    nix run 'git+https://git.lan.invetica.co.uk/jcf/clj-nix?rev=5751969234c45823955a0fd348831068f1107453#deps-lock'
+
 # Build an AOT-compiled uberjar
 [group('build')]
 build:
-    clojure -T:build uber
+    devenv build outputs.bits-uberjar
 
 # Build Datomic Pro output
 [group('build')]
 build-datomic:
     devenv build outputs.datomic-pro
 
-# Build the Docker image
+# Build the container image
 [group('build')]
-docker-build tag="bits:latest":
-    docker build -t {{ tag }} .
+container:
+    rm -f .devenv/nix-eval-cache.db*
+    docker load < "$(devenv build outputs.bits-container 2>/dev/null)"
 
 # Run the Docker image against the local devenv database
 [group('build')]

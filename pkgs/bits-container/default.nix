@@ -1,0 +1,159 @@
+{
+  lib,
+  otel-agent,
+  otel-agent-properties,
+  pkgsLinux,
+  uberjar,
+  version ? "dev",
+}: let
+  inherit (pkgsLinux) binutils dockerTools glibc runCommand stdenv temurin-bin-21;
+
+  # ---------------------------------------------------------------------------
+  # Configuration
+
+  # Use JDK 21 until babashka/fs is fixed for JDK 25
+  jdk = temurin-bin-21;
+  jdkVersion = "21";
+
+  # Additional JPMS modules beyond what jdeps detects from the uberjar.
+  # jdeps finds direct dependencies; these are for reflection, JNDI, etc.
+  jreModules = [
+    "java.instrument" # OTEL javaagent instrumentation
+    "java.management" # JMX, ManagementFactory (used by Datomic logging)
+    "java.naming" # JNDI (used by Datomic, HikariCP)
+    "java.sql" # JDBC
+    "jdk.crypto.ec" # TLS with EC ciphers
+    "jdk.unsupported" # sun.misc.Unsafe (used by Netty, etc.)
+  ];
+
+  # JVM runtime options
+  jvmOpts = [
+    # Garbage collection
+    "-XX:+UseZGC"
+    "-XX:+ZGenerational"
+
+    # Memory
+    "-Xms256m"
+    "-Xmx512m"
+
+    # Clojure
+    "-Dclojure.compiler.direct-linking=true"
+  ];
+
+  # Container paths
+  appDir = "app";
+  jreDir = "jre";
+  tmpDir = "tmp";
+
+  # Native library paths
+  libstdcxxPath = "${stdenv.cc.cc.lib}/lib";
+
+  # ---------------------------------------------------------------------------
+  # Derived values
+
+  jreModulesStr = lib.concatStringsSep "," jreModules;
+
+  # ---------------------------------------------------------------------------
+  # Build components
+
+  # Minimal JRE via jlink with only required modules
+  customJre =
+    runCommand "bits-jre" {
+      nativeBuildInputs = [binutils jdk];
+    } ''
+      # jdeps needs .jar extension
+      cp ${uberjar} $TMPDIR/bits.jar
+
+      # Analyze uberjar for required modules
+      detected=$(jdeps \
+        --ignore-missing-deps \
+        --print-module-deps \
+        --multi-release ${jdkVersion} \
+        $TMPDIR/bits.jar)
+
+      # Build minimal JRE
+      jlink \
+        --add-modules "$detected,${jreModulesStr}" \
+        --strip-debug \
+        --no-man-pages \
+        --no-header-files \
+        --compress zip-6 \
+        --output $out
+    '';
+
+  # AppCDS archive for faster startup (~20-30% improvement)
+  appCds =
+    runCommand "bits-appcds" {
+      nativeBuildInputs = [jdk];
+      # brotli4j native library needs libstdc++
+      LD_LIBRARY_PATH = "${stdenv.cc.cc.lib}/lib";
+    } ''
+      mkdir -p $out
+
+      # Temp directory for native library extraction (brotli4j)
+      export TMPDIR=$PWD/tmp
+      mkdir -p $TMPDIR
+
+      # Run warmup to capture loaded classes
+      java \
+        -Djava.io.tmpdir=$TMPDIR \
+        -XX:DumpLoadedClassList=$TMPDIR/classes.lst \
+        -jar ${uberjar} --warmup
+
+      # Generate shared archive
+      java \
+        -Xshare:dump \
+        -XX:SharedClassListFile=$TMPDIR/classes.lst \
+        -XX:SharedArchiveFile=$out/bits.jsa
+
+      test -f $out/bits.jsa
+    '';
+  # ---------------------------------------------------------------------------
+  # Container
+  image = dockerTools.buildLayeredImage {
+    name = "bits";
+    tag = version;
+
+    contents = [
+      glibc # JRE needs libc for dynamic linking
+      stdenv.cc.cc.lib # libstdc++ for brotli4j native library
+    ];
+
+    extraCommands = ''
+      mkdir -p ${appDir} ${jreDir} ${tmpDir}
+      chmod 1777 ${tmpDir}
+
+      cp ${uberjar} ${appDir}/bits.jar
+      cp ${appCds}/bits.jsa ${appDir}/bits.jsa
+      cp ${otel-agent}/lib/opentelemetry-javaagent.jar ${appDir}/
+      cp ${otel-agent-properties} ${appDir}/otel-agent.properties
+
+      cp -r ${customJre}/* ${jreDir}/
+    '';
+
+    config = {
+      Entrypoint =
+        [
+          "/${jreDir}/bin/java"
+          # OTEL agent
+          "-javaagent:/${appDir}/opentelemetry-javaagent.jar"
+          "-Dotel.javaagent.configuration-file=/${appDir}/otel-agent.properties"
+          # AppCDS
+          "-XX:SharedArchiveFile=/${appDir}/bits.jsa"
+        ]
+        ++ jvmOpts
+        ++ [
+          "-jar"
+          "/${appDir}/bits.jar"
+        ];
+
+      Env = [
+        "LD_LIBRARY_PATH=${libstdcxxPath}"
+      ];
+      ExposedPorts."3000/tcp" = {};
+      User = "1000:1000";
+      WorkingDir = "/${appDir}";
+    };
+  };
+in
+  image // { passthru = { imageTag = version; }; }

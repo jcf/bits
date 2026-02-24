@@ -1,0 +1,240 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, morph]
+    paths-ignore:
+      - .forgejo/workflows/bootstrap.yml
+      - pkgs/bits-ci/**
+  pull_request:
+    branches: [main, morph]
+    paths-ignore:
+      - .forgejo/workflows/bootstrap.yml
+      - pkgs/bits-ci/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  packages: read
+
+env:
+  CI: true
+  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:latest
+
+jobs:
+  check:
+    name: Check
+    runs-on: nixos
+    container:
+      image: ${{ env.IMAGE }}
+      credentials:
+        username: jcf
+        password: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check
+        run: just check
+
+  deps:
+    name: Deps
+    runs-on: nixos
+    container:
+      image: ${{ env.IMAGE }}
+      credentials:
+        username: jcf
+        password: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Clojure deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: clj-${{ hashFiles('deps.edn') }}
+          restore-keys: clj-
+
+      - name: Generate deps lock
+        run: just deps-lock
+
+      - name: Upload deps-lock.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps-lock
+          path: deps-lock.json
+
+      - name: Configure Attic cache
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: .forgejo/scripts/attic-setup.sh
+
+      - name: Build and cache deps
+        run: |
+          cache_path=$(devenv build outputs.bits-deps-cache 2>/dev/null)
+          attic push invetica:invetica "$cache_path"
+
+  test:
+    name: Test
+    runs-on: nixos
+    container:
+      image: ${{ env.IMAGE }}
+      credentials:
+        username: jcf
+        password: ${{ github.token }}
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: bits
+          POSTGRES_PASSWORD: please
+          POSTGRES_DB: bits_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Clojure deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: clj-${{ hashFiles('deps.edn') }}
+          restore-keys: clj-
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h postgres -p 5432 -U bits && exit 0
+            sleep 1
+          done
+          echo "Postgres failed to start"
+          exit 1
+
+      - name: Generate CSS
+        run: tailwindcss --input resources/tailwind.css --output resources/public/app.css
+
+      - name: Run tests
+        env:
+          CLUSTER_KEYSTORE_PASSWORD: correct-horse-battery-staple
+          DATABASE_URL: postgres://bits:please@postgres:5432/bits_test
+          PLATFORM_DOMAIN: localhost
+        run: just os=linux-x86_64 test --reporter documentation
+
+      - name: Upload browser sessions
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-sessions
+          path: target/browser-sessions
+          if-no-files-found: ignore
+
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: nixos
+    needs: [check, deps, test]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            output: bits-container-amd64
+          - arch: arm64
+            output: bits-container-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download deps-lock.json
+        uses: actions/download-artifact@v4
+        with:
+          name: deps-lock
+
+      - name: Stage deps-lock.json
+        run: git add -f deps-lock.json
+
+      - name: Configure Attic cache
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: .forgejo/scripts/attic-setup.sh
+
+      - name: Build container
+        id: build
+        run: |
+          set -euo pipefail
+          output=$(.forgejo/scripts/build.sh "${{ matrix.output }}" 2>&1) || {
+            echo "$output"
+            exit 1
+          }
+          image_path=$(echo "$output" | grep '^/nix/store/' | tail -1)
+          echo "image_path=$image_path" >> "$GITHUB_OUTPUT"
+
+      - name: Push to Attic cache
+        run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"
+
+      - name: Load and tag image
+        id: tag
+        run: .forgejo/scripts/tag-image.sh "${{ steps.build.outputs.image_path }}" "${{ matrix.arch }}"
+
+      - name: Push to Forgejo
+        env:
+          REGISTRY_USER: jcf
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
+        run: |
+          .forgejo/scripts/push-image.sh \
+            "${{ steps.build.outputs.image_path }}" \
+            "git.lan.invetica.co.uk/jcf/bits" \
+            "${{ steps.tag.outputs.version }}-${{ matrix.arch }}"
+
+      - name: Push to ghcr.io
+        env:
+          REGISTRY_USER: jcf
+          REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          .forgejo/scripts/push-image.sh \
+            "${{ steps.build.outputs.image_path }}" \
+            "ghcr.io/jcf/bits" \
+            "${{ steps.tag.outputs.version }}-${{ matrix.arch }}"
+
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+
+  manifest:
+    name: Create manifest
+    runs-on: nixos
+    needs: [build]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    container:
+      image: ${{ env.IMAGE }}
+      credentials:
+        username: jcf
+        password: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create Forgejo manifest
+        env:
+          REGISTRY_USER: jcf
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
+        run: |
+          .forgejo/scripts/create-manifest.sh \
+            "git.lan.invetica.co.uk/jcf/bits" \
+            "${{ needs.build.outputs.version }}" \
+            amd64 arm64
+
+      - name: Create ghcr.io manifest
+        env:
+          REGISTRY_USER: jcf
+          REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          .forgejo/scripts/create-manifest.sh \
+            "ghcr.io/jcf/bits" \
+            "${{ needs.build.outputs.version }}" \
+            amd64 arm64
