@@ -134,9 +134,10 @@
           (fs/create-dirs dir)
           (screenshot driver (str (fs/file dir "screenshot.png")))
           (spit (fs/file dir "page-source.html") (get-source driver))
-          (spit (fs/file dir "console.edn")
-                (with-out-str
-                  (pprint/pprint (e/get-logs (->etaoin driver)))))
+          (when (e/supports-logs? (->etaoin driver))
+            (spit (fs/file dir "console.edn")
+                  (with-out-str
+                    (pprint/pprint (e/get-logs (->etaoin driver))))))
           (throw (ex-info "Browser session failed?!"
                           {:dir       (str dir)
                            :timestamp ts}
