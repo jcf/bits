@@ -1,12 +1,12 @@
 {
   lib,
+  nix2container,
   otel-agent,
   otel-agent-properties,
-  pkgsLinux,
+  pkgs,
   uberjar,
-  version ? "dev",
 }: let
-  inherit (pkgsLinux) binutils dockerTools glibc runCommand stdenv temurin-bin-21;
+  inherit (pkgs) binutils buildEnv glibc runCommand stdenv temurin-bin-21 writeTextDir;
 
   # ---------------------------------------------------------------------------
   # Configuration
@@ -108,28 +108,48 @@
 
       test -f $out/bits.jsa
     '';
+
+  # Application files layer
+  appLayer = buildEnv {
+    name = "bits-app";
+    paths = [
+      (runCommand "bits-app-files" {} ''
+        mkdir -p $out/${appDir} $out/${tmpDir}
+        chmod 1777 $out/${tmpDir}
+        cp ${uberjar} $out/${appDir}/bits.jar
+        cp ${appCds}/bits.jsa $out/${appDir}/bits.jsa
+        cp ${otel-agent}/lib/opentelemetry-javaagent.jar $out/${appDir}/
+        cp ${otel-agent-properties} $out/${appDir}/otel-agent.properties
+      '')
+    ];
+  };
+
+  # JRE layer
+  jreLayer = buildEnv {
+    name = "bits-jre";
+    paths = [
+      (runCommand "bits-jre-files" {} ''
+        mkdir -p $out/${jreDir}
+        cp -r ${customJre}/* $out/${jreDir}/
+      '')
+    ];
+  };
+
+  # System libraries layer
+  libsLayer = buildEnv {
+    name = "bits-libs";
+    paths = [
+      glibc
+      stdenv.cc.cc.lib
+    ];
+  };
   # ---------------------------------------------------------------------------
   # Container
-  image = dockerTools.buildLayeredImage {
+in
+  nix2container.buildImage {
     name = "bits";
-    tag = version;
 
-    contents = [
-      glibc # JRE needs libc for dynamic linking
-      stdenv.cc.cc.lib # libstdc++ for brotli4j native library
-    ];
-
-    extraCommands = ''
-      mkdir -p ${appDir} ${jreDir} ${tmpDir}
-      chmod 1777 ${tmpDir}
-
-      cp ${uberjar} ${appDir}/bits.jar
-      cp ${appCds}/bits.jsa ${appDir}/bits.jsa
-      cp ${otel-agent}/lib/opentelemetry-javaagent.jar ${appDir}/
-      cp ${otel-agent-properties} ${appDir}/otel-agent.properties
-
-      cp -r ${customJre}/* ${jreDir}/
-    '';
+    copyToRoot = [libsLayer jreLayer appLayer];
 
     config = {
       Entrypoint =
@@ -154,6 +174,4 @@
       User = "1000:1000";
       WorkingDir = "/${appDir}";
     };
-  };
-in
-  image // { passthru = { imageTag = version; }; }
+  }

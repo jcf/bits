@@ -1,4 +1,9 @@
 inputs:
+  nix2container:
+    url: git+https://git.lan.invetica.co.uk/jcf/nix2container
+    inputs:
+      nixpkgs:
+        follows: nixpkgs
   clj-nix:
     url: git+https://git.lan.invetica.co.uk/jcf/clj-nix
     inputs:

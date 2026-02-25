@@ -2,29 +2,75 @@
 set -eu
 
 usage() {
-  echo >&2 "Usage: build.sh <output-name>"
+  echo >&2 "Usage: build.sh <package-name> [deps-lock-path]"
+  echo >&2 ""
+  echo >&2 "Example:"
+  echo >&2 "  build.sh bits-ci-amd64"
+  echo >&2 "  build.sh bits-container-amd64 /tmp/deps-lock.json"
+  echo >&2 ""
+  echo >&2 "When GITHUB_OUTPUT is set, writes image_path and tag to it."
 }
 
-if [[ $# -ne 1 ]]; then
+if [[ $# -lt 1 || $# -gt 2 ]]; then
   usage
-  exit 22 # EINVAL
+  exit 22
 fi
 
-output=$1
+package=$1
+deps_lock=${2:-}
 
-# Build the container
-devenv build "outputs.$output"
+cyan=$(tput setaf 6)
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+dim=$(tput dim)
+bold=$(tput bold)
+reset=$(tput sgr0)
 
-# Output the image tag from passthru
-tag=$(nix eval ".#devenv.config.outputs.$output.passthru.imageTag" --raw 2>&1) || {
-  echo >&2 "Error: Failed to get imageTag from outputs.$output"
-  echo >&2 "$tag"
-  exit 1
+say() {
+  echo "${cyan}==>${reset} ${bold}$*${reset}"
 }
 
-if [[ -z "$tag" ]]; then
-  echo >&2 "Error: imageTag is empty for outputs.$output"
+ok() {
+  echo "${green}ok:${reset} $*"
+}
+
+err() {
+  echo "${red}error:${reset} ${bold}$*${reset}" >&2
+}
+
+# Compute tag from git state (before any modifications)
+tag="$(date -u +%Y%m%d)-$(git rev-parse --short HEAD)"
+
+# Verify we're on a clean tree
+if [[ -n $(git status --porcelain) ]]; then
+  err "Refusing to build from dirty worktree"
+  git status --short >&2
   exit 1
 fi
 
+say "Building ${package}..."
+
+nix_args=(--no-link --print-out-paths --quiet)
+if [[ -n $deps_lock ]]; then
+  nix_args+=(--override-input deps-lock "path:$deps_lock")
+fi
+
+image_path=$(nix build ".#$package" "${nix_args[@]}")
+
+if [[ -z $image_path || ! -e $image_path ]]; then
+  err "Build failed or output path is invalid"
+  exit 1
+fi
+
+ok "Build complete"
+echo ""
+echo "${dim}image_path${reset}"
+echo "$image_path"
+echo ""
+echo "${dim}tag${reset}"
 echo "$tag"
+
+if [[ -n ${GITHUB_OUTPUT:-} ]]; then
+  echo "image_path=$image_path" >>"$GITHUB_OUTPUT"
+  echo "tag=$tag" >>"$GITHUB_OUTPUT"
+fi

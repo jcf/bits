@@ -1,62 +1,19 @@
 {
   config,
   lib,
-  inputs,
   pkgs,
   ...
 }: let
   root = config.devenv.root;
 
-  # Version from flake source info
-  version = let
-    # lastModifiedDate is YYYYMMDDHHMMSS format
-    date = builtins.substring 0 8 (toString (inputs.self.lastModifiedDate or 0));
-    # shortRev for clean (abc1234), dirtyShortRev for dirty (abc1234-dirty)
-    rev = inputs.self.shortRev or inputs.self.dirtyShortRev or "dirty";
-  in
-    if date == "0"
-    then "dirty"
-    else "${date}-${rev}";
-
   # Shared CI packages (keep in sync with bits-ci container)
   ci = import ./nix/ci.nix {inherit pkgs;};
-
   jdk = ci.jdk;
 
-  # Build uberjar with JDK 21 to avoid Clojure AOT + JDK 25 bytecode verification bug
-  # (ClassFormatError: Invalid index in LocalVariableTable). Runtime is still JDK 25.
-  jdk-build = pkgs.temurin-bin-21;
-
-  # clj-nix for deterministic Clojure dependency management
-  cljNix = inputs.clj-nix.packages.${pkgs.system};
-
-  bits-uberjar = pkgs.callPackage ./pkgs/bits-uberjar {
-    inherit version;
-    inherit (cljNix) fake-git mk-deps-cache;
-    jdk = jdk-build;
-  };
+  # Local packages
   datomic-pro = pkgs.callPackage ./pkgs/datomic-pro {};
   jaeger = pkgs.callPackage ./pkgs/jaeger {};
   otel-agent = pkgs.callPackage ./pkgs/opentelemetry-javaagent {};
-
-  # Container builder for a specific Linux system
-  mkContainer = system:
-    pkgs.callPackage ./pkgs/bits-container {
-      inherit otel-agent version;
-      pkgsLinux = import inputs.nixpkgs {inherit system;};
-      otel-agent-properties = ./resources/otel-agent.properties;
-      uberjar = bits-uberjar;
-    };
-
-  # Default container for local dev (Apple Silicon + OrbStack)
-  bits-container = mkContainer "aarch64-linux";
-
-  # CI container builder
-  mkCiContainer = system:
-    pkgs.callPackage ./pkgs/bits-ci {
-      inherit version;
-      pkgsLinux = import inputs.nixpkgs {inherit system;};
-    };
 
   dev = {
     upstreams = {
@@ -99,15 +56,6 @@ in {
     exec = "clojure -M:test:runner:linux-x86_64";
     before = ["devenv:enterTest"];
   };
-
-  outputs.bits-ci-amd64 = mkCiContainer "x86_64-linux";
-  outputs.bits-ci-arm64 = mkCiContainer "aarch64-linux";
-  outputs.bits-container = bits-container;
-  outputs.bits-container-amd64 = mkContainer "x86_64-linux";
-  outputs.bits-container-arm64 = mkContainer "aarch64-linux";
-  outputs.bits-uberjar = bits-uberjar;
-  outputs.bits-deps-cache = bits-uberjar.depsCache;
-  outputs.datomic-pro = datomic-pro;
 
   env = {
     CLOUDFLARE_API_TOKEN = "op://Employee/Cloudflare/tokens/terraform-cloud";

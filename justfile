@@ -214,18 +214,17 @@ deps-lock:
 # Build an AOT-compiled uberjar
 [group('build')]
 build:
-    devenv build outputs.bits-uberjar
+    nix build .#bits-uberjar
 
 # Build Datomic Pro output
 [group('build')]
 build-datomic:
-    devenv build outputs.datomic-pro
+    nix build .#datomic-pro
 
-# Build the container image
+# Build the container image and load into local Docker
 [group('build')]
 container:
-    rm -f .devenv/nix-eval-cache.db*
-    docker load < "$(devenv build outputs.bits-container 2>/dev/null)"
+    nix run .#bits-container-arm64.copyTo -- docker-daemon:bits:latest
 
 # Run the Docker image against the local devenv database
 [group('build')]

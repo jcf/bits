@@ -1,0 +1,159 @@
+{
+  "nodes": {
+    "clj-nix": {
+      "inputs": {
+        "devshell": "devshell",
+        "nix-fetcher-data": [
+          "nix-fetcher-data"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1771534738,
+        "narHash": "sha256-5Bi5c14C4kGSRvRq8nlnHF4GT5TKGs2vWnx/DZ16FHA=",
+        "ref": "refs/heads/main",
+        "rev": "5751969234c45823955a0fd348831068f1107453",
+        "revCount": 269,
+        "type": "git",
+        "url": "https://git.lan.invetica.co.uk/jcf/clj-nix"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.lan.invetica.co.uk/jcf/clj-nix"
+      }
+    },
+    "deps-lock": {
+      "flake": false,
+      "locked": {
+        "path": "./deps-lock.json",
+        "type": "path"
+      },
+      "original": {
+        "path": "./deps-lock.json",
+        "type": "path"
+      },
+      "parent": []
+    },
+    "devshell": {
+      "inputs": {
+        "nixpkgs": [
+          "clj-nix",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1768818222,
+        "narHash": "sha256-460jc0+CZfyaO8+w8JNtlClB2n4ui1RbHfPTLkpwhU8=",
+        "owner": "numtide",
+        "repo": "devshell",
+        "rev": "255a2b1725a20d060f566e4755dbf571bbbb5f76",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "devshell",
+        "type": "github"
+      }
+    },
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 1719745305,
+        "narHash": "sha256-xwgjVUpqSviudEkpQnioeez1Uo2wzrsMaJKJClh+Bls=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "c3c5ecc05edc7dafba779c6c1a61cd08ac6583e9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "nix-fetcher-data": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1755022803,
+        "narHash": "sha256-/QtBdVfZlrRJW5enUoWlBE2wrLXJBMJ45X0rZh0jiaU=",
+        "ref": "refs/heads/main",
+        "rev": "9da3926b1459d6ff15268072d1c51351b82811b9",
+        "revCount": 6,
+        "type": "git",
+        "url": "https://git.lan.invetica.co.uk/jcf/nix-fetcher-data"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.lan.invetica.co.uk/jcf/nix-fetcher-data"
+      }
+    },
+    "nix2container": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1767430085,
+        "narHash": "sha256-SiXJ6xv4pS2MDUqfj0/mmG746cGeJrMQGmoFgHLS25Y=",
+        "ref": "refs/heads/master",
+        "rev": "66f4b8a47e92aa744ec43acbb5e9185078983909",
+        "revCount": 222,
+        "type": "git",
+        "url": "https://git.lan.invetica.co.uk/jcf/nix2container"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.lan.invetica.co.uk/jcf/nix2container"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1771923393,
+        "narHash": "sha256-Fy0+UXELv9hOE8WjYhJt8fMDLYTU2Dqn3cX4BwoGBos=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ea7f1f06811ce7fcc81d6c6fd4213150c23edcf2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-lib": {
+      "locked": {
+        "lastModified": 1717284937,
+        "narHash": "sha256-lIbdfCsf8LMFloheeE6N31+BMIeixqyQWbSr2vk79EQ=",
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/eb9ceca17df2ea50a250b6b27f7bf6ab0186f198.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://github.com/NixOS/nixpkgs/archive/eb9ceca17df2ea50a250b6b27f7bf6ab0186f198.tar.gz"
+      }
+    },
+    "root": {
+      "inputs": {
+        "clj-nix": "clj-nix",
+        "deps-lock": "deps-lock",
+        "nix-fetcher-data": "nix-fetcher-data",
+        "nix2container": "nix2container",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

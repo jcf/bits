@@ -22,7 +22,8 @@ permissions:
 
 env:
   CI: true
-  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:latest
+  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260225-6cf9c4e
+  TERM: xterm
 
 jobs:
   check:
@@ -50,6 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure Attic cache
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: .forgejo/scripts/attic-setup.sh
+
       - name: Cache Clojure deps
         uses: actions/cache@v4
         with:
@@ -60,24 +66,17 @@ jobs:
           key: clj-${{ hashFiles('deps.edn') }}
           restore-keys: clj-
 
-      - name: Generate deps lock
-        run: just deps-lock
+      - name: Generate deps-lock.json
+        run: just deps-lock && mv deps-lock.json /tmp/
 
       - name: Upload deps-lock.json
         uses: actions/upload-artifact@v4
         with:
           name: deps-lock
-          path: deps-lock.json
-
-      - name: Configure Attic cache
-        env:
-          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
-        run: .forgejo/scripts/attic-setup.sh
+          path: /tmp/deps-lock.json
 
       - name: Build and cache deps
-        run: |
-          cache_path=$(devenv build outputs.bits-deps-cache 2>/dev/null)
-          attic push invetica:invetica "$cache_path"
+        run: .forgejo/scripts/cache-deps.sh /tmp/deps-lock.json
 
   test:
     name: Test
@@ -108,13 +107,7 @@ jobs:
           restore-keys: clj-
 
       - name: Wait for PostgreSQL
-        run: |
-          for i in $(seq 1 30); do
-            pg_isready -h postgres -p 5432 -U bits && exit 0
-            sleep 1
-          done
-          echo "Postgres failed to start"
-          exit 1
+        run: .forgejo/scripts/wait-postgres.sh postgres 5432 bits
 
       - name: Generate CSS
         run: tailwindcss --input resources/tailwind.css --output resources/public/app.css
@@ -155,9 +148,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: deps-lock
-
-      - name: Stage deps-lock.json
-        run: git add -f deps-lock.json
+          path: /tmp
 
       - name: Configure Attic cache
         env:
@@ -166,21 +157,10 @@ jobs:
 
       - name: Build container
         id: build
-        run: |
-          set -euo pipefail
-          output=$(.forgejo/scripts/build.sh "${{ matrix.output }}" 2>&1) || {
-            echo "$output"
-            exit 1
-          }
-          image_path=$(echo "$output" | grep '^/nix/store/' | tail -1)
-          echo "image_path=$image_path" >> "$GITHUB_OUTPUT"
+        run: .forgejo/scripts/build.sh "${{ matrix.output }}" /tmp/deps-lock.json
 
       - name: Push to Attic cache
         run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"
-
-      - name: Load and tag image
-        id: tag
-        run: .forgejo/scripts/tag-image.sh "${{ steps.build.outputs.image_path }}" "${{ matrix.arch }}"
 
       - name: Push to Forgejo
         env:
@@ -188,9 +168,10 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
         run: |
           .forgejo/scripts/push-image.sh \
-            "${{ steps.build.outputs.image_path }}" \
+            "${{ matrix.output }}" \
             "git.lan.invetica.co.uk/jcf/bits" \
-            "${{ steps.tag.outputs.version }}-${{ matrix.arch }}"
+            "${{ steps.build.outputs.tag }}-${{ matrix.arch }}" \
+            /tmp/deps-lock.json
 
       - name: Push to ghcr.io
         env:
@@ -198,12 +179,13 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           .forgejo/scripts/push-image.sh \
-            "${{ steps.build.outputs.image_path }}" \
+            "${{ matrix.output }}" \
             "ghcr.io/jcf/bits" \
-            "${{ steps.tag.outputs.version }}-${{ matrix.arch }}"
+            "${{ steps.build.outputs.tag }}-${{ matrix.arch }}" \
+            /tmp/deps-lock.json
 
     outputs:
-      version: ${{ steps.tag.outputs.version }}
+      version: ${{ steps.build.outputs.tag }}
 
   manifest:
     name: Create manifest

@@ -1,20 +1,20 @@
 {
   lib,
-  pkgsLinux,
-  version ? "dev",
+  nix2container,
+  pkgs,
 }: let
   # Shared CI packages (keep in sync with devenv.nix)
-  ci = import ../../nix/ci.nix {pkgs = pkgsLinux;};
+  ci = import ../../nix/ci.nix {inherit pkgs;};
 
   inherit
-    (pkgsLinux)
+    (pkgs)
     attic-client
     bash
+    buildEnv
     cacert
     coreutils
     curl
     devenv
-    dockerTools
     firefox
     geckodriver
     git
@@ -22,13 +22,16 @@
     gnutar
     gzip
     jq
+    ncurses
     nix
     nodejs
     openssh
     podman
     postgresql
+    runCommand
     skopeo
     stdenv
+    writeTextDir
     zsh
     ;
 
@@ -48,6 +51,7 @@
       gnutar
       gzip
       jq
+      ncurses
       nix
       nodejs
       openssh
@@ -60,7 +64,7 @@
     ++ ci.packages;
 
   # Nix configuration for single-user mode
-  nixConf = pkgsLinux.writeTextDir "etc/nix/nix.conf" ''
+  nixConf = writeTextDir "etc/nix/nix.conf" ''
     experimental-features = nix-command flakes
     sandbox = false
     accept-flake-config = true
@@ -68,16 +72,16 @@
   '';
 
   # Basic passwd/group for container
-  passwd = pkgsLinux.writeTextDir "etc/passwd" ''
+  passwd = writeTextDir "etc/passwd" ''
     root:x:0:0:root:/root:/bin/bash
   '';
 
-  group = pkgsLinux.writeTextDir "etc/group" ''
+  group = writeTextDir "etc/group" ''
     root:x:0:
   '';
 
   # NSS config for user lookups
-  nsswitch = pkgsLinux.writeTextDir "etc/nsswitch.conf" ''
+  nsswitch = writeTextDir "etc/nsswitch.conf" ''
     passwd: files
     group: files
     shadow: files
@@ -85,35 +89,39 @@
   '';
 
   # /usr/bin/env for scripts with #!/usr/bin/env shebang
-  usrBinEnv = pkgsLinux.runCommand "usr-bin-env" {} ''
+  usrBinEnv = runCommand "usr-bin-env" {} ''
     mkdir -p $out/usr/bin
     ln -s ${coreutils}/bin/env $out/usr/bin/env
   '';
+
+  # Directories layer
+  dirsLayer = runCommand "ci-dirs" {} ''
+    mkdir -p $out/root $out/tmp $out/nix/var/nix
+    chmod 1777 $out/tmp
+  '';
+
+  # Config files layer
+  configLayer = buildEnv {
+    name = "ci-config";
+    paths = [nixConf passwd group nsswitch usrBinEnv];
+  };
+
+  # Packages layer
+  packagesLayer = buildEnv {
+    name = "ci-packages";
+    paths = packages;
+  };
 in
-  dockerTools.buildLayeredImage {
-    name = "git.lan.invetica.co.uk/jcf/bits/bits-ci";
-    tag = version;
+  nix2container.buildImage {
+    name = "bits-ci";
 
-    contents =
-      packages
-      ++ [
-        nixConf
-        passwd
-        group
-        nsswitch
-        usrBinEnv
-      ];
-
-    extraCommands = ''
-      mkdir -p root tmp nix/var/nix
-      chmod 1777 tmp
-    '';
+    copyToRoot = [dirsLayer configLayer packagesLayer];
 
     config = {
       Env = [
         "HOME=/root"
         "LD_LIBRARY_PATH=${stdenv.cc.cc.lib}/lib"
-        "NIX_PATH=nixpkgs=${pkgsLinux.path}"
+        "NIX_PATH=nixpkgs=${pkgs.path}"
         "PATH=/bin:/usr/bin:${lib.makeBinPath packages}"
         "SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt"
         "USER=root"
