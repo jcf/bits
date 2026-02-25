@@ -62,8 +62,9 @@ if [[ -z $image_path || ! -e $image_path ]]; then
   exit 1
 fi
 
-# Get the copyTo script path while we have the flake evaluated
-copy_to=$(nix eval ".#$package.copyTo" --raw "${nix_args[@]}")
+# Build the copyTo script (separate derivation from the image)
+# nix2container uses writeShellApplication, so script is at bin/copy-to
+copy_to=$(nix build ".#$package.copyTo" "${nix_args[@]}")/bin/copy-to
 
 ok "Build complete"
 echo ""

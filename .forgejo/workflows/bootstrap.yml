@@ -31,7 +31,7 @@ jobs:
 
       - name: Build CI container
         id: build
-        run: .forgejo/scripts/build.sh bits-ci-amd64
+        run: .forgejo/scripts/build.sh bits-ci
 
       - name: Push closure to Attic cache
         run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"

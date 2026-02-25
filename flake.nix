@@ -74,9 +74,8 @@
           inherit (n2cLinux) nix2container;
         };
     in {
-      # CI containers
-      bits-ci-amd64 = mkCiContainer "x86_64-linux";
-      bits-ci-arm64 = mkCiContainer "aarch64-linux";
+      # CI container (amd64 only)
+      bits-ci = mkCiContainer "x86_64-linux";
 
       # Application containers
       bits-container-amd64 = mkContainer "x86_64-linux";
