@@ -62,15 +62,22 @@ if [[ -z $image_path || ! -e $image_path ]]; then
   exit 1
 fi
 
+# Get the copyTo script path while we have the flake evaluated
+copy_to=$(nix eval ".#$package.copyTo" --raw "${nix_args[@]}")
+
 ok "Build complete"
 echo ""
 echo "${dim}image_path${reset}"
 echo "$image_path"
+echo ""
+echo "${dim}copy_to${reset}"
+echo "$copy_to"
 echo ""
 echo "${dim}tag${reset}"
 echo "$tag"
 
 if [[ -n ${GITHUB_OUTPUT:-} ]]; then
   echo "image_path=$image_path" >>"$GITHUB_OUTPUT"
+  echo "copy_to=$copy_to" >>"$GITHUB_OUTPUT"
   echo "tag=$tag" >>"$GITHUB_OUTPUT"
 fi

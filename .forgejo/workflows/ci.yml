@@ -169,10 +169,9 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
         run: |
           .forgejo/scripts/push-image.sh \
-            "${{ matrix.output }}" \
+            "${{ steps.build.outputs.copy_to }}" \
             "git.lan.invetica.co.uk/jcf/bits" \
-            "${{ steps.build.outputs.tag }}-${{ matrix.arch }}" \
-            /tmp/deps-lock.json
+            "${{ steps.build.outputs.tag }}-${{ matrix.arch }}"
 
       - name: Push to ghcr.io
         env:
@@ -180,10 +179,9 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           .forgejo/scripts/push-image.sh \
-            "${{ matrix.output }}" \
+            "${{ steps.build.outputs.copy_to }}" \
             "ghcr.io/jcf/bits" \
-            "${{ steps.build.outputs.tag }}-${{ matrix.arch }}" \
-            /tmp/deps-lock.json
+            "${{ steps.build.outputs.tag }}-${{ matrix.arch }}"
 
     outputs:
       version: ${{ steps.build.outputs.tag }}

@@ -41,5 +41,5 @@ jobs:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
         run: |
-          .forgejo/scripts/push-image.sh bits-ci-amd64 "git.lan.invetica.co.uk/jcf/bits-ci" "${{ steps.build.outputs.tag }}"
-          .forgejo/scripts/push-image.sh bits-ci-amd64 "git.lan.invetica.co.uk/jcf/bits-ci" "latest"
+          .forgejo/scripts/push-image.sh "${{ steps.build.outputs.copy_to }}" "git.lan.invetica.co.uk/jcf/bits-ci" "${{ steps.build.outputs.tag }}"
+          .forgejo/scripts/push-image.sh "${{ steps.build.outputs.copy_to }}" "git.lan.invetica.co.uk/jcf/bits-ci" "latest"
