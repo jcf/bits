@@ -7,7 +7,7 @@
  {:consistent-alias
   {:aliases {bits.test.app         t
              clojure.spec.alpha    s
-             datahike.api          d
+             datomic.api           d
              etaoin.api            e
              reitit.coercion.malli coercion.malli
              reitit.ring.coercion  ring.coercion}}
@@ -16,13 +16,4 @@
   {:exclude {com.stuartsierra.component.repl [system]}}
 
   :unresolved-symbol
-  {:exclude [(clojure.test/is [match?])]}
-
-  :unresolved-var
-  {:exclude [datahike.api/connect
-             datahike.api/create-database
-             datahike.api/delete-database
-             datahike.api/pull
-             datahike.api/q
-             datahike.api/release
-             datahike.api/transact]}}}
+  {:exclude [(clojure.test/is [match?])]}}}
