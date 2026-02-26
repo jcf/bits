@@ -88,6 +88,11 @@
     hosts: files dns
   '';
 
+  # Container policy for podman/skopeo
+  containersPolicy = writeTextDir "etc/containers/policy.json" ''
+    {"default": [{"type": "insecureAcceptAnything"}]}
+  '';
+
   # /usr/bin/env for scripts with #!/usr/bin/env shebang
   usrBinEnv = runCommand "usr-bin-env" {} ''
     mkdir -p $out/usr/bin
@@ -103,7 +108,7 @@
   # Config files layer
   configLayer = buildEnv {
     name = "ci-config";
-    paths = [nixConf passwd group nsswitch usrBinEnv];
+    paths = [containersPolicy nixConf nsswitch passwd group usrBinEnv];
   };
 
   # Packages layer

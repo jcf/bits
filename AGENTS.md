@@ -50,6 +50,25 @@ Do **not** use full GitHub URLs as this bypasses the mirror and is extremely slo
 The CI container (`bits-ci`) is built via the bootstrap workflow and pushed to
 the Forgejo registry. Update the `IMAGE` env var in `ci.yml` after rebuilding.
 
+### Step Naming
+
+Step names should be short and succinct. Follow these guidelines:
+
+- **Remove redundancy** — "Configure Attic" not "Configure Attic cache" (Attic is
+  a cache). "Push to Attic" not "Push to Attic cache".
+- **Use generic language** — "Build container" not "Build CI container" when the
+  job context makes it clear.
+- **Describe purpose over mechanics** — "Generate Clojure checksums" not
+  "Generate deps-lock.json". What does it do, not what file does it produce.
+- **Drop verbs when context provides them** — In a job named "Create manifest",
+  steps can be "Forgejo manifest" and "GitHub manifest" rather than "Create
+  Forgejo manifest".
+- **Keep verbs when the noun is ambiguous** — "Build container" needs the verb
+  because containers can be built, pushed, or pulled. "Push to Forgejo" needs
+  the verb to distinguish from other registry operations.
+- **Wrap long lines** — Use shell continuation (`\`) to keep lines under 80
+  columns.
+
 ## Tailwind CSS
 
 Tailwind CSS is generated from a Selmer template at

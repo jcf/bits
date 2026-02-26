@@ -52,12 +52,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure Attic cache
+      - name: Configure Attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: .forgejo/scripts/attic-setup.sh
 
-      - name: Cache Clojure deps
+      - name: Restore deps
         uses: actions/cache@v4
         with:
           path: |
@@ -67,16 +67,16 @@ jobs:
           key: clj-${{ hashFiles('deps.edn') }}
           restore-keys: clj-
 
-      - name: Generate deps-lock.json
+      - name: Generate Clojure checksums
         run: just deps-lock && mv deps-lock.json /tmp/
 
-      - name: Upload deps-lock.json
+      - name: Upload Clojure checksums
         uses: actions/upload-artifact@v4
         with:
           name: deps-lock
           path: /tmp/deps-lock.json
 
-      - name: Build and cache deps
+      - name: Cache Clojure deps
         run: .forgejo/scripts/cache-deps.sh /tmp/deps-lock.json
 
   test:
@@ -97,7 +97,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Clojure deps
+      - name: Restore deps
         uses: actions/cache@v4
         with:
           path: |
@@ -107,13 +107,13 @@ jobs:
           key: clj-${{ hashFiles('deps.edn') }}
           restore-keys: clj-
 
-      - name: Wait for PostgreSQL
+      - name: Wait for Postgres
         run: .forgejo/scripts/wait-postgres.sh postgres 5432 bits
 
       - name: Generate CSS
         run: tailwindcss --input resources/tailwind.css --output resources/public/app.css
 
-      - name: Run tests
+      - name: Test
         env:
           CLUSTER_KEYSTORE_PASSWORD: correct-horse-battery-staple
           DATABASE_URL: postgres://bits:please@postgres:5432/bits_test
@@ -145,13 +145,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download deps-lock.json
+      - name: Download Clojure checksums
         uses: actions/download-artifact@v4
         with:
           name: deps-lock
           path: /tmp
 
-      - name: Configure Attic cache
+      - name: Configure Attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: .forgejo/scripts/attic-setup.sh
@@ -160,7 +160,7 @@ jobs:
         id: build
         run: .forgejo/scripts/build.sh "${{ matrix.output }}" /tmp/deps-lock.json
 
-      - name: Push to Attic cache
+      - name: Push to Attic
         run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"
 
       - name: Push to Forgejo
@@ -173,7 +173,7 @@ jobs:
             "git.lan.invetica.co.uk/jcf/bits" \
             "${{ steps.build.outputs.tag }}-${{ matrix.arch }}"
 
-      - name: Push to ghcr.io
+      - name: Push to GitHub
         env:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -200,7 +200,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create Forgejo manifest
+      - name: Forgejo manifest
         env:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
@@ -210,7 +210,7 @@ jobs:
             "${{ needs.build.outputs.version }}" \
             amd64 arm64
 
-      - name: Create ghcr.io manifest
+      - name: GitHub manifest
         env:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
