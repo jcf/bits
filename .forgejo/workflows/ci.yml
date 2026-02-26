@@ -25,6 +25,9 @@ env:
   IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260226-bc992f8
   TERM: xterm
 
+  # Set to 'true' when ready to publish container images to registries
+  PUSH_IMAGES: false
+
 jobs:
   check:
     name: Check
@@ -163,6 +166,7 @@ jobs:
         run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"
 
       - name: Push to Forgejo
+        if: env.PUSH_IMAGES == 'true'
         env:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
@@ -173,6 +177,7 @@ jobs:
             "${{ steps.build.outputs.tag }}-${{ matrix.arch }}"
 
       - name: Push to GitHub
+        if: env.PUSH_IMAGES == 'true'
         env:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -189,7 +194,9 @@ jobs:
     name: Create manifest
     runs-on: nixos
     needs: [build]
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: |
+      env.PUSH_IMAGES == 'true' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     container:
       image: ${{ env.IMAGE }}
       credentials:
