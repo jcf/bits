@@ -12,6 +12,54 @@ usage() {
   echo >&2 "  REGISTRY_TOKEN  Token for registry authentication"
 }
 
+cyan=$(tput setaf 6)
+yellow=$(tput setaf 3)
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+bold=$(tput bold)
+reset=$(tput sgr0)
+
+say() {
+  echo "${cyan}==>${reset} ${bold}$*${reset}"
+}
+
+ok() {
+  echo "${green}ok:${reset} $*"
+}
+
+warn() {
+  echo "${yellow}wait:${reset} $*"
+}
+
+err() {
+  echo >&2 "${red}error:${reset} $*"
+}
+
+# Wait for an image to be available in the registry with exponential backoff
+wait_for_image() {
+  local img=$1
+  local auth=$2
+  local max_attempts=6
+  local delay=2
+
+  say "Checking $img..."
+
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    if skopeo inspect --authfile "$auth" "docker://$img" >/dev/null 2>&1; then
+      ok "Found"
+      return 0
+    fi
+    if ((attempt < max_attempts)); then
+      warn "Attempt $attempt/$max_attempts, retrying in ${delay}s..."
+      sleep "$delay"
+      delay=$((delay * 2))
+    fi
+  done
+
+  err "$img not available after $max_attempts attempts"
+  return 1
+}
+
 if [[ $# -lt 3 ]]; then
   usage
   exit 22 # EINVAL
@@ -25,7 +73,9 @@ archs=("$@")
 registry="${image%%/*}"
 authfile="${REGISTRY_AUTH_FILE:-$(mktemp -d)/auth.json}"
 
-echo "$REGISTRY_TOKEN" | podman login "$registry" -u "$REGISTRY_USER" --authfile "$authfile" --password-stdin
+say "Logging in to $registry..."
+echo "$REGISTRY_TOKEN" |
+  podman login "$registry" -u "$REGISTRY_USER" --authfile "$authfile" --password-stdin
 
 # Build list of arch-specific images
 arch_images=()
@@ -33,12 +83,31 @@ for arch in "${archs[@]}"; do
   arch_images+=("$image:$version-$arch")
 done
 
-# Create versioned manifest
-podman manifest create "$image:$version" "${arch_images[@]}"
-podman manifest push --authfile "$authfile" "$image:$version" "docker://$image:$version"
-echo "Pushed: $image:$version"
+# Wait for all arch images to be available
+for img in "${arch_images[@]}"; do
+  wait_for_image "$img" "$authfile"
+done
 
-# Create latest manifest
-podman manifest create "$image:latest" "${arch_images[@]}"
-podman manifest push --authfile "$authfile" "$image:latest" "docker://$image:latest"
-echo "Pushed: $image:latest"
+# Create and push versioned manifest
+say "Creating manifest $image:$version..."
+podman manifest create \
+  --authfile "$authfile" \
+  "$image:$version" \
+  "${arch_images[@]}"
+podman manifest push \
+  --authfile "$authfile" \
+  "$image:$version" \
+  "docker://$image:$version"
+ok "Pushed $image:$version"
+
+# Create and push latest manifest
+say "Creating manifest $image:latest..."
+podman manifest create \
+  --authfile "$authfile" \
+  "$image:latest" \
+  "${arch_images[@]}"
+podman manifest push \
+  --authfile "$authfile" \
+  "$image:latest" \
+  "docker://$image:latest"
+ok "Pushed $image:latest"
