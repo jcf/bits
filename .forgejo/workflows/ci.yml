@@ -22,8 +22,7 @@ permissions:
 
 env:
   CI: true
-  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260226-afd65e9
-
+  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260226-d2d68ea
   TERM: xterm
 
 jobs:
