@@ -1,4 +1,5 @@
 {
+  deps-lock,
   lib,
   nix2container,
   pkgs,
@@ -40,6 +41,7 @@
     [
       attic-client
       bash
+      deps-lock
       cacert
       coreutils
       curl

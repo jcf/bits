@@ -69,9 +69,11 @@
       mkCiContainer = targetSystem: let
         pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
         n2cLinux = nix2container.packages.${targetSystem};
+        cljNixLinux = clj-nix.packages.${targetSystem};
       in
         pkgsLinux.callPackage ./pkgs/bits-ci {
           inherit (n2cLinux) nix2container;
+          inherit (cljNixLinux) deps-lock;
         };
     in {
       # CI container (amd64 only)

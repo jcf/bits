@@ -68,7 +68,7 @@ jobs:
           restore-keys: clj-
 
       - name: Generate Clojure checksums
-        run: just deps-lock && mv deps-lock.json /tmp/
+        run: deps-lock && mv deps-lock.json /tmp/
 
       - name: Upload Clojure checksums
         uses: actions/upload-artifact@v4
