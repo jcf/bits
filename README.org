@@ -125,7 +125,8 @@ Available recipes:
     [build]
     build                              # Build an AOT-compiled uberjar
     build-datomic                      # Build Datomic Pro output
-    docker-build tag="bits:latest"     # Build the Docker image
+    container                          # Build the container image and load into local Docker
+    deps-lock                          # Regenerate deps-lock.json
     docker-run tag="bits:latest" *args # Run the Docker image against the local devenv database
 
     [dev]
@@ -133,8 +134,7 @@ Available recipes:
     clj-kondo-import                   # Import clj-kondo configs
     cluster-certs                      # Generate cluster keystores
     css                                # Regenerate Tailwind CSS from template
-    fmt                                # Format project files
-    market                             # Run the marketing site
+    fmt *args                          # Format project files
     mkcert                             # Create self-signed SSL certificates via mkcert
     nrepl *args
     setup                              # Setup a local development environment
@@ -158,6 +158,7 @@ Available recipes:
     psql *args                         # Start an interactive psql session connected to the local development database
 
     [test]
+    check                              # Run all quality checks (format + lint)
     compile                            # Compile bits.main
     lint                               # Run lints
     perf *args                         # Run tests with performance tracing output
@@ -177,38 +178,39 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
  Language              Files        Lines         Code     Comments       Blanks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Astro                    10          165          139            0           26
- Clojure                  66         6749         5328          505          916
+ Clojure                  66         6751         5330          505          916
  CSS                       2           84           69            4           11
  Dockerfile                1           82           58            7           17
  Edn                       2          136          121            1           14
- HCL                      12          389          323           13           53
- JavaScript                5          317          262           20           35
+ HCL                      12          386          320           13           53
+ JavaScript                5          305          250           20           35
  JSON                      4           59           59            0            0
- Just                      1          288          179           60           49
+ Just                      1          292          181           61           50
  MDX                       1           56            0           39           17
- Nix                       6          626          525           15           86
- Org                      15         2325         2031            5          289
+ Nix                      11         1131          861          122          148
+ Org                      15         2335         2039            5          291
  SQL                       4           43           37            0            6
  SVG                       2           12           12            0            0
- TOML                      1           46           41            0            5
+ TOML                      1           43           38            0            5
  TypeScript                3           36           30            1            5
  XML                       1           18           14            1            3
- YAML                      3         5056         3971            0         1085
+ YAML                      3         5073         3988            0         1085
 ─────────────────────────────────────────────────────────────────────────────────
  HTML                      1           76           72            0            4
  |- CSS                    1          171          151            0           20
  (Total)                              247          223            0           24
 ─────────────────────────────────────────────────────────────────────────────────
- Markdown                  1          353            0          229          124
+ Markdown                  1          404            0          266          138
  |- Clojure                1          238          152           50           36
  |- Org                    1           19           12            0            7
  |- Rust                   1           68           49           10            9
- (Total)                              678          213          289          176
+ |- YAML                   1            1            1            0            0
+ (Total)                              730          214          326          190
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- Total                   141        17412        13635          960         2817
+ Total                   146        17984        13983         1105         2896
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-b7e5dbd @ 2026/02/23 00:00
+83a623b @ 2026/02/26 23:46
 #+end_example
 
 * TODOs
