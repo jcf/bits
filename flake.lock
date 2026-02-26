@@ -17,11 +17,11 @@
         "rev": "5751969234c45823955a0fd348831068f1107453",
         "revCount": 269,
         "type": "git",
-        "url": "https://git.lan.invetica.co.uk/jcf/clj-nix"
+        "url": "https://code.invetica.team/jcf/clj-nix"
       },
       "original": {
         "type": "git",
-        "url": "https://git.lan.invetica.co.uk/jcf/clj-nix"
+        "url": "https://code.invetica.team/jcf/clj-nix"
       }
     },
     "deps-lock": {
@@ -89,11 +89,11 @@
         "rev": "9da3926b1459d6ff15268072d1c51351b82811b9",
         "revCount": 6,
         "type": "git",
-        "url": "https://git.lan.invetica.co.uk/jcf/nix-fetcher-data"
+        "url": "https://code.invetica.team/jcf/nix-fetcher-data"
       },
       "original": {
         "type": "git",
-        "url": "https://git.lan.invetica.co.uk/jcf/nix-fetcher-data"
+        "url": "https://code.invetica.team/jcf/nix-fetcher-data"
       }
     },
     "nix2container": {
@@ -109,20 +109,20 @@
         "rev": "66f4b8a47e92aa744ec43acbb5e9185078983909",
         "revCount": 222,
         "type": "git",
-        "url": "https://git.lan.invetica.co.uk/jcf/nix2container"
+        "url": "https://code.invetica.team/jcf/nix2container"
       },
       "original": {
         "type": "git",
-        "url": "https://git.lan.invetica.co.uk/jcf/nix2container"
+        "url": "https://code.invetica.team/jcf/nix2container"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1771923393,
-        "narHash": "sha256-Fy0+UXELv9hOE8WjYhJt8fMDLYTU2Dqn3cX4BwoGBos=",
+        "lastModified": 1772082373,
+        "narHash": "sha256-wySf8a6hvuqgFdwvvzPPTARBCMLDz7WFAufGkllD1M4=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ea7f1f06811ce7fcc81d6c6fd4213150c23edcf2",
+        "rev": "26eaeac4e409d7b5a6bf6f90a2a2dc223c78d915",
         "type": "github"
       },
       "original": {

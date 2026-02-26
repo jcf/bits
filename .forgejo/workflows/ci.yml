@@ -22,7 +22,7 @@ permissions:
 
 env:
   CI: true
-  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260226-bc992f8
+  IMAGE: code.invetica.team/jcf/bits-ci:20260226-bc992f8
   TERM: xterm
 
   # Set to 'true' when ready to publish container images to registries
@@ -173,7 +173,7 @@ jobs:
         run: |
           .forgejo/scripts/push-image.sh \
             "${{ steps.build.outputs.copy_to }}" \
-            "git.lan.invetica.co.uk/jcf/bits" \
+            "code.invetica.team/jcf/bits" \
             "${{ steps.build.outputs.tag }}-${{ matrix.arch }}"
 
       - name: Push to GitHub
@@ -212,7 +212,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
         run: |
           .forgejo/scripts/create-manifest.sh \
-            "git.lan.invetica.co.uk/jcf/bits" \
+            "code.invetica.team/jcf/bits" \
             "${{ needs.build.outputs.version }}" \
             amd64 arm64
 

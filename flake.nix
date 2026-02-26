@@ -5,18 +5,18 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     nix2container = {
-      url = "git+https://git.lan.invetica.co.uk/jcf/nix2container";
+      url = "git+https://code.invetica.team/jcf/nix2container";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     clj-nix = {
-      url = "git+https://git.lan.invetica.co.uk/jcf/clj-nix";
+      url = "git+https://code.invetica.team/jcf/clj-nix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.nix-fetcher-data.follows = "nix-fetcher-data";
     };
 
     nix-fetcher-data = {
-      url = "git+https://git.lan.invetica.co.uk/jcf/nix-fetcher-data";
+      url = "git+https://code.invetica.team/jcf/nix-fetcher-data";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

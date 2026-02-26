@@ -19,7 +19,7 @@ See `just --list` for all available commands.
 
 ## Forgejo CI
 
-CI runs on a self-hosted Forgejo instance at `git.lan.invetica.co.uk`. Workflows
+CI runs on a self-hosted Forgejo instance at `code.invetica.team`. Workflows
 live in `.forgejo/workflows/`.
 
 ### Mirrored Actions
@@ -40,7 +40,7 @@ instead.
 To use a new action, first mirror it to Forgejo, then reference it normally:
 
 ```yaml
-uses: actions/checkout@v4 # Resolves to git.lan.invetica.co.uk/actions/checkout
+uses: actions/checkout@v4 # Resolves to code.invetica.team/actions/checkout
 ```
 
 Do **not** use full GitHub URLs as this bypasses the mirror and is extremely slow.

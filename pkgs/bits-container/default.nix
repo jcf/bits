@@ -154,7 +154,7 @@ in
     config = {
       Labels = {
         "org.opencontainers.image.description" = "Bits application server";
-        "org.opencontainers.image.source" = "https://git.lan.invetica.co.uk/jcf/bits";
+        "org.opencontainers.image.source" = "https://code.invetica.team/jcf/bits";
         "org.opencontainers.image.title" = "bits";
       };
 

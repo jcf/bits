@@ -209,7 +209,7 @@ perf *args:
 # Regenerate deps-lock.json
 [group('build')]
 deps-lock:
-    nix run 'git+https://git.lan.invetica.co.uk/jcf/clj-nix?rev=5751969234c45823955a0fd348831068f1107453#deps-lock'
+    nix run 'git+https://code.invetica.team/jcf/clj-nix?rev=5751969234c45823955a0fd348831068f1107453#deps-lock'
 
 # Build an AOT-compiled uberjar
 [group('build')]
