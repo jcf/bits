@@ -22,7 +22,7 @@ permissions:
 
 env:
   CI: true
-  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260225-afb6e55
+  IMAGE: git.lan.invetica.co.uk/jcf/bits-ci:20260226-afd65e9
 
   TERM: xterm
 
