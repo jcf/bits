@@ -121,6 +121,7 @@
 in
   nix2container.buildImage {
     name = "bits-ci";
+    maxLayers = 2;
 
     copyToRoot = [dirsLayer configLayer packagesLayer];
 
