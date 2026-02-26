@@ -43,7 +43,10 @@ say "Pushing to ${registry}..."
 echo "$REGISTRY_TOKEN" | skopeo login "$registry" -u "$REGISTRY_USER" --authfile "$authfile" --password-stdin
 
 # Use the pre-built copyTo script directly (no flake re-evaluation)
-"$copy_to" --dest-authfile "$authfile" "docker://$image:$tag"
+"$copy_to" \
+  --dest-authfile "$authfile" \
+  --dest-compress-format zstd \
+  "docker://$image:$tag"
 
 ok "Pushed"
 echo ""
