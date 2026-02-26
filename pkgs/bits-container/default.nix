@@ -152,6 +152,12 @@ in
     copyToRoot = [libsLayer jreLayer appLayer];
 
     config = {
+      Labels = {
+        "org.opencontainers.image.description" = "Bits application server";
+        "org.opencontainers.image.source" = "https://git.lan.invetica.co.uk/jcf/bits";
+        "org.opencontainers.image.title" = "bits";
+      };
+
       Entrypoint =
         [
           "/${jreDir}/bin/java"
