@@ -50,6 +50,18 @@ in {
     ./nix/modules/claude-code.nix
   ];
 
+  profiles = {
+    hostname."compute".module = {
+      env.PG_CONN_STR = "postgres:///terraform_bits?host=/run/postgresql";
+    };
+    hostname."max".module = {
+      env.PG_CONN_STR = "postgres://max@compute:5432/terraform_bits?sslmode=verify-full";
+    };
+    hostname."mini".module = {
+      env.PG_CONN_STR = "postgres://mini@compute:5432/terraform_bits?sslmode=verify-full";
+    };
+  };
+
   cachix.enable = false;
 
   tasks."test:clojure" = {

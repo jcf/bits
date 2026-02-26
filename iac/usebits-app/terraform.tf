@@ -1,6 +1,5 @@
 terraform {
   backend "pg" {
-    conn_str    = "postgres://terraform@compute:5432/terraform?sslmode=verify-full"
     schema_name = "usebits_app"
   }
 
@@ -16,7 +15,6 @@ data "terraform_remote_state" "dns" {
   backend = "pg"
 
   config = {
-    conn_str    = "postgres://terraform@compute:5432/terraform?sslmode=verify-full"
     schema_name = "dns"
   }
 }
