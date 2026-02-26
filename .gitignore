@@ -27,6 +27,7 @@
 /.mcp.json
 /.nrepl-history
 /.nrepl-port
+/.terraform-plans/
 /certs/
 /resources/public/app.css
 /result
