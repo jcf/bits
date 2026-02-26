@@ -75,7 +75,7 @@ jobs:
           name: deps-lock
           path: /tmp/deps-lock.json
 
-      - name: Cache Clojure deps
+      - name: Push deps to Attic
         run: .forgejo/scripts/cache-deps.sh /tmp/deps-lock.json
 
   test:
