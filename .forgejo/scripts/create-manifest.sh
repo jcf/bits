@@ -38,13 +38,14 @@ err() {
 # Wait for an image to be available in the registry with exponential backoff
 wait_for_image() {
   local img=$1
+  local auth=$2
   local max_attempts=6
   local delay=2
 
   say "Checking $img..."
 
   for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-    if skopeo inspect "docker://$img" >/dev/null 2>&1; then
+    if skopeo inspect --authfile "$auth" "docker://$img" >/dev/null 2>&1; then
       ok "Found"
       return 0
     fi
@@ -70,11 +71,12 @@ shift 2
 archs=("$@")
 
 registry="${image%%/*}"
-export REGISTRY_AUTH_FILE="${REGISTRY_AUTH_FILE:-$(mktemp -d)/auth.json}"
+authfile="${REGISTRY_AUTH_FILE:-$(mktemp -d)/auth.json}"
 
 say "Logging in to $registry..."
 echo "$REGISTRY_TOKEN" |
-  podman login "$registry" -u "$REGISTRY_USER" --password-stdin
+  podman login "$registry" -u "$REGISTRY_USER" \
+    --authfile "$authfile" --password-stdin
 
 # Build list of arch-specific images
 arch_images=()
@@ -84,17 +86,20 @@ done
 
 # Wait for all arch images to be available
 for img in "${arch_images[@]}"; do
-  wait_for_image "$img"
+  wait_for_image "$img" "$authfile"
 done
 
-# Create and push versioned manifest
-say "Creating manifest $image:$version..."
-podman manifest create "$image:$version" "${arch_images[@]}"
-podman manifest push "$image:$version" "docker://$image:$version"
-ok "Pushed $image:$version"
+# Helper to create, populate and push a manifest
+push_manifest() {
+  local tag=$1
+  say "Creating manifest $image:$tag..."
+  podman manifest create "$image:$tag"
+  for img in "${arch_images[@]}"; do
+    podman manifest add --authfile "$authfile" "$image:$tag" "$img"
+  done
+  podman manifest push --authfile "$authfile" "$image:$tag" "docker://$image:$tag"
+  ok "Pushed $image:$tag"
+}
 
-# Create and push latest manifest
-say "Creating manifest $image:latest..."
-podman manifest create "$image:latest" "${arch_images[@]}"
-podman manifest push "$image:latest" "docker://$image:latest"
-ok "Pushed $image:latest"
+push_manifest "$version"
+push_manifest "latest"
