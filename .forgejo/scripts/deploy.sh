@@ -44,14 +44,18 @@ cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
 say "Reloading systemd..."
 systemctl --user daemon-reload
 
+say "Available units..."
+systemctl --user list-unit-files 'bits*' || true
+
 say "Logging in to $registry..."
 podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
 
 say "Pulling $image..."
 podman pull "$image"
 
-say "Restarting $service..."
-systemctl --user restart "$service"
+say "Starting services..."
+systemctl --user start bits-postgres.service
+systemctl --user start "$service"
 
 say "Waiting for $service..."
 for i in {1..24}; do
