@@ -7,6 +7,7 @@
   lockfile,
   mk-deps-cache,
   stdenv,
+  tailwindcss_4,
   version ? "dev",
 }: let
   root = ../..;
@@ -43,7 +44,7 @@ in
     pname = "bits-uberjar";
     inherit version;
     src = fullSrc;
-    nativeBuildInputs = [cacert clj fake-git jdk];
+    nativeBuildInputs = [cacert clj fake-git jdk tailwindcss_4];
 
     SSL_CERT_FILE = sslCertFile;
     GIT_SSL_CAINFO = sslCertFile;
@@ -55,6 +56,10 @@ in
     # https://clojure.org/reference/deps_and_cli#_clojure_cli_usage
     buildPhase = ''
       runHook preBuild
+
+      # Generate Tailwind CSS
+      mkdir -p resources/public
+      tailwindcss --input resources/tailwind.css --output resources/public/app.css
 
       # Point HOME directly to deps cache (contains .m2, .gitlibs, .clojure)
       export HOME="${depsCache}"
