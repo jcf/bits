@@ -1,6 +1,5 @@
 {
   datomic-pro,
-  dockerTools,
   envsubst,
   lib,
   nix2container,
@@ -29,41 +28,50 @@
     object-cache-max=128m
   '';
 
-  # Startup script that renders template and runs transactor
-  startScript =
-    runCommand "start-transactor" {
-      nativeBuildInputs = [pkgs.makeWrapper];
-    } ''
-      mkdir -p $out/bin
-      cat > $out/bin/start-transactor << 'EOF'
-      #!/bin/sh
-      set -eu
-      envsubst < /app/transactor.properties.template > /tmp/transactor.properties
-      exec datomic-transactor /tmp/transactor.properties
-      EOF
-      chmod +x $out/bin/start-transactor
-    '';
-
-  # Application layer
+  # Application layer - copy everything to /app to avoid /bin conflicts
   appLayer = buildEnv {
     name = "datomic-transactor-app";
     paths = [
-      datomic-pro
-      envsubst
-      startScript
       propertiesTemplate
+      (runCommand "datomic-transactor-files" {} ''
+        mkdir -p $out/${appDir}/bin $out/tmp
+        chmod 1777 $out/tmp
+
+        # Copy datomic-pro bin directory contents
+        cp -r ${datomic-pro}/bin/* $out/${appDir}/bin/
+        cp -r ${datomic-pro}/lib $out/${appDir}/
+        cp -r ${datomic-pro}/share $out/${appDir}/
+
+        # Copy envsubst
+        cp ${envsubst}/bin/envsubst $out/${appDir}/bin/
+
+        # Create startup script
+        cat > $out/${appDir}/bin/start-transactor << 'EOF'
+        #!/bin/sh
+        set -eu
+        /${appDir}/bin/envsubst < /${appDir}/transactor.properties.template > /tmp/transactor.properties
+        exec /${appDir}/bin/datomic-transactor /tmp/transactor.properties
+        EOF
+        chmod +x $out/${appDir}/bin/start-transactor
+      '')
     ];
   };
 
-  # System libraries layer
+  # System libraries layer - only libs, no /bin
   libsLayer = buildEnv {
     name = "datomic-transactor-libs";
     paths = [
-      glibc
-      stdenv.cc.cc.lib
-      (runCommand "ld-linux-symlink" {} ''
-        mkdir -p $out/lib64
-        ln -s ${glibc}/lib/ld-linux-x86-64.so.2 $out/lib64/ld-linux-x86-64.so.2
+      (runCommand "libs" {} ''
+        mkdir -p $out/lib $out/lib64
+
+        # Copy glibc libs (not bin)
+        cp -r ${glibc}/lib/* $out/lib/
+
+        # Copy libstdc++ etc
+        cp -r ${stdenv.cc.cc.lib}/lib/* $out/lib/
+
+        # ld-linux symlink
+        ln -s /lib/ld-linux-x86-64.so.2 $out/lib64/ld-linux-x86-64.so.2
       '')
     ];
   };
@@ -80,11 +88,11 @@ in
         "org.opencontainers.image.title" = "datomic-transactor";
       };
 
-      Entrypoint = ["/bin/start-transactor"];
+      Entrypoint = ["/${appDir}/bin/start-transactor"];
 
       Env = [
-        "PATH=/bin"
-        "LD_LIBRARY_PATH=${stdenv.cc.cc.lib}/lib"
+        "PATH=/${appDir}/bin"
+        "LD_LIBRARY_PATH=/lib"
       ];
 
       ExposedPorts."4334/tcp" = {};
