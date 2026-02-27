@@ -4,7 +4,8 @@ set -eu
 usage() {
   echo >&2 "Usage: deploy.sh <service> <image>"
   echo >&2 ""
-  echo >&2 "Deploy quadlet files and update service."
+  echo >&2 "Deploy quadlet files and pull container image."
+  echo >&2 "NixOS systemd path unit handles service reload."
   echo >&2 ""
   echo >&2 "Environment:"
   echo >&2 "  REGISTRY_USER   Registry username"
@@ -23,36 +24,17 @@ service=$1
 image=$2
 registry=$(echo "$image" | cut -d/ -f1)
 
-# For systemd user services from non-interactive sessions
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
-
 cyan=$(tput setaf 6)
-red=$(tput setaf 1)
 bold=$(tput bold)
 reset=$(tput sgr0)
 
 say() { echo >&2 "${cyan}==>${reset} ${bold}$*${reset}"; }
-err() { echo >&2 "${red}${bold}error:${reset} ${bold}$*${reset}"; }
 
-# Use actual ci home, not $HOME (runner overrides it)
 quadlet_dir="/var/lib/ci/.config/containers/systemd"
 
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
-
-say "Installed files:"
-ls -la "$quadlet_dir/" >&2
-
-say "Testing quadlet generator..."
-/usr/lib/podman/quadlet --user --dryrun 2>&1 | head -50 >&2 || true
-
-say "Reloading systemd..."
-systemctl --user daemon-reload
-
-say "Available units:"
-systemctl --user list-units --type=service --all 2>&1 | grep -E '(bits|postgres)' >&2 || echo "No matching units found" >&2
 
 say "Logging in to $registry..."
 podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
@@ -60,18 +42,4 @@ podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
 say "Pulling $image..."
 podman pull "$image"
 
-say "Starting $service..."
-systemctl --user start "$service"
-
-say "Waiting for $service..."
-for i in {1..24}; do
-  if systemctl --user is-active --quiet "$service"; then
-    say "Deployment complete"
-    exit 0
-  fi
-  sleep 5
-done
-
-err "Service $service failed to start"
-systemctl --user status "$service" --no-pager >&2 || true
-exit 1
+say "Deployment complete"
