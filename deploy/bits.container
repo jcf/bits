@@ -3,8 +3,8 @@
 
 [Unit]
 Description=Bits application
-After=network-online.target bits-postgres.service
-Requires=bits-postgres.service
+After=network-online.target bits-postgres.service bits-jaeger.service
+Requires=bits-postgres.service bits-jaeger.service
 
 [Container]
 Image=code.invetica.team/jcf/bits:latest
@@ -16,6 +16,9 @@ PublishPort=127.0.0.1:3000:3000
 
 # Environment: ragenix secrets (configured in setup project)
 EnvironmentFile=/run/agenix/bits-environment-file
+
+# OTEL traces/metrics → Jaeger
+Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://bits-jaeger:4317
 
 # Auto-update when new image is pushed
 AutoUpdate=registry

@@ -1,0 +1,33 @@
+# Jaeger all-in-one for tracing
+# UI: http://localhost:16686
+
+[Unit]
+Description=Bits Jaeger tracing
+After=network-online.target
+
+[Container]
+Image=docker.io/jaegertracing/jaeger:2
+ContainerName=bits-jaeger
+
+Network=bits.network
+PublishPort=127.0.0.1:16686:16686
+
+# OTLP receiver (containers send traces here)
+# Port 4317 (gRPC) available on bits.network as bits-jaeger:4317
+
+# In-memory storage (simple, loses data on restart)
+Environment=COLLECTOR_OTLP_ENABLED=true
+
+# Security hardening
+NoNewPrivileges=true
+ReadOnly=true
+Tmpfs=/tmp:size=64m,mode=1777
+
+# Resource limits
+Memory=256M
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
