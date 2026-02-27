@@ -26,7 +26,7 @@ env:
   TERM: xterm
 
   # Set to 'true' when ready to publish container images to registries
-  PUSH_IMAGES: false
+  PUSH_IMAGES: true
 
 jobs:
   check:
