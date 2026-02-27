@@ -28,7 +28,7 @@ AddCapability=CAP_CHOWN CAP_FOWNER CAP_SETGID CAP_SETUID CAP_DAC_OVERRIDE
 # Postgres needs to write to these tmpfs locations
 Tmpfs=/tmp:size=64m,mode=1777
 Tmpfs=/run:size=64m,mode=755
-Tmpfs=/var/run/postgresql:size=64m,mode=755,uid=999,gid=999
+Tmpfs=/var/run/postgresql:size=64m,mode=755
 
 # Resource limits
 Memory=512M
