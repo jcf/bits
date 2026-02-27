@@ -225,3 +225,13 @@ jobs:
             "ghcr.io/jcf/bits" \
             "${{ needs.build.outputs.version }}" \
             amd64 arm64
+
+  deploy:
+    name: Deploy
+    runs-on: nixos
+    needs: [manifest]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy
+        run: sudo quadlet-deploy bits code.invetica.team/jcf/bits:latest
