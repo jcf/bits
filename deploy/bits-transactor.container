@@ -15,8 +15,12 @@ Network=bits.network
 # SQL connection - envsubst renders into transactor.properties at startup
 EnvironmentFile=/run/agenix/bits-transactor-environment-file
 
-# JVM and Datomic memory (JAVA_TOOL_OPTIONS picked up automatically)
-Environment=JAVA_TOOL_OPTIONS=-Xmx4g -Ddatomic.memoryIndexMax=2g -Ddatomic.objectCacheMax=1g
+# JVM heap (JAVA_TOOL_OPTIONS picked up automatically)
+Environment=JAVA_TOOL_OPTIONS=-Xmx4g
+
+# Datomic memory settings (envsubst renders into properties file)
+Environment=DATOMIC_MEMORY_INDEX_MAX=2g
+Environment=DATOMIC_OBJECT_CACHE_MAX=1g
 
 # Security hardening
 NoNewPrivileges=true

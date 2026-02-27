@@ -22,8 +22,10 @@
     sql-url=$SQL_URL
     sql-driver-class=org.postgresql.Driver
 
-    # Memory settings via JAVA_OPTS environment variable:
-    # -Ddatomic.memoryIndexMax=2g -Ddatomic.objectCacheMax=1g
+    # Memory settings (required for SQL protocol)
+    memory-index-max=$DATOMIC_MEMORY_INDEX_MAX
+    memory-index-threshold=32m
+    object-cache-max=$DATOMIC_OBJECT_CACHE_MAX
   '';
 
   # Application layer - copy everything to /app to avoid /bin conflicts
