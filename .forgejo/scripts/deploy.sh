@@ -41,6 +41,12 @@ say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
 
+say "Quadlet directory contents..."
+ls -la "$quadlet_dir/"
+
+say "Running quadlet generator..."
+/usr/lib/podman/quadlet --dryrun --user 2>&1 || true
+
 say "Reloading systemd..."
 systemctl --user daemon-reload
 
