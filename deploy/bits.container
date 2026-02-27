@@ -21,6 +21,9 @@ EnvironmentFile=/run/agenix/bits-environment-file
 # OTEL traces/metrics → Jaeger
 Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://bits-jaeger:4317
 
+# JVM memory (JAVA_TOOL_OPTIONS is picked up automatically by the JVM)
+Environment=JAVA_TOOL_OPTIONS=-Xms512m -Xmx2g
+
 # Auto-update when new image is pushed
 AutoUpdate=registry
 Label=io.containers.autoupdate=registry
@@ -34,7 +37,7 @@ DropCapability=ALL
 Tmpfs=/tmp:size=128m,mode=1777
 
 # Resource limits
-Memory=2G
+Memory=4G
 PidsLimit=256
 
 # Health: Cloudflare Tunnel checks /healthz externally
