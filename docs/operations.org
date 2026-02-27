@@ -1,0 +1,233 @@
+#+title: Bits Operations Guide
+#+author: James Conroy-Finn
+
+* Overview
+
+Bits runs on =compute= as rootless Podman containers managed by systemd
+(Quadlet). The =ci= user owns the containers.
+
+* Quick Reference
+
+All commands run on =compute=. SSH there first:
+
+#+begin_src sh
+ssh compute
+#+end_src
+
+** Service Status
+
+#+begin_src sh
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user status bits.service
+#+end_src
+
+** View Logs
+
+#+begin_src sh
+# Recent logs
+sudo journalctl -n 100 CONTAINER_NAME=bits
+
+# Follow logs
+sudo journalctl -f CONTAINER_NAME=bits
+
+# Transactor logs
+sudo journalctl -n 100 CONTAINER_NAME=bits-transactor
+
+# Postgres logs
+sudo journalctl -n 100 CONTAINER_NAME=bits-postgres
+#+end_src
+
+** Restart Services
+
+#+begin_src sh
+# Restart bits app
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits.service
+
+# Restart transactor
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits-transactor.service
+
+# Restart all bits services
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits-postgres.service bits-transactor.service bits.service
+#+end_src
+
+** Pull New Image
+
+#+begin_src sh
+# Pull latest bits app image
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman pull code.invetica.team/jcf/bits:latest
+
+# Pull latest transactor image
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman pull code.invetica.team/jcf/datomic-transactor:latest
+#+end_src
+
+** Shell Alias
+
+Add to =~/.zshrc= on compute for convenience:
+
+#+begin_src sh
+alias pci='sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman'
+alias sci='sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user'
+#+end_src
+
+Then:
+
+#+begin_src sh
+sci status bits.service
+sci restart bits.service
+pci pull code.invetica.team/jcf/bits:latest
+pci logs bits
+#+end_src
+
+* Architecture
+
+#+begin_example
+                    Internet
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Cloudflare CDN  │
+              │   bits.page     │
+              └────────┬────────┘
+                       │
+              ┌────────▼────────┐
+              │   cloudflared   │
+              │ (tunnel daemon) │
+              └────────┬────────┘
+                       │ localhost:3000
+              ┌────────▼────────┐
+              │      bits       │
+              │  (application)  │
+              └────────┬────────┘
+                       │ bits-transactor:4334
+              ┌────────▼────────┐
+              │ bits-transactor │
+              │    (Datomic)    │
+              └────────┬────────┘
+                       │ bits-postgres:5432
+              ┌────────▼────────┐
+              │  bits-postgres  │
+              │  (PostgreSQL)   │
+              └─────────────────┘
+#+end_example
+
+* Services
+
+| Service          | Port | Description               |
+|------------------+------+---------------------------|
+| bits             | 3000 | Application server        |
+| bits-transactor  | 4334 | Datomic transactor        |
+| bits-postgres    | 5432 | PostgreSQL (internal)     |
+| bits-jaeger      | 16686| Jaeger UI (localhost)     |
+
+* Startup Order
+
+Systemd manages dependencies:
+
+1. =bits-postgres.service= starts first
+2. =bits-transactor.service= waits for postgres
+3. =bits.service= waits for transactor
+4. =bits-jaeger.service= starts independently (optional)
+
+* Deployment
+
+CI automatically deploys on push to =main=:
+
+1. Builds container image
+2. Pushes to =code.invetica.team/jcf/bits:latest=
+3. Copies quadlet files to compute
+4. Systemd path watcher triggers service reload
+
+** Manual Deployment
+
+To deploy without CI:
+
+#+begin_src sh
+# On compute
+cd /var/lib/ci/.config/containers/systemd/bits
+
+# Copy updated quadlet files (from bits/deploy/)
+# Then reload
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user daemon-reload
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits.service
+#+end_src
+
+* Secrets
+
+Secrets are managed by ragenix in =~/.config/setup=:
+
+| File                              | Contents                    |
+|-----------------------------------+-----------------------------|
+| bits-environment-file             | App env vars (DATABASE_URL) |
+| bits-postgres-environment-file    | Postgres credentials        |
+| bits-transactor-environment-file  | Transactor SQL_URL          |
+
+To update secrets:
+
+#+begin_src sh
+cd ~/.config/setup
+echo "NEW_VAR=value" | just encrypt secrets/bits-environment-file.age
+git add secrets/ && git commit -m "Update bits secret"
+git push
+ssh compute "sudo nixos-rebuild switch --flake ~/.config/setup"
+#+end_src
+
+* Troubleshooting
+
+** 502 Bad Gateway
+
+Cloudflare can reach the tunnel but bits isn't responding on port 3000.
+
+1. Check if bits is running: =sci status bits.service=
+2. Check logs: =sudo journalctl -n 50 CONTAINER_NAME=bits=
+3. Check dependencies: =sci status bits-transactor.service bits-postgres.service=
+
+** Container Won't Start
+
+Check for image pull issues:
+
+#+begin_src sh
+pci pull code.invetica.team/jcf/bits:latest
+#+end_src
+
+Check quadlet generation:
+
+#+begin_src sh
+sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) \
+  /nix/store/*-podman-*/bin/podman system connection list
+#+end_src
+
+** Database Connection Errors
+
+Verify postgres is healthy:
+
+#+begin_src sh
+sci status bits-postgres.service
+pci exec bits-postgres pg_isready -U bits -d bits
+#+end_src
+
+** Transactor Errors
+
+Check transactor logs for storage/connection issues:
+
+#+begin_src sh
+sudo journalctl -n 100 CONTAINER_NAME=bits-transactor
+#+end_src
+
+* Observability
+
+** Jaeger (Tracing)
+
+Access via SSH tunnel:
+
+#+begin_src sh
+ssh -L 16686:localhost:16686 compute
+#+end_src
+
+Then open http://localhost:16686
+
+** Logs
+
+All container logs go to journald. Query by container name:
+
+#+begin_src sh
+sudo journalctl CONTAINER_NAME=bits --since "1 hour ago"
+#+end_src

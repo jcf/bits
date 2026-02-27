@@ -22,10 +22,11 @@
     sql-url=$SQL_URL
     sql-driver-class=org.postgresql.Driver
 
-    # Memory settings
-    memory-index-max=256m
-    memory-index-threshold=32m
-    object-cache-max=128m
+    # Memory settings (must total <75% of container memory)
+    # Container: 4G, so max ~3G for Datomic caches
+    memory-index-max=2g
+    memory-index-threshold=128m
+    object-cache-max=1g
   '';
 
   # Application layer - copy everything to /app to avoid /bin conflicts

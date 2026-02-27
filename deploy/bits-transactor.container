@@ -24,7 +24,7 @@ DropCapability=ALL
 Tmpfs=/tmp:size=16m,mode=1777
 
 # Resource limits
-Memory=512M
+Memory=4G
 
 # Health check - transactor accepts connections on 4334
 HealthCmd=/bin/sh -c 'echo > /dev/tcp/localhost/4334'
