@@ -42,8 +42,17 @@ say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
 
+say "Installed files:"
+ls -la "$quadlet_dir/" >&2
+
+say "Testing quadlet generator..."
+/usr/lib/podman/quadlet --user --dryrun 2>&1 | head -50 >&2 || true
+
 say "Reloading systemd..."
 systemctl --user daemon-reload
+
+say "Available units:"
+systemctl --user list-units --type=service --all 2>&1 | grep -E '(bits|postgres)' >&2 || echo "No matching units found" >&2
 
 say "Logging in to $registry..."
 podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
