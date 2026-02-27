@@ -1,0 +1,46 @@
+# Bits application container
+# Security: Read-only rootfs, minimal capabilities, resource limits
+
+[Unit]
+Description=Bits application
+After=network-online.target postgres.service
+Requires=postgres.service
+
+[Container]
+Image=code.invetica.team/jcf/bits:latest
+ContainerName=bits
+
+# Network: internal for postgres, published port for HTTP
+Network=bits.network
+PublishPort=127.0.0.1:3000:3000
+
+# Environment: ragenix secrets (configured in setup project)
+EnvironmentFile=/run/agenix/bits-environment-file
+
+# Auto-update when new image is pushed
+AutoUpdate=registry
+Label=io.containers.autoupdate=registry
+
+# Security hardening
+ReadOnly=true
+NoNewPrivileges=true
+DropCapability=ALL
+
+# JVM needs /tmp for temp files
+Tmpfs=/tmp:size=128m,mode=1777
+
+# Resource limits
+Memory=768M
+MemorySwap=768M
+PidsLimit=256
+
+# Health: Cloudflare Tunnel checks /healthz externally
+# No container-level health check (minimal image, no curl)
+
+[Service]
+Restart=always
+TimeoutStartSec=180
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

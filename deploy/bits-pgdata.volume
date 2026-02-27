@@ -1,0 +1,4 @@
+# Persistent storage for Postgres data
+# Survives container restarts and updates
+
+[Volume]

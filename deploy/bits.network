@@ -1,0 +1,6 @@
+# Internal network for bits application
+# Postgres is only accessible via this network, not externally
+
+[Network]
+Driver=bridge
+Internal=true
