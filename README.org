@@ -1,6 +1,8 @@
 #+title:   Bits
 #+startup: content
 
+[[https://code.invetica.team/jcf/bits/actions][https://code.invetica.team/jcf/bits/badges/workflows/ci.yml/badge.svg]]
+
 Platforms control your audience. Payment processors control your revenue. Bits
 gives you both back.
 
