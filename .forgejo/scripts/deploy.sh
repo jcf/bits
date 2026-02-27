@@ -34,6 +34,7 @@ quadlet_dir="/var/lib/ci/.config/containers/systemd"
 
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
+rm -f "$quadlet_dir"/*.container "$quadlet_dir"/*.network "$quadlet_dir"/*.volume
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
 
 say "Logging in to $registry..."
