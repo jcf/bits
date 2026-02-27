@@ -30,7 +30,7 @@ reset=$(tput sgr0)
 
 say() { echo >&2 "${cyan}==>${reset} ${bold}$*${reset}"; }
 
-quadlet_dir="/var/lib/ci/.config/containers/systemd"
+quadlet_dir="/var/lib/ci/.config/containers/systemd/bits"
 
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
