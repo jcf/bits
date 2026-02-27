@@ -24,9 +24,8 @@ image=$2
 registry=$(echo "$image" | cut -d/ -f1)
 
 # For systemd user services from non-interactive sessions
-systemctl_user() {
-  systemctl --user --machine="$(whoami)@.host" "$@"
-}
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
 
 cyan=$(tput setaf 6)
 red=$(tput setaf 1)
@@ -43,7 +42,7 @@ mkdir -p "$quadlet_dir"
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
 
 say "Reloading systemd..."
-systemctl_user daemon-reload
+systemctl --user daemon-reload
 
 say "Logging in to $registry..."
 podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
@@ -52,11 +51,11 @@ say "Pulling $image..."
 podman pull "$image"
 
 say "Restarting $service..."
-systemctl_user restart "$service"
+systemctl --user restart "$service"
 
 say "Waiting for $service..."
 for i in {1..24}; do
-  if systemctl_user is-active --quiet "$service"; then
+  if systemctl --user is-active --quiet "$service"; then
     say "Deployment complete"
     exit 0
   fi
@@ -64,5 +63,5 @@ for i in {1..24}; do
 done
 
 err "Service $service failed to start"
-systemctl_user status "$service" --no-pager >&2 || true
+systemctl --user status "$service" --no-pager >&2 || true
 exit 1
