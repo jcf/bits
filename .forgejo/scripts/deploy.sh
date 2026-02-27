@@ -4,8 +4,7 @@ set -eu
 usage() {
   echo >&2 "Usage: deploy.sh <service> <image>"
   echo >&2 ""
-  echo >&2 "Deploy quadlet files and pull container image."
-  echo >&2 "NixOS systemd path unit handles service reload."
+  echo >&2 "Deploy quadlet files, pull container image, and restart service."
   echo >&2 ""
   echo >&2 "Environment:"
   echo >&2 "  REGISTRY_USER   Registry username"
@@ -45,5 +44,8 @@ podman pull "$image"
 
 say "Pruning unused images..."
 podman image prune -af
+
+say "Restarting $service..."
+systemctl --user restart "$service.service"
 
 say "Deployment complete"
