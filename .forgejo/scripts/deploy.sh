@@ -42,4 +42,7 @@ podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
 say "Pulling $image..."
 podman pull "$image"
 
+say "Pruning unused images..."
+podman image prune -af
+
 say "Deployment complete"
