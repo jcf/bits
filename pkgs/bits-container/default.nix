@@ -18,6 +18,7 @@
   # Additional JPMS modules beyond what jdeps detects from the uberjar.
   # jdeps finds direct dependencies; these are for reflection, JNDI, etc.
   jreModules = [
+    "java.desktop" # java.beans.Introspector (used by HikariCP)
     "java.instrument" # OTEL javaagent instrumentation
     "java.management" # JMX, ManagementFactory (used by Datomic logging)
     "java.naming" # JNDI (used by Datomic, HikariCP)
