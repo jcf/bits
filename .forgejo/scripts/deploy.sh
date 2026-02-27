@@ -23,6 +23,9 @@ service=$1
 image=$2
 registry=$(echo "$image" | cut -d/ -f1)
 
+# Set up environment for systemd --user
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+
 cyan=$(tput setaf 6)
 red=$(tput setaf 1)
 bold=$(tput bold)
