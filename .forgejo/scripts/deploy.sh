@@ -34,8 +34,8 @@ quadlet_dir="/var/lib/ci/.config/containers/systemd/bits"
 
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
-rm -f "$quadlet_dir"/*.container "$quadlet_dir"/*.network "$quadlet_dir"/*.volume
-cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
+rm -f "$quadlet_dir"/*.container "$quadlet_dir"/*.network "$quadlet_dir"/*.volume "$quadlet_dir"/*.sql
+cp deploy/*.container deploy/*.network deploy/*.volume deploy/*.sql "$quadlet_dir/"
 
 say "Logging in to $registry..."
 podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"

@@ -15,6 +15,9 @@ Network=bits.network
 # Persistent data
 Volume=bits-pgdata.volume:/var/lib/postgresql/data:Z
 
+# Init scripts (runs on first startup only)
+Volume=%h/.config/containers/systemd/bits/init-datomic.sql:/docker-entrypoint-initdb.d/init-datomic.sql:ro,Z
+
 # Database credentials for initial bootstrap (ragenix)
 # Required: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
 EnvironmentFile=/run/agenix/bits-postgres-environment-file
