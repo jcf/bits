@@ -31,7 +31,6 @@ Tmpfs=/tmp:size=128m,mode=1777
 
 # Resource limits
 Memory=768M
-MemorySwap=768M
 PidsLimit=256
 
 # Health: Cloudflare Tunnel checks /healthz externally

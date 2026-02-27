@@ -32,7 +32,6 @@ Tmpfs=/var/run/postgresql:size=64m,mode=755,uid=999,gid=999
 
 # Resource limits
 Memory=512M
-MemorySwap=512M
 
 # Health check
 HealthCmd=pg_isready -U bits -d bits
