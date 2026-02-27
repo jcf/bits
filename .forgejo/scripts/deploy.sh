@@ -35,28 +35,16 @@ reset=$(tput sgr0)
 say() { echo >&2 "${cyan}==>${reset} ${bold}$*${reset}"; }
 err() { echo >&2 "${red}${bold}error:${reset} ${bold}$*${reset}"; }
 
-quadlet_dir="$HOME/.config/containers/systemd"
-
-say "Environment..."
-echo "HOME=$HOME"
-echo "USER=$(whoami)"
-echo "UID=$(id -u)"
+# Use actual home from passwd, not $HOME (runner overrides it)
+ci_home=$(getent passwd "$(whoami)" | cut -d: -f6)
+quadlet_dir="$ci_home/.config/containers/systemd"
 
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
 
-say "Quadlet directory contents..."
-ls -la "$quadlet_dir/"
-
-say "Running quadlet generator..."
-/usr/lib/podman/quadlet --dryrun --user 2>&1 || true
-
 say "Reloading systemd..."
 systemctl --user daemon-reload
-
-say "Available units..."
-systemctl --user list-unit-files 'bits*' || true
 
 say "Logging in to $registry..."
 podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
@@ -64,8 +52,7 @@ podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
 say "Pulling $image..."
 podman pull "$image"
 
-say "Starting services..."
-systemctl --user start bits-postgres.service
+say "Starting $service..."
 systemctl --user start "$service"
 
 say "Waiting for $service..."
