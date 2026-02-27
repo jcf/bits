@@ -35,9 +35,8 @@ reset=$(tput sgr0)
 say() { echo >&2 "${cyan}==>${reset} ${bold}$*${reset}"; }
 err() { echo >&2 "${red}${bold}error:${reset} ${bold}$*${reset}"; }
 
-# Use actual home from passwd, not $HOME (runner overrides it)
-ci_home=$(getent passwd "$(whoami)" | cut -d: -f6)
-quadlet_dir="$ci_home/.config/containers/systemd"
+# Use actual ci home, not $HOME (runner overrides it)
+quadlet_dir="/var/lib/ci/.config/containers/systemd"
 
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
