@@ -37,6 +37,11 @@ err() { echo >&2 "${red}${bold}error:${reset} ${bold}$*${reset}"; }
 
 quadlet_dir="$HOME/.config/containers/systemd"
 
+say "Environment..."
+echo "HOME=$HOME"
+echo "USER=$(whoami)"
+echo "UID=$(id -u)"
+
 say "Installing quadlet files..."
 mkdir -p "$quadlet_dir"
 cp deploy/*.container deploy/*.network deploy/*.volume "$quadlet_dir/"
