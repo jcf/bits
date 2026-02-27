@@ -6,7 +6,7 @@
   pkgs,
   writeTextDir,
 }: let
-  inherit (pkgs) buildEnv glibc runCommand stdenv;
+  inherit (pkgs) buildEnv busybox glibc runCommand stdenv;
 
   # Container paths
   appDir = "app";
@@ -34,8 +34,11 @@
     paths = [
       propertiesTemplate
       (runCommand "datomic-transactor-files" {} ''
-        mkdir -p $out/${appDir}/bin $out/tmp
+        mkdir -p $out/${appDir}/bin $out/bin $out/tmp
         chmod 1777 $out/tmp
+
+        # Shell for startup script
+        ln -s ${busybox}/bin/sh $out/bin/sh
 
         # Copy datomic-pro bin directory contents
         cp -r ${datomic-pro}/bin/* $out/${appDir}/bin/
@@ -49,8 +52,8 @@
         cat > $out/${appDir}/bin/start-transactor << 'EOF'
         #!/bin/sh
         set -eu
-        /${appDir}/bin/envsubst < /${appDir}/transactor.properties.template > /tmp/transactor.properties
-        exec /${appDir}/bin/datomic-transactor /tmp/transactor.properties
+        /app/bin/envsubst < /app/transactor.properties.template > /tmp/transactor.properties
+        exec /app/bin/datomic-transactor /tmp/transactor.properties
         EOF
         chmod +x $out/${appDir}/bin/start-transactor
       '')
