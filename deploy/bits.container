@@ -30,7 +30,7 @@ DropCapability=ALL
 Tmpfs=/tmp:size=128m,mode=1777
 
 # Resource limits
-Memory=768M
+Memory=2G
 PidsLimit=256
 
 # Health: Cloudflare Tunnel checks /healthz externally
