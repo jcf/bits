@@ -22,11 +22,8 @@
     sql-url=$SQL_URL
     sql-driver-class=org.postgresql.Driver
 
-    # Memory settings (must total <75% of container memory)
-    # Container: 4G, so max ~3G for Datomic caches
-    memory-index-max=2g
-    memory-index-threshold=128m
-    object-cache-max=1g
+    # Memory settings via JAVA_OPTS environment variable:
+    # -Ddatomic.memoryIndexMax=2g -Ddatomic.objectCacheMax=1g
   '';
 
   # Application layer - copy everything to /app to avoid /bin conflicts

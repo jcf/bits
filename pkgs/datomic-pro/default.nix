@@ -45,11 +45,16 @@ stdenv.mkDerivation (finalAttrs: {
     EOF
     cp $out/share/datomic-pro/bin/logback.xml $out/share/datomic-pro/resources/logback.xml
 
-    makeWrapper ${jre}/bin/java $out/bin/datomic-transactor \
-      --set-default "JAVA_OPTS" "-XX:+UseG1GC -XX:MaxGCPauseMillis=50" \
-      --add-flags "-server" \
-      --add-flags "-cp $out/share/datomic-pro/resources:$out/lib/datomic-transactor-pro-${finalAttrs.version}.jar:$out/share/datomic-pro/lib/*:${postgresql_jdbc}/share/java/postgresql.jar" \
-      --add-flags "clojure.main --main datomic.launcher"
+    # Shell script wrapper to support JAVA_OPTS at runtime
+    cat > $out/bin/datomic-transactor << EOF
+    #!/bin/sh
+    exec ${jre}/bin/java \
+      -server \
+      \''${JAVA_OPTS:--XX:+UseG1GC -XX:MaxGCPauseMillis=50} \
+      -cp "$out/share/datomic-pro/resources:$out/lib/datomic-transactor-pro-${finalAttrs.version}.jar:$out/share/datomic-pro/lib/*:${postgresql_jdbc}/share/java/postgresql.jar" \
+      clojure.main --main datomic.launcher "\$@"
+    EOF
+    chmod +x $out/bin/datomic-transactor
 
     runHook postInstall
   '';
