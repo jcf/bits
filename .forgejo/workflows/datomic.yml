@@ -1,0 +1,52 @@
+name: Datomic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, morph]
+    paths:
+      - ".forgejo/workflows/datomic.yml"
+      - "pkgs/datomic-pro/**"
+      - "pkgs/datomic-transactor-container/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERM: xterm
+
+jobs:
+  build:
+    name: Build transactor
+    runs-on: nixos
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: .forgejo/scripts/attic-setup.sh
+
+      - name: Build container
+        id: build
+        run: .forgejo/scripts/build.sh transactor-container-amd64
+
+      - name: Push to Attic
+        run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"
+
+      - name: Push to Forgejo
+        env:
+          REGISTRY_USER: jcf
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
+        run: |
+          .forgejo/scripts/push-image.sh \
+            "${{ steps.build.outputs.copy_to }}" \
+            "code.invetica.team/jcf/datomic-transactor" \
+            "${{ steps.build.outputs.tag }}"
+
+          .forgejo/scripts/push-image.sh \
+            "${{ steps.build.outputs.copy_to }}" \
+            "code.invetica.team/jcf/datomic-transactor" \
+            "latest"

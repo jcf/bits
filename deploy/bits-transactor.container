@@ -1,0 +1,41 @@
+# Datomic Pro transactor
+# Manages all database writes; peers connect on port 4334
+
+[Unit]
+Description=Bits Datomic transactor
+After=network-online.target bits-postgres.service
+Requires=bits-postgres.service
+
+[Container]
+Image=code.invetica.team/jcf/datomic-transactor:latest
+ContainerName=bits-transactor
+
+Network=bits.network
+
+# SQL connection - envsubst renders into transactor.properties at startup
+EnvironmentFile=/run/agenix/bits-transactor-environment-file
+
+# Security hardening
+NoNewPrivileges=true
+ReadOnly=true
+DropCapability=ALL
+
+# Transactor needs /tmp for properties file
+Tmpfs=/tmp:size=16m,mode=1777
+
+# Resource limits
+Memory=512M
+
+# Health check - transactor accepts connections on 4334
+HealthCmd=/bin/sh -c 'echo > /dev/tcp/localhost/4334'
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=60s
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

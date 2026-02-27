@@ -75,6 +75,16 @@
           inherit (n2cLinux) nix2container;
           inherit (cljNixLinux) deps-lock;
         };
+
+      # Transactor container builder
+      mkTransactorContainer = targetSystem: let
+        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        n2cLinux = nix2container.packages.${targetSystem};
+      in
+        pkgsLinux.callPackage ./pkgs/datomic-transactor-container {
+          inherit (n2cLinux) nix2container;
+          datomic-pro = pkgsLinux.callPackage ./pkgs/datomic-pro {};
+        };
     in {
       # CI container (amd64 only)
       bits-ci = mkCiContainer "x86_64-linux";
@@ -82,6 +92,9 @@
       # Application containers
       bits-container-amd64 = mkContainer "x86_64-linux";
       bits-container-arm64 = mkContainer "aarch64-linux";
+
+      # Transactor containers
+      transactor-container-amd64 = mkTransactorContainer "x86_64-linux";
 
       # Uberjar
       bits-uberjar = bits-uberjar;

@@ -6,12 +6,18 @@ on:
     branches: [main, morph]
     paths-ignore:
       - .forgejo/workflows/bootstrap.yml
+      - .forgejo/workflows/datomic.yml
       - pkgs/bits-ci/**
+      - pkgs/datomic-pro/**
+      - pkgs/datomic-transactor-container/**
   pull_request:
     branches: [main, morph]
     paths-ignore:
       - .forgejo/workflows/bootstrap.yml
+      - .forgejo/workflows/datomic.yml
       - pkgs/bits-ci/**
+      - pkgs/datomic-pro/**
+      - pkgs/datomic-transactor-container/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

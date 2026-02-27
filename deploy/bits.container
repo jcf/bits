@@ -3,8 +3,8 @@
 
 [Unit]
 Description=Bits application
-After=network-online.target bits-postgres.service bits-jaeger.service
-Requires=bits-postgres.service
+After=network-online.target bits-postgres.service bits-transactor.service bits-jaeger.service
+Requires=bits-postgres.service bits-transactor.service
 Wants=bits-jaeger.service
 
 [Container]
