@@ -141,6 +141,10 @@
     paths = [
       glibc
       stdenv.cc.cc.lib
+      (runCommand "ld-linux-symlink" {} ''
+        mkdir -p $out/lib64
+        ln -s ${glibc}/lib/ld-linux-x86-64.so.2 $out/lib64/ld-linux-x86-64.so.2
+      '')
     ];
   };
   # ---------------------------------------------------------------------------
