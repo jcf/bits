@@ -41,9 +41,10 @@
                      :url            "/"}]
         (is (match?
              {"content-security-policy"           (csp "YWJj")
+              "cross-origin-opener-policy"        "same-origin"
               "referrer-policy"                   "strict-origin"
               "server"                            "Bits"
-              "strict-transport-security"         "max-age=31536000; includeSubdomains"
+              "strict-transport-security"         "max-age=31536000; includeSubDomains; preload"
               "x-content-type-options"            "nosniff"
               "x-download-options"                "noopen"
               "x-frame-options"                   "DENY"

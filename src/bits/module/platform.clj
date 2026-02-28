@@ -31,8 +31,8 @@
         (tru "Count: ")
         [:span {:class "font-bold"} (:count @!counter)])]
      [:section {:class "flex space-x-2"}
-      (ui/icon-button {:data-action "counter/inc"} plus-icon)
-      (ui/icon-button {:data-action "counter/dec"} minus-icon)])))
+      (ui/icon-button {:data-action "counter/dec" :aria-label (tru "Decrement")} minus-icon)
+      (ui/icon-button {:data-action "counter/inc" :aria-label (tru "Increment")} plus-icon)])))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Email

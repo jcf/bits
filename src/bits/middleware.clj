@@ -169,8 +169,9 @@
 ;;; Secure headers
 
 (def ^:private secure-headers
-  {"referrer-policy"                   "strict-origin"
-   "strict-transport-security"         "max-age=31536000; includeSubdomains"
+  {"cross-origin-opener-policy"        "same-origin"
+   "referrer-policy"                   "strict-origin"
+   "strict-transport-security"         "max-age=31536000; includeSubDomains; preload"
    "x-content-type-options"            "nosniff"
    "x-download-options"                "noopen"
    "x-frame-options"                   "DENY"
