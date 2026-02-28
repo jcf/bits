@@ -21,3 +21,12 @@ resource "cloudflare_dns_record" "root" {
   proxied = true
   ttl     = 1 # Auto TTL when proxied
 }
+
+resource "cloudflare_dns_record" "wildcard" {
+  zone_id = data.cloudflare_zone.bits_page.zone_id
+  type    = "CNAME"
+  name    = "*"
+  content = "${local.tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+}
