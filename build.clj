@@ -28,13 +28,13 @@
     (b/copy-dir {:src-dirs   ["src" "resources"]
                  :target-dir class-dir})
     (b/compile-clj {:basis      basis
-                    :ns-compile ['bits.main]
+                    :ns-compile ['bits.cli]
                     :class-dir  class-dir
                     :jvm-opts   ["-Dclojure.compiler.direct-linking=true"]})
     (b/uber {:basis     basis
              :class-dir class-dir
              :uber-file uber-file
-             :main      'bits.main})))
+             :main      'bits.cli})))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Locales

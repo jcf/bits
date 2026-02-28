@@ -39,6 +39,7 @@
   metosin/reitit                                                  {:mvn/version "0.10.0"}
   org.apache.commons/commons-lang3                                {:mvn/version "3.20.0"}
   org.babashka/cli                                                {:mvn/version "0.8.67"}
+  org.clojars.pjlegato/clansi                                     {:mvn/version "1.3.0"}
   org.clojure/clojure                                             {:mvn/version "1.12.4"}
   org.clojure/core.async                                          {:mvn/version "1.8.741"}
   org.jgroups/jgroups                                             {:mvn/version "5.5.2.Final"}
@@ -50,7 +51,10 @@
   ring/ring-spec                                                  {:mvn/version "0.0.4"}}
 
  :aliases
- {:darwin-aarch64
+ {:cli
+  {:jvm-opts ["--enable-native-access=ALL-UNNAMED"]}
+
+  :darwin-aarch64
   {:extra-deps
    {com.aayushatharva.brotli4j/native-osx-aarch64 {:mvn/version "1.20.0"}}}
 
@@ -72,7 +76,6 @@
    :extra-deps
    {com.stuartsierra/component.repl {:mvn/version "1.0.0"}
     etaoin/etaoin                   {:mvn/version "1.1.43"}
-    org.clojars.pjlegato/clansi     {:mvn/version "1.3.0"}
     org.clojure/test.check          {:mvn/version "1.1.3"}
     org.clojure/tools.namespace     {:mvn/version "1.5.1"}
     selmer/selmer                   {:mvn/version "1.13.0"}}}

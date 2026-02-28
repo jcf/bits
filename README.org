@@ -25,6 +25,22 @@ You're never locked in.
 
 *Current state:* Active development. Your funding accelerates delivery.
 
+* CLI
+#+begin_src sh :results output verbatim
+just cli --no-color --help 2>&1
+#+end_src
+
+#+results:
+: clojure -M:cli --report stderr -m bits.cli --no-color --help
+: Usage: bits <command> [options]
+:
+: Commands:
+:   seed   Apply database seeds
+:   serve  Start the HTTP server
+:   warmup Load classes for AppCDS generation
+:
+: Run 'bits <command> --help' for command-specific help.
+
 * Development
 #+begin_src sh :eval never
 devenv up
@@ -120,52 +136,6 @@ done
 #+begin_src sh :results output verbatim :exports results
 just --list
 #+end_src
-
-#+results:
-#+begin_example
-Available recipes:
-    [build]
-    build                              # Build an AOT-compiled uberjar
-    build-datomic                      # Build Datomic Pro output
-    container                          # Build the container image and load into local Docker
-    deps-lock                          # Regenerate deps-lock.json
-    docker-run tag="bits:latest" *args # Run the Docker image against the local devenv database
-
-    [dev]
-    clean                              # Clean up generated classes and screenshots
-    clj-kondo-import                   # Import clj-kondo configs
-    cluster-certs                      # Generate cluster keystores
-    css                                # Regenerate Tailwind CSS from template
-    fmt *args                          # Format project files
-    mkcert                             # Create self-signed SSL certificates via mkcert
-    nrepl *args
-    setup                              # Setup a local development environment
-    tailwind                           # Watch source code for Tailwind classes
-
-    [docs]
-    decide +title                      # Create a new decision record
-
-    [iac]
-    apply dir                          # Apply one or all Terraform projects
-    init dir *args                     # Initialize one or all Terraform projects
-    output dir *args                   # Interact with outputs one or all Terraform projects
-    plan dir                           # Plan one or all Terraform projects
-
-    [locales]
-    locales-build                      # Build translation bundles from .po files
-    locales-extract                    # Extract translatable strings to .pot file
-
-    [postgres]
-    migration name                     # Create a new migration
-    psql *args                         # Start an interactive psql session connected to the local development database
-
-    [test]
-    check                              # Run all quality checks (format + lint)
-    compile                            # Compile bits.main
-    lint                               # Run lints
-    perf *args                         # Run tests with performance tracing output
-    test *args                         # Run tests
-#+end_example
 
 ** SLOC
 #+begin_src sh :results output verbatim :exports results

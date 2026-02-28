@@ -99,7 +99,7 @@
       java \
         -Djava.io.tmpdir=$TMPDIR \
         -XX:DumpLoadedClassList=$TMPDIR/classes.lst \
-        -jar ${uberjar} --warmup
+        -jar ${uberjar} warmup
 
       # Generate shared archive
       java \

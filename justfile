@@ -157,6 +157,11 @@ css:
 clj-kondo-import:
     clj-kondo --lint "$(clojure -Spath)" --dependencies --skip-lint --copy-configs
 
+# Run bits.cli with given args
+[group('dev')]
+cli *args:
+    clojure -M:cli --report stderr -m bits.cli {{ args }}
+
 # ------------------------------------------------------------------------------
 # Locales
 
@@ -184,10 +189,10 @@ check:
 lint:
     clj-kondo --lint dev src test
 
-# Compile bits.main
+# Compile bits namespaces
 [group('test')]
 compile:
-    clojure -M:dev --report stderr -m bits.dev.compile
+    clojure -M:cli -m bits.cli warmup
 
 # Run tests
 [group('test')]
