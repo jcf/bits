@@ -101,8 +101,5 @@ push_manifest() {
   ok "Pushed $image:$tag"
 }
 
-# Versioned manifests disabled to avoid storage bloat. Forgejo lacks retention
-# policies, so we only push :latest. Uncomment to archive every build:
-# push_manifest "$version"
-
+push_manifest "$version"
 push_manifest "latest"
