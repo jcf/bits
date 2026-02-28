@@ -55,14 +55,20 @@ say "Pruning unused images..."
 podman image prune -af
 
 say "Waiting for service to start..."
-sleep 5
+max_attempts=12
+delay=5
 
-ctl="systemctl --machine=ci@.host --user"
+for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+  if systemctl --user is-active --quiet "$service.service"; then
+    ok "Service running"
+    exit 0
+  fi
+  if ((attempt < max_attempts)); then
+    echo "Attempt $attempt/$max_attempts, retrying in ${delay}s..."
+    sleep "$delay"
+  fi
+done
 
-if $ctl is-active --quiet "$service.service"; then
-  ok "Service running"
-else
-  err "Service failed to start"
-  $ctl status "$service.service" || true
-  exit 1
-fi
+err "Service not running after $max_attempts attempts"
+systemctl --user status "$service.service" || true
+exit 1
