@@ -290,3 +290,30 @@ apply dir:
 [group('iac')]
 output dir *args:
     @just _terraform {{ dir }} output {{ args }}
+
+# ------------------------------------------------------------------------------
+# Operations
+
+# Interactive shell on compute as the ci user
+[group('ops')]
+[no-exit-message]
+ssh:
+    @exec ssh -tt compute "cd /tmp && exec sudo -Hu ci XDG_RUNTIME_DIR=/run/user/\$(id -u ci) TERM=$TERM bash -c 'cd && exec bash'"
+
+# Run podman commands on compute as the ci user
+[group('ops')]
+[no-exit-message]
+podman *args:
+    @exec ssh -tt compute "cd /tmp && exec sudo -Hu ci TERM=$TERM XDG_RUNTIME_DIR=/run/user/\$(id -u ci) podman {{ args }}"
+
+# Run systemctl commands on compute as the ci user
+[group('ops')]
+[no-exit-message]
+systemctl *args:
+    @exec ssh -tt compute "cd /tmp && exec sudo -Hu ci TERM=$TERM XDG_RUNTIME_DIR=/run/user/\$(id -u ci) systemctl --user {{ args }}"
+
+# View logs for a container
+[group('ops')]
+[no-exit-message]
+logs container *args:
+    @exec ssh -tt compute "exec sudo journalctl --output=cat CONTAINER_NAME={{ container }} {{ args }}"
