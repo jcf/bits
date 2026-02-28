@@ -246,3 +246,8 @@ jobs:
         run: |
           .forgejo/scripts/deploy.sh bits \
             code.invetica.team/jcf/bits:${{ needs.build.outputs.version }}
+
+      - name: Cleanup old images
+        env:
+          REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
+        run: .forgejo/scripts/cleanup-images.sh code.invetica.team jcf bits 1

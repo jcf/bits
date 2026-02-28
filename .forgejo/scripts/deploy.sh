@@ -26,10 +26,14 @@ image=$2
 registry=$(echo "$image" | cut -d/ -f1)
 
 cyan=$(tput setaf 6)
+green=$(tput setaf 2)
+red=$(tput setaf 1)
 bold=$(tput bold)
 reset=$(tput sgr0)
 
 say() { echo >&2 "${cyan}==>${reset} ${bold}$*${reset}"; }
+ok() { echo >&2 "${green}ok:${reset} $*"; }
+err() { echo >&2 "${red}error:${reset} $*"; }
 
 quadlet_dir="/var/lib/ci/.config/containers/systemd/bits"
 
@@ -50,4 +54,15 @@ podman pull "$image"
 say "Pruning unused images..."
 podman image prune -af
 
-say "Deployment complete"
+say "Waiting for service to start..."
+sleep 5
+
+ctl="systemctl --machine=ci@.host --user"
+
+if $ctl is-active --quiet "$service.service"; then
+  ok "Service running"
+else
+  err "Service failed to start"
+  $ctl status "$service.service" || true
+  exit 1
+fi
