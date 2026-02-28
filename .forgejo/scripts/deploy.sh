@@ -46,6 +46,6 @@ say "Pruning unused images..."
 podman image prune -af
 
 say "Restarting $service..."
-systemctl --user restart "$service.service"
+systemctl --machine=ci@.host --user restart "$service.service"
 
 say "Deployment complete"
