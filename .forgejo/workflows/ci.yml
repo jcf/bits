@@ -147,8 +147,6 @@ jobs:
         include:
           - arch: amd64
             output: bits-container-amd64
-          - arch: arm64
-            output: bits-container-arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -220,7 +218,7 @@ jobs:
           .forgejo/scripts/create-manifest.sh \
             "code.invetica.team/jcf/bits" \
             "${{ needs.build.outputs.version }}" \
-            amd64 arm64
+            amd64
 
       - name: GitHub manifest
         env:
@@ -230,7 +228,7 @@ jobs:
           .forgejo/scripts/create-manifest.sh \
             "ghcr.io/jcf/bits" \
             "${{ needs.build.outputs.version }}" \
-            amd64 arm64
+            amd64
 
   deploy:
     name: Deploy
