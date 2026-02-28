@@ -1,6 +1,7 @@
 {
   cacert,
   clojure,
+  esbuild,
   fake-git,
   jdk,
   lib,
@@ -44,7 +45,7 @@ in
     pname = "bits-uberjar";
     inherit version;
     src = fullSrc;
-    nativeBuildInputs = [cacert clj fake-git jdk tailwindcss_4];
+    nativeBuildInputs = [cacert clj esbuild fake-git jdk tailwindcss_4];
 
     SSL_CERT_FILE = sslCertFile;
     GIT_SSL_CAINFO = sslCertFile;
@@ -60,6 +61,12 @@ in
       # Generate Tailwind CSS
       mkdir -p resources/public
       tailwindcss --input resources/tailwind.css --output resources/public/app.css
+
+      # Minify JavaScript
+      esbuild resources/public/bits.js \
+        --minify \
+        --outfile=resources/public/bits.js \
+        --allow-overwrite
 
       # Point HOME directly to deps cache (contains .m2, .gitlibs, .clojure)
       export HOME="${depsCache}"
