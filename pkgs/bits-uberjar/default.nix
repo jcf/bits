@@ -60,7 +60,7 @@ in
 
       # Generate Tailwind CSS
       mkdir -p resources/public
-      tailwindcss --input resources/tailwind.css --output resources/public/app.css
+      tailwindcss --input resources/tailwind.css --output resources/public/app.css --minify
 
       # Minify JavaScript
       esbuild resources/public/bits.js \
