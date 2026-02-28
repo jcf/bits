@@ -233,7 +233,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: nixos
-    needs: [manifest]
+    needs: [build, manifest]
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -243,4 +243,6 @@ jobs:
         env:
           REGISTRY_USER: jcf
           REGISTRY_TOKEN: ${{ secrets.FORGEJO_PKG_TOKEN }}
-        run: .forgejo/scripts/deploy.sh bits code.invetica.team/jcf/bits:latest
+        run: |
+          .forgejo/scripts/deploy.sh bits \
+            code.invetica.team/jcf/bits:${{ needs.build.outputs.version }}
