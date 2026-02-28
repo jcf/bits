@@ -120,7 +120,10 @@
     morph: (data) => {
       const target = document.getElementById("morph");
       if (target && window.Idiomorph) {
-        Idiomorph.morph(target, data, { morphStyle: "innerHTML" });
+        Idiomorph.morph(target, data, {
+          ignoreActiveValue: true,
+          morphStyle: "innerHTML",
+        });
         initMouseTracking();
       }
     },
