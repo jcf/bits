@@ -43,12 +43,23 @@
   [status]
   (fn [exception request]
     (let [data        (ex-data exception)
-          action      (get-in data [:value :action])
-          message     (if action
-                        (str "Unknown action: " action)
+          errors      (:errors data)
+          action      (get-in data [:transformed :action])
+          raw-action  (get-in data [:value :action])
+          missing     (->> errors
+                           (filter #(= :malli.core/missing-key (:type %)))
+                           (map #(last (:path %))))
+          message     (cond
+                        (seq missing)
+                        (str "Missing required fields: " (pr-str missing))
+
+                        (and raw-action (not action))
+                        (str "Unknown action: " raw-action)
+
+                        :else
                         "Invalid request parameters")
           remote-addr (:remote-addr request)]
-      (log/warn :msg message :action action :remote-addr remote-addr :errors data)
+      (log/warn :msg message :action (or action raw-action) :remote-addr remote-addr :errors data)
       {:status status
        :body   message})))
 

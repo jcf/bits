@@ -38,71 +38,113 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Form Demo
 
-(def Username
-  [:and
-   [:string {:min 3 :error/message "At least 3 characters"}]
-   [:re {:error/message "Letters, numbers, underscores only"}
-    #"^[a-zA-Z0-9_]+$"]])
-
-(def Email
-  [:and
-   [:string {:min 1}]
-   [:re {:error/message "Enter a valid email address"}
-    #"^[^\s@]+@[^\s@]+\.[^\s@]+$"]])
-
-(def Country
-  [:enum {:error/message "Select a country"} "us" "uk" "ca" "au" "de" "fr" "jp"])
-
 (def form-schema
-  {:username Username
-   :email    Email
-   :country  Country})
+  {:text      [:string {:min 1}]
+   :email     [:re {:error/message "Invalid email"} #"^[^\s@]+@[^\s@]+\.[^\s@]+$"]
+   :password  [:string {:min 8 :error/message "At least 8 characters"}]
+   :number    [:re {:error/message "0-100"} #"^(?:[0-9]|[1-9][0-9]|100)$"]
+   :date      [:string {:min 1}]
+   :time      [:string {:min 1}]
+   :url       [:re {:error/message "Invalid URL"} #"^https?://.*"]
+   :tel       [:re {:error/message "Invalid phone"} #"^\+?[\d\s-]+$"]
+   :search    [:string {:min 1}]
+   :textarea  [:string {:min 10 :error/message "At least 10 characters"}]
+   :select    [:enum "a" "b" "c"]
+   :radio     [:enum "opt1" "opt2" "opt3"]
+   :checkbox  [:= "true"]})
 
 (defn- form-demo
-  [request {:keys [validation success?]}]
+  [request {:keys [validation success? submitted? editing?]}]
   (let [validation               (when-not success? validation)
         form-status              (form/form-status validation)
         {:keys [ring bg shadow]} (get form/form-classes form-status)
-        error?                   (= form-status :bits.form/error)]
+        error?                   (= form-status :bits.form/error)
+        shake?                   (and error? (not editing?))]
     (form/form request :demo/validate
       (cond-> {:class (str "rounded-xl p-6 transition-all duration-500 ease-out "
                            ring " " shadow " " bg " "
-                           (when error? "form-shake"))}
+                           (when shake? "form-shake"))}
         success? (assoc :data-reset true))
-      [:div {:class "space-y-2"}
+
+      (when (and submitted? (not success?))
+        [:input {:type "hidden" :name "_submitted" :value "true"}])
+
+      [:div {:class "space-y-4"}
+       [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
+        (tru "Text Inputs")]
+
        (form/validated-field
-        {:name           :username
-         :label          (tru "Username")
-         :placeholder    "jcf_rocks"
-         :autocomplete   "off"
-         :data-1p-ignore true}
-        (get validation :username))
+        {:name :text :label (tru "Text") :placeholder "Plain text"
+         :autocomplete "off" :data-1p-ignore true}
+        (get validation :text))
+
        (form/validated-field
-        {:name           :email
-         :label          (tru "Email")
-         :type           "email"
-         :placeholder    "you@example.com"
-         :autocomplete   "off"
-         :data-1p-ignore true}
+        {:name :email :label (tru "Email") :type "email" :placeholder "you@example.com"
+         :autocomplete "off" :data-1p-ignore true}
         (get validation :email))
-       [:div
-        [:label {:class "block text-xs font-medium tracking-wide text-zinc-500 uppercase mb-1.5 pl-0.5"}
-         (tru "Country")]
-        [:select {:name         "country"
-                  :autocomplete "country-name"
-                  :class        "w-full px-3.5 py-2.5 rounded-lg text-sm bg-white/[0.04] ring-1 ring-white/10 text-zinc-200 outline-1 outline-offset-1 outline-transparent focus-visible:outline-accent transition-all duration-300 ease-out"}
-         [:option {:value ""} (tru "Select a country")]
-         [:option {:value "us"} "United States"]
-         [:option {:value "uk"} "United Kingdom"]
-         [:option {:value "ca"} "Canada"]
-         [:option {:value "au"} "Australia"]
-         [:option {:value "de"} "Germany"]
-         [:option {:value "fr"} "France"]
-         [:option {:value "jp"} "Japan"]]
-        [:div {:class "h-5"}]]]
-      [:div {:class "mt-4"}
+
+       (form/validated-field
+        {:name :password :label (tru "Password") :type "password" :placeholder "••••••••"
+         :autocomplete "off" :data-1p-ignore true}
+        (get validation :password))
+
+       (form/validated-field
+        {:name :number :label (tru "Number") :type "number" :min 0 :max 100 :placeholder "0-100"}
+        (get validation :number))
+
+       (form/validated-field
+        {:name :date :label (tru "Date") :type "date"}
+        (get validation :date))
+
+       (form/validated-field
+        {:name :time :label (tru "Time") :type "time"}
+        (get validation :time))
+
+       (form/validated-field
+        {:name :url :label (tru "URL") :type "url" :placeholder "https://example.com"}
+        (get validation :url))
+
+       (form/validated-field
+        {:name :tel :label (tru "Phone") :type "tel" :placeholder "+1 234 567 8900"}
+        (get validation :tel))
+
+       (form/validated-field
+        {:name :search :label (tru "Search") :type "search" :placeholder "Search..."}
+        (get validation :search))]
+
+      [:div {:class "space-y-4 mt-6 pt-6 border-t border-white/10"}
+       [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
+        (tru "Multi-line")]
+
+       (form/validated-textarea
+        {:name :textarea :label (tru "Textarea") :placeholder "Enter at least 10 characters..." :rows 4}
+        (get validation :textarea))]
+
+      [:div {:class "space-y-4 mt-6 pt-6 border-t border-white/10"}
+       [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
+        (tru "Selection")]
+
+       (form/validated-select
+        {:name :select :label (tru "Select") :placeholder (tru "Choose an option")}
+        [[:option {:value "a"} "Option A"]
+         [:option {:value "b"} "Option B"]
+         [:option {:value "c"} "Option C"]]
+        (get validation :select))
+
+       (form/validated-radio-group
+        {:name :radio :label (tru "Radio Group")}
+        [{:option-value "opt1" :option-label "Option 1"}
+         {:option-value "opt2" :option-label "Option 2"}
+         {:option-value "opt3" :option-label "Option 3"}]
+        (get validation :radio))
+
+       (form/validated-checkbox
+        {:name :checkbox :label (tru "I agree to the terms")}
+        (get validation :checkbox))]
+
+      [:div {:class "mt-6"}
        (let [base-classes    "block w-full py-3.5 border-none rounded-lg font-sans text-[0.9375rem] font-semibold cursor-pointer tracking-wide transition-opacity duration-150"
-             error-classes   "bg-red-500/80 text-surface hover:opacity-90"
+             error-classes   "bg-red-500/20 text-red-400 ring-2 ring-red-500/50 hover:opacity-90"
              success-classes "bg-accent text-surface hover:opacity-90"
              normal-classes  "bg-white/[0.08] text-zinc-300 hover:opacity-80"]
          [:button {:type  "submit"
@@ -121,11 +163,11 @@
    (list
     (ui/nav-header request "/form")
     (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
-      [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+      [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-md"]}
        [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
                      "tracking-tight" "text-primary"]}
         (tru "Forms")]]
-      [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+      [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-md"]}
        (form-demo request opts)]))))
 
 ;;; ----------------------------------------------------------------------------
@@ -269,23 +311,24 @@
                                  :bits/page {:page/title "Forms"})]
              ["/redirect" (assoc (morph/morphable ui/layout redirect-view)
                                  :bits/page {:page/title "Redirect"})]]
-   :actions {:counter/inc   (fn [_req] (swap! !counter update :count inc))
-             :counter/dec   (fn [_req] (swap! !counter update :count dec))
-             :demo/redirect (fn [_req] (morph/redirect "https://jcf.dev"))
-             :demo/validate {:handler (fn [request]
-                                        (let [form        (assoc (::form/form request)
-                                                                 ::form/values (get-in request [:parameters :form]))
-                                              validation  (form/validate-form form-schema form)
-                                              form-status (form/form-status validation)
-                                              success?    (and (::form/submitted? form) (not= form-status :bits.form/error))]
-                                          (morph/respond (form-view request {:validation validation
-                                                                             :success?   success?}))))
-                             :params  [[:username :string]
-                                       [:email :string]
-                                       [:country :string]]}
+   :actions {:counter/dec   (fn [_req] (swap! !counter update :count dec))
+             :counter/inc   (fn [_req] (swap! !counter update :count inc))
              :cursor/move   (fn [request]
                               (let [channel-id (get-in request [:params "channel"])
                                     x          (parse-long (get-in request [:params "x"] "0"))
                                     y          (parse-long (get-in request [:params "y"] "0"))]
                                 (when (and channel-id x y (< x 10000) (< y 10000))
-                                  (update-cursor! channel-id x y))))}})
+                                  (update-cursor! channel-id x y))))
+             :demo/redirect (fn [_req] (morph/redirect "https://jcf.dev"))
+             :demo/validate (fn [request]
+                              (let [form        (assoc (::form/form request)
+                                                       ::form/values (update-keys (:form-params request) keyword))
+                                    validation  (form/validate-form form-schema form)
+                                    form-status (form/form-status validation)
+                                    submitted?  (::form/submitted? form)
+                                    editing?    (some? (::form/target form))
+                                    success?    (and submitted? (not editing?) (not= form-status :bits.form/error))]
+                                (morph/respond (form-view request {:validation  validation
+                                                                   :submitted?  submitted?
+                                                                   :editing?    editing?
+                                                                   :success?    success?}))))}})

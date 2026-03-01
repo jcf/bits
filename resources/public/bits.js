@@ -130,26 +130,43 @@
         temp.innerHTML = data;
         const shouldReset = temp.querySelector("form[data-reset]") !== null;
 
-        Idiomorph.morph(target, data, {
+        // Capture password values before morph (they're never in server HTML)
+        const passwordValues = new Map();
+        if (!shouldReset) {
+          target.querySelectorAll('input[type="password"]').forEach((input) => {
+            if (input.id && input.value) {
+              passwordValues.set(input.id, input.value);
+            }
+          });
+        }
+
+Idiomorph.morph(target, data, {
           ignoreActiveValue: false,
           morphStyle: "innerHTML",
           callbacks: {
             beforeNodeMorphed: (oldNode, newNode) => {
-              // Copy values to new node, allowing class updates while preserving input
+              if (shouldReset) return;
+
+              // Preserve input values
               if (
-                !shouldReset &&
                 oldNode instanceof HTMLInputElement &&
-                newNode instanceof HTMLInputElement &&
-                oldNode.value
+                newNode instanceof HTMLInputElement
               ) {
-                // Preserve password and focused input values
-                if (oldNode.type === "password" || oldNode === document.activeElement) {
+                if (oldNode.type === "checkbox" || oldNode.type === "radio") {
+                  newNode.checked = oldNode.checked;
+                } else if (oldNode.type !== "password" && oldNode === document.activeElement) {
                   newNode.value = oldNode.value;
                 }
               }
+              // Preserve textarea values
+              if (
+                oldNode instanceof HTMLTextAreaElement &&
+                newNode instanceof HTMLTextAreaElement
+              ) {
+                newNode.value = oldNode.value;
+              }
               // Preserve select values
               if (
-                !shouldReset &&
                 oldNode instanceof HTMLSelectElement &&
                 newNode instanceof HTMLSelectElement
               ) {
@@ -158,6 +175,22 @@
             },
           },
         });
+
+        // Restore password values after morph
+        passwordValues.forEach((value, id) => {
+          const input = document.getElementById(id);
+          if (input) input.value = value;
+        });
+
+        // Sync _used set from server's data-used attributes
+        if (shouldReset) {
+          _used.clear();
+        } else {
+          target.querySelectorAll("[data-used]").forEach((el) => {
+            if (el.name) _used.add(el.name);
+          });
+        }
+
         initMouseTracking();
       }
     },
@@ -280,8 +313,8 @@
     for (const [k, v] of raw.entries()) {
       // Skip control params that get special handling
       if (k === "action" || k === "csrf") continue;
-      // Pass submit through unprefixed — it's a control param, not a field
-      if (k === "submit") {
+      // Pass control params through unprefixed — not field values
+      if (k === "submit" || k === "_submitted") {
         params[k] = v;
         continue;
       }
@@ -293,11 +326,15 @@
     postAction(action, params);
   }
 
+  document.addEventListener("focusin", (e) => {
+    const form = e.target.closest('form[action="/action"]');
+    if (!form || !e.target.name) return;
+    _used.add(e.target.name);
+  });
+
   document.addEventListener("input", (e) => {
     const form = e.target.closest('form[action="/action"]');
     if (!form || !e.target.name) return;
-
-    _used.add(e.target.name);
 
     if (e.target.dataset.used === "true") {
       const key = e.target.name;
