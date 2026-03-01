@@ -39,7 +39,7 @@
 ;;; Form Demo
 
 (def form-schema
-  {:text      [:string {:min 1}]
+  {:text      [:string {:min 3}]
    :email     [:re {:error/message "Invalid email"} #"^[^\s@]+@[^\s@]+\.[^\s@]+$"]
    :password  [:string {:min 8 :error/message "At least 8 characters"}]
    :number    [:re {:error/message "0-100"} #"^(?:[0-9]|[1-9][0-9]|100)$"]

@@ -347,7 +347,7 @@
                       value     (field-value raw-value)
                       pristine? (contains? pristine field-kw)
                       editing?  (= field-kw target)
-                      blank?    (or (and (string? value) (str/blank? value)) (nil? value))
+                      blank?    (or (nil? value) (= "" value))
                       error     (when-not blank?
                                   (validate-field field-schema value))]]
             [field-kw
@@ -355,6 +355,6 @@
                pristine?                             {:status ::pristine}
                (and error submitted? (not editing?)) {:status ::error :message error :value value :used true}
                error                                 {:status ::advisory :message error :value value :used true}
-               (and blank? submitted?)               {:status ::error :message (tru "Required") :used true}
+               (and blank? submitted?)               {:status ::error :message (tru "Required") :value value :used true}
                (not blank?)                          {:status ::pristine :value value :used true}
-               :else                                 {:status ::pristine :used true})]))))
+               :else                                 {:status ::pristine :value value :used true})]))))
