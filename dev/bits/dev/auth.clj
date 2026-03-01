@@ -17,6 +17,39 @@
     :user/password-hash password-hash
     :user/created-at    (time/java-date)}])
 
+;;; ----------------------------------------------------------------------------
+;;; Sessions
+
+(def ^:private all-sessions-query
+  {:select   [:*]
+   :from     [:sessions]
+   :order-by [[:created-at :asc]]})
+
+;;; ----------------------------------------------------------------------------
+;;; Authentication attempts
+
+(def ^:private all-attempts-query
+  {:select   [:tenant-id :email :ip-hash :success :attempted-at]
+   :from     [:authentication-attempts]
+   :order-by [[:attempted-at :desc]]})
+
+(def ^:private attempts-by-email-query
+  {:select   [:tenant-id :email :ip-hash :success :attempted-at]
+   :from     [:authentication-attempts]
+   :where    [:= :email :?email]
+   :order-by [[:attempted-at :desc]]})
+
+(def ^:private clear-email-rate-limit-query
+  {:delete-from :authentication-attempts
+   :where       [:and [:= :email :?email] [:not :success]]})
+
+(def ^:private clear-ip-rate-limit-query
+  {:delete-from :authentication-attempts
+   :where       [:and [:= :ip-hash :?ip-hash] [:not :success]]})
+
+(def ^:private clear-all-attempts-query
+  {:delete-from :authentication-attempts})
+
 (comment
   (crypto/random-sid (:randomizer system))
   (crypto/random-nonce (:randomizer system))
@@ -29,9 +62,25 @@
 
   (d/q credential/user-by-email-query (datomic/db (:datomic system)) "dev@bits.page")
 
-  (postgres/execute! (:postgres system)
-                     {:select   [:*]
-                      :from     [:sessions]
-                      :order-by [[:created-at :asc]]})
+  ;; All sessions
+  (postgres/execute! (:postgres system) all-sessions-query)
+
+  ;; All attempts
+  (postgres/execute! (:postgres system) all-attempts-query)
+
+  ;; By email
+  (postgres/execute!
+   (:postgres system) attempts-by-email-query {:params {:email "dev@bits.page"}})
+
+  ;; Clear email rate limit
+  (postgres/execute!
+   (:postgres system) clear-email-rate-limit-query {:params {:email "dev@bits.page"}})
+
+  ;; Clear IP rate limit (hash the IP first)
+  (postgres/execute!
+   (:postgres system) clear-ip-rate-limit-query {:ip-hash (crypto/sha256 "127.0.0.1")})
+
+  ;; Clear all
+  (postgres/execute! (:postgres system) clear-all-attempts-query)
 
   (reaper/purge-sessions! (:reaper system)))
