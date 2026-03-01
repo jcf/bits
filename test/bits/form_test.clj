@@ -27,7 +27,7 @@
                                 "action"           "auth/login"
                                 "csrf"             "token"}}
         result   (wrapped request)
-        form     (::form/form result)]
+        form     (::form/raw result)]
     (is (match? {"email" "test@example.com" "password" ""} (:form-params result)))
     (is (= #{:password} (::form/pristine form)))
     (is (= :email (::form/target form)))

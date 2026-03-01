@@ -38,128 +38,78 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Form Demo
 
-(def form-schema
-  {:text      [:string {:min 3}]
-   :email     [:re {:error/message "Invalid email"} #"^[^\s@]+@[^\s@]+\.[^\s@]+$"]
-   :password  [:string {:min 8 :error/message "At least 8 characters"}]
-   :number    [:re {:error/message "0-100"} #"^(?:[0-9]|[1-9][0-9]|100)$"]
-   :date      [:string {:min 1}]
-   :time      [:string {:min 1}]
-   :url       [:re {:error/message "Invalid URL"} #"^https?://.*"]
-   :tel       [:re {:error/message "Invalid phone"} #"^\+?[\d\s-]+$"]
-   :search    [:string {:min 1}]
-   :textarea  [:string {:min 10 :error/message "At least 10 characters"}]
-   :select    [:enum "a" "b" "c"]
-   :radio     [:enum "opt1" "opt2" "opt3"]
-   :checkbox  [:= "true"]})
+(def form-config
+  {:schema {:text     [:string {:min 3}]
+            :email    [:re {:error/message "Invalid email"} #"^[^\s@]+@[^\s@]+\.[^\s@]+$"]
+            :password [:string {:min 8 :error/message "At least 8 characters"}]
+            :number   [:re {:error/message "0-100"} #"^(?:[0-9]|[1-9][0-9]|100)$"]
+            :date     [:string {:min 1}]
+            :time     [:string {:min 1}]
+            :url      [:re {:error/message "Invalid URL"} #"^https?://.*"]
+            :tel      [:re {:error/message "Invalid phone"} #"^\+?[\d\s-]+$"]
+            :search   [:string {:min 1}]
+            :textarea [:string {:min 10 :error/message "At least 10 characters"}]
+            :select   [:enum "a" "b" "c"]
+            :radio    [:enum "opt1" "opt2" "opt3"]
+            :checkbox [:= "true"]}})
 
 (defn- form-demo
-  [request {:keys [validation success? submitted? editing?]}]
-  (let [validation               (when-not success? validation)
-        form-status              (form/form-status validation)
-        {:keys [ring bg shadow]} (get form/form-classes form-status)
-        error?                   (= form-status :bits.form/error)
-        shake?                   (and error? (not editing?))]
-    (form/form request :demo/validate
-      (cond-> {:class (str "rounded-xl p-6 transition-all duration-500 ease-out "
-                           ring " " shadow " " bg " "
-                           (when shake? "form-shake"))}
-        success? (assoc :data-reset true))
+  [f]
+  (form/form f :demo/validate {:class "rounded-xl p-6"}
 
-      (when (and submitted? (not success?))
-        [:input {:type "hidden" :name "_submitted" :value "true"}])
+             [:div {:class "space-y-4"}
+              [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
+               (tru "Text Inputs")]
 
-      [:div {:class "space-y-4"}
-       [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
-        (tru "Text Inputs")]
+              (form/field f :text {:label (tru "Text") :placeholder "Plain text"
+                                   :autocomplete "off" :data-1p-ignore true})
 
-       (form/validated-field
-        {:name :text :label (tru "Text") :placeholder "Plain text"
-         :autocomplete "off" :data-1p-ignore true}
-        (get validation :text))
+              (form/field f :email {:label (tru "Email") :type "email" :placeholder "you@example.com"
+                                    :autocomplete "off" :data-1p-ignore true})
 
-       (form/validated-field
-        {:name :email :label (tru "Email") :type "email" :placeholder "you@example.com"
-         :autocomplete "off" :data-1p-ignore true}
-        (get validation :email))
+              (form/field f :password {:label (tru "Password") :type "password" :placeholder "••••••••"
+                                       :autocomplete "off" :data-1p-ignore true})
 
-       (form/validated-field
-        {:name :password :label (tru "Password") :type "password" :placeholder "••••••••"
-         :autocomplete "off" :data-1p-ignore true}
-        (get validation :password))
+              (form/field f :number {:label (tru "Number") :type "number" :min 0 :max 100 :placeholder "0-100"})
 
-       (form/validated-field
-        {:name :number :label (tru "Number") :type "number" :min 0 :max 100 :placeholder "0-100"}
-        (get validation :number))
+              (form/field f :date {:label (tru "Date") :type "date"})
 
-       (form/validated-field
-        {:name :date :label (tru "Date") :type "date"}
-        (get validation :date))
+              (form/field f :time {:label (tru "Time") :type "time"})
 
-       (form/validated-field
-        {:name :time :label (tru "Time") :type "time"}
-        (get validation :time))
+              (form/field f :url {:label (tru "URL") :type "url" :placeholder "https://example.com"})
 
-       (form/validated-field
-        {:name :url :label (tru "URL") :type "url" :placeholder "https://example.com"}
-        (get validation :url))
+              (form/field f :tel {:label (tru "Phone") :type "tel" :placeholder "+1 234 567 8900"})
 
-       (form/validated-field
-        {:name :tel :label (tru "Phone") :type "tel" :placeholder "+1 234 567 8900"}
-        (get validation :tel))
+              (form/field f :search {:label (tru "Search") :type "search" :placeholder "Search..."})]
 
-       (form/validated-field
-        {:name :search :label (tru "Search") :type "search" :placeholder "Search..."}
-        (get validation :search))]
+             [:div {:class "space-y-4 mt-6 pt-6 border-t border-white/10"}
+              [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
+               (tru "Multi-line")]
 
-      [:div {:class "space-y-4 mt-6 pt-6 border-t border-white/10"}
-       [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
-        (tru "Multi-line")]
+              (form/textarea f :textarea {:label (tru "Textarea") :placeholder "Enter at least 10 characters..." :rows 4})]
 
-       (form/validated-textarea
-        {:name :textarea :label (tru "Textarea") :placeholder "Enter at least 10 characters..." :rows 4}
-        (get validation :textarea))]
+             [:div {:class "space-y-4 mt-6 pt-6 border-t border-white/10"}
+              [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
+               (tru "Selection")]
 
-      [:div {:class "space-y-4 mt-6 pt-6 border-t border-white/10"}
-       [:h3 {:class "text-sm font-semibold text-zinc-400 uppercase tracking-wide"}
-        (tru "Selection")]
+              (form/select f :select {:label (tru "Select") :placeholder (tru "Choose an option")}
+                           [[:option {:value "a"} "Option A"]
+                            [:option {:value "b"} "Option B"]
+                            [:option {:value "c"} "Option C"]])
 
-       (form/validated-select
-        {:name :select :label (tru "Select") :placeholder (tru "Choose an option")}
-        [[:option {:value "a"} "Option A"]
-         [:option {:value "b"} "Option B"]
-         [:option {:value "c"} "Option C"]]
-        (get validation :select))
+              (form/radio-group f :radio {:label (tru "Radio Group")}
+                                [{:option-value "opt1" :option-label "Option 1"}
+                                 {:option-value "opt2" :option-label "Option 2"}
+                                 {:option-value "opt3" :option-label "Option 3"}])
 
-       (form/validated-radio-group
-        {:name :radio :label (tru "Radio Group")}
-        [{:option-value "opt1" :option-label "Option 1"}
-         {:option-value "opt2" :option-label "Option 2"}
-         {:option-value "opt3" :option-label "Option 3"}]
-        (get validation :radio))
+              (form/checkbox f :checkbox {:label (tru "I agree to the terms")})]
 
-       (form/validated-checkbox
-        {:name :checkbox :label (tru "I agree to the terms")}
-        (get validation :checkbox))]
-
-      [:div {:class "mt-6"}
-       (let [base-classes    "block w-full py-3.5 border-none rounded-lg font-sans text-[0.9375rem] font-semibold cursor-pointer tracking-wide transition-opacity duration-150"
-             error-classes   "bg-red-500/20 text-red-400 ring-2 ring-red-500/50 hover:opacity-90"
-             success-classes "bg-accent text-surface hover:opacity-90"
-             normal-classes  "bg-white/[0.08] text-zinc-300 hover:opacity-80"]
-         [:button {:type  "submit"
-                   :name  "submit"
-                   :value "true"
-                   :class (str base-classes " " (cond error?   error-classes
-                                                      success? success-classes
-                                                      :else    normal-classes))}
-          (cond error?   (tru "Whoops!")
-                success? (tru "Success!")
-                :else    (tru "Submit"))])])))
+             [:div {:class "mt-6"}
+              (form/submit f)]))
 
 (defn form-view
-  ([request] (form-view request {}))
-  ([request opts]
+  ([request] (form-view request (form/build request form-config)))
+  ([request f]
    (list
     (ui/nav-header request "/form")
     (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
@@ -168,7 +118,7 @@
                      "tracking-tight" "text-primary"]}
         (tru "Forms")]]
       [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-md"]}
-       (form-demo request opts)]))))
+       (form-demo f)]))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Explore
@@ -321,14 +271,5 @@
                                   (update-cursor! channel-id x y))))
              :demo/redirect (fn [_req] (morph/redirect "https://jcf.dev"))
              :demo/validate (fn [request]
-                              (let [form        (assoc (::form/form request)
-                                                       ::form/values (update-keys (:form-params request) keyword))
-                                    validation  (form/validate-form form-schema form)
-                                    form-status (form/form-status validation)
-                                    submitted?  (::form/submitted? form)
-                                    editing?    (some? (::form/target form))
-                                    success?    (and submitted? (not editing?) (not= form-status :bits.form/error))]
-                                (morph/respond (form-view request {:validation  validation
-                                                                   :submitted?  submitted?
-                                                                   :editing?    editing?
-                                                                   :success?    success?}))))}})
+                              (let [f (form/build request form-config)]
+                                (morph/respond (form-view request f))))}})

@@ -22,17 +22,21 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Views
 
+(def ^:private login-schema
+  {:email    [:string {:min 1}]
+   :password [:string {:min 1}]})
+
+(defn- login-config
+  []
+  {:schema login-schema
+   :submit {:idle  (tru "Sign in")
+            :error (tru "Invalid credentials")}})
+
 (defn login-view
   [request opts]
   (let [{:keys [auth-failed? action-error]} opts
-        action-failed?                      (or auth-failed? action-error)
-        {:keys [ring bg shadow]}            (get form/form-classes
-                                                 (if action-failed? :bits.form/error :bits.form/pristine)
-                                                 (:bits.form/pristine form/form-classes))
-        button-text                         (cond
-                                              action-error action-error
-                                              auth-failed? (tru "Invalid credentials")
-                                              :else        (tru "Sign in"))]
+        f (cond-> (form/build request (login-config))
+            (or action-error auth-failed?) (form/with-error action-error))]
     (list
      (ui/nav-header request "/login")
      (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
@@ -41,34 +45,18 @@
                       "tracking-tight" "text-primary"]}
          (tru "Sign in to your account")]]
        [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
-        (form/form request :auth/login
-          (cond->
-           {:class (str "rounded-xl p-6 transition-all duration-500 ease-out "
-                        ring " " shadow " " bg " "
-                        (when action-failed? "form-shake"))}
-            action-failed? (assoc :data-reset true))
-          [:div {:class "space-y-1"}
-           (form/validated-field
-            {:name         :email
-             :label        (tru "Email")
-             :type         "email"
-             :placeholder  "creator@bits.page"
-             :autocomplete "username"})
-           (form/validated-field
-            {:name         :password
-             :label        (tru "Password")
-             :type         "password"
-             :placeholder  "correct-horse-battery-staple"
-             :autocomplete "current-password"})]
-          [:div {:class "mt-4"}
-           (let [base-classes   "w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-300 ease-out cursor-pointer"
-                 error-classes  "bg-red-500/20 text-red-400 ring-2 ring-red-500/50"
-                 normal-classes "bg-white/[0.08] text-zinc-300 ring-1 ring-white/10 hover:bg-white/[0.12] hover:ring-white/20"]
-             [:button {:type  "submit"
-                       :name  "submit"
-                       :value "true"
-                       :class (str base-classes " " (if action-failed? error-classes normal-classes))}
-              button-text])])]))))
+        (form/form f :auth/login {:class "rounded-xl p-6"}
+                   [:div {:class "space-y-1"}
+                    (form/field f :email {:label        (tru "Email")
+                                          :type         "email"
+                                          :placeholder  "creator@bits.page"
+                                          :autocomplete "username"})
+                    (form/field f :password {:label        (tru "Password")
+                                             :type         "password"
+                                             :placeholder  "••••••••"
+                                             :autocomplete "current-password"})]
+                   [:div {:class "mt-4"}
+                    (form/submit f)])]))))
 
 (defn authenticated-view
   [request]
@@ -78,8 +66,8 @@
      (ui/page-center {:class "space-y-4"}
        (ui/page-title {:class "text-2xl"} (tru "Welcome!"))
        (ui/text-muted {} (tru "Signed in as user {0}" user-id))
-       (form/form request :auth/sign-out
-         (ui/button-secondary {} (tru "Sign out")))))))
+       (form/action-button :auth/sign-out {:class "rounded-md px-3 py-1.5 text-sm/6 font-semibold text-primary bg-surface-hover hover:bg-surface-raised"}
+                           (tru "Sign out"))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Actions
@@ -91,7 +79,7 @@
 (defn authenticate
   [request]
   (span/with-span! {:name ::authenticate}
-    (when (::form/submitted? (::form/form request))
+    (when (::form/submitted? (::form/raw request))
       (let [params                                            (get-in request [:parameters :form])
             {:keys [datomic keymaster postgres rate-limiter]} (mw/request->state request)
             tenant-id                                         (get-in request [:session/realm :tenant/id])

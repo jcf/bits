@@ -33,9 +33,8 @@
 
 (defn merge-classes
   [classes]
-  {:pre [(vector? classes)]}
   (span/with-span! {:name ::merge-classes}
-    (resolve-classes classes)))
+    (resolve-classes (winnow/normalize classes))))
 
 (defn with-defaults
   [attrs defaults]
