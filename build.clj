@@ -30,7 +30,8 @@
     (b/compile-clj {:basis      basis
                     :ns-compile ['bits.cli]
                     :class-dir  class-dir
-                    :jvm-opts   ["-Dclojure.compiler.direct-linking=true"]})
+                    :jvm-opts   ["-Dclojure.compiler.direct-linking=true"]
+                    :report     :stderr})
     (b/uber {:basis     basis
              :class-dir class-dir
              :uber-file uber-file
