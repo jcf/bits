@@ -106,7 +106,7 @@
   [["/"          (tru "Explore")]
    ["/counter"   (tru "Counter")]
    ["/cursors"   (tru "Cursors")]
-   ["/email"     (tru "Email")]
+   ["/form"      (tru "Forms")]
    ["/redirect"  (tru "Redirect")]])
 
 (defn nav-header

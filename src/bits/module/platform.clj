@@ -1,5 +1,6 @@
 (ns bits.module.platform
   (:require
+   [bits.form :as form]
    [bits.html :as html]
    [bits.locale :refer [tru]]
    [bits.middleware :as mw]
@@ -35,31 +36,97 @@
       (ui/icon-button {:data-action "counter/inc" :aria-label (tru "Increment")} plus-icon)])))
 
 ;;; ----------------------------------------------------------------------------
-;;; Email
+;;; Form Demo
 
-(defn- email-form
-  [{:keys [email error success]}]
-  (ui/card {:id "email-demo"}
-    (ui/card-title (tru "Email Validation"))
-    [:form {:class "space-y-4 transition-opacity inert:opacity-50 inert:cursor-wait"}
-     (when error (ui/text-error error))
-     (when success (ui/text-success success))
-     (ui/input {:type        "email"
-                :name        "email"
-                :value       (or email "")
-                :class       "rounded-md"
-                :placeholder "you@example.com"})
-     (ui/button-primary {:type        "button"
-                         :data-action "email/validate"}
-                        (tru "Submit"))]))
+(def Username
+  [:and
+   [:string {:min 3 :error/message "At least 3 characters"}]
+   [:re {:error/message "Letters, numbers, underscores only"}
+    #"^[a-zA-Z0-9_]+$"]])
 
-(defn email-view
-  ([request] (email-view request {}))
-  ([request form-state]
+(def Email
+  [:and
+   [:string {:min 1}]
+   [:re {:error/message "Enter a valid email address"}
+    #"^[^\s@]+@[^\s@]+\.[^\s@]+$"]])
+
+(def Country
+  [:enum {:error/message "Select a country"} "us" "uk" "ca" "au" "de" "fr" "jp"])
+
+(def form-schema
+  {:username Username
+   :email    Email
+   :country  Country})
+
+(defn- form-demo
+  [request {:keys [validation success?]}]
+  (let [validation               (when-not success? validation)
+        form-status              (form/form-status validation)
+        {:keys [ring bg shadow]} (get form/form-classes form-status)
+        error?                   (= form-status :bits.form/error)]
+    (form/form request :demo/validate
+      (cond-> {:class (str "rounded-xl p-6 transition-all duration-500 ease-out "
+                           ring " " shadow " " bg " "
+                           (when error? "form-shake"))}
+        success? (assoc :data-reset true))
+      [:div {:class "space-y-2"}
+       (form/validated-field
+        {:name           :username
+         :label          (tru "Username")
+         :placeholder    "jcf_rocks"
+         :autocomplete   "off"
+         :data-1p-ignore true}
+        (get validation :username))
+       (form/validated-field
+        {:name           :email
+         :label          (tru "Email")
+         :type           "email"
+         :placeholder    "you@example.com"
+         :autocomplete   "off"
+         :data-1p-ignore true}
+        (get validation :email))
+       [:div
+        [:label {:class "block text-xs font-medium tracking-wide text-zinc-500 uppercase mb-1.5 pl-0.5"}
+         (tru "Country")]
+        [:select {:name         "country"
+                  :autocomplete "country-name"
+                  :class        "w-full px-3.5 py-2.5 rounded-lg text-sm bg-white/[0.04] ring-1 ring-white/10 text-zinc-200 outline-1 outline-offset-1 outline-transparent focus-visible:outline-accent transition-all duration-300 ease-out"}
+         [:option {:value ""} (tru "Select a country")]
+         [:option {:value "us"} "United States"]
+         [:option {:value "uk"} "United Kingdom"]
+         [:option {:value "ca"} "Canada"]
+         [:option {:value "au"} "Australia"]
+         [:option {:value "de"} "Germany"]
+         [:option {:value "fr"} "France"]
+         [:option {:value "jp"} "Japan"]]
+        [:div {:class "h-5"}]]]
+      [:div {:class "mt-4"}
+       (let [base-classes    "block w-full py-3.5 border-none rounded-lg font-sans text-[0.9375rem] font-semibold cursor-pointer tracking-wide transition-opacity duration-150"
+             error-classes   "bg-red-500/80 text-surface hover:opacity-90"
+             success-classes "bg-accent text-surface hover:opacity-90"
+             normal-classes  "bg-white/[0.08] text-zinc-300 hover:opacity-80"]
+         [:button {:type  "submit"
+                   :name  "submit"
+                   :value "true"
+                   :class (str base-classes " " (cond error?   error-classes
+                                                      success? success-classes
+                                                      :else    normal-classes))}
+          (cond error?   (tru "Whoops!")
+                success? (tru "Success!")
+                :else    (tru "Submit"))])])))
+
+(defn form-view
+  ([request] (form-view request {}))
+  ([request opts]
    (list
-    (ui/nav-header request "/email")
-    (ui/page-center {}
-      (email-form form-state)))))
+    (ui/nav-header request "/form")
+    (ui/page-center {:class ["px-6" "py-12" "lg:px-8"]}
+      [:div {:class ["sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+       [:h2 {:class ["mt-10" "text-center" "text-2xl/9" "font-bold"
+                     "tracking-tight" "text-primary"]}
+        (tru "Forms")]]
+      [:div {:class ["mt-10" "sm:mx-auto" "sm:w-full" "sm:max-w-sm"]}
+       (form-demo request opts)]))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Explore
@@ -198,30 +265,27 @@
                                  :bits/page {:page/title "Counter"})]
              ["/cursors"  (assoc (morph/morphable ui/layout cursors-view {:on-close remove-cursor!})
                                  :bits/page {:page/title "Cursors"})]
-             ["/email"    (assoc (morph/morphable ui/layout email-view)
-                                 :bits/page {:page/title "Email"})]
+             ["/form"     (assoc (morph/morphable ui/layout form-view)
+                                 :bits/page {:page/title "Forms"})]
              ["/redirect" (assoc (morph/morphable ui/layout redirect-view)
                                  :bits/page {:page/title "Redirect"})]]
-   :actions {:counter/inc    (fn [_req] (swap! !counter update :count inc))
-             :counter/dec    (fn [_req] (swap! !counter update :count dec))
-             :demo/redirect  (fn [_req] (morph/redirect "https://jcf.dev"))
-             :email/validate (fn [request]
-                               (let [email (get-in request [:params "email"] "")]
-                                 (cond
-                                   (str/blank? email)
-                                   (morph/respond (email-view request {:email email
-                                                                       :error (tru "Email is required")}))
-
-                                   (not (str/includes? email "@"))
-                                   (morph/respond (email-view request {:email email
-                                                                       :error (tru "Please enter a valid email address")}))
-
-                                   :else
-                                   (morph/respond (email-view request {:email   email
-                                                                       :success (tru "Welcome, {0}!" email)})))))
-             :cursor/move    (fn [request]
-                               (let [channel-id (get-in request [:params "channel"])
-                                     x          (parse-long (get-in request [:params "x"] "0"))
-                                     y          (parse-long (get-in request [:params "y"] "0"))]
-                                 (when (and channel-id x y (< x 10000) (< y 10000))
-                                   (update-cursor! channel-id x y))))}})
+   :actions {:counter/inc   (fn [_req] (swap! !counter update :count inc))
+             :counter/dec   (fn [_req] (swap! !counter update :count dec))
+             :demo/redirect (fn [_req] (morph/redirect "https://jcf.dev"))
+             :demo/validate {:handler (fn [request]
+                                        (let [form        (assoc (::form/form request)
+                                                                 ::form/values (get-in request [:parameters :form]))
+                                              validation  (form/validate-form form-schema form)
+                                              form-status (form/form-status validation)
+                                              success?    (and (::form/submitted? form) (not= form-status :bits.form/error))]
+                                          (morph/respond (form-view request {:validation validation
+                                                                             :success?   success?}))))
+                             :params  [[:username :string]
+                                       [:email :string]
+                                       [:country :string]]}
+             :cursor/move   (fn [request]
+                              (let [channel-id (get-in request [:params "channel"])
+                                    x          (parse-long (get-in request [:params "x"] "0"))
+                                    y          (parse-long (get-in request [:params "y"] "0"))]
+                                (when (and channel-id x y (< x 10000) (< y 10000))
+                                  (update-cursor! channel-id x y))))}})

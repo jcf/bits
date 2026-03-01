@@ -85,6 +85,27 @@ After modifying the template, regenerate with:
 The `just tailwind` command watches for class changes in Clojure source files and
 rebuilds `resources/public/app.css`.
 
+### No Hiccup Class Shorthand
+
+**BANNED: Tailwind class shorthand in Hiccup keywords.**
+
+Never use the dot syntax to embed classes in element keywords. This breaks tooling
+(Tailwind's class scanner, editor highlighting, search) and is unmaintainable.
+
+```clojure
+;; BANNED: Class shorthand
+[:label.block.text-xs.font-medium.text-zinc-500 "Email"]
+[:div.space-y-1 ...]
+[:span.text-xs msg]
+
+;; REQUIRED: Explicit :class attribute
+[:label {:class "block text-xs font-medium text-zinc-500"} "Email"]
+[:div {:class "space-y-1"} ...]
+[:span {:class "text-xs"} msg]
+```
+
+This is non-negotiable. The shorthand syntax is never acceptable in this codebase.
+
 ## Clojure
 
 **Claude Code Restriction**: Do not write new Clojure implementations. Claude may:
@@ -200,6 +221,41 @@ async fn test_behavior() {
     // Test logic
 }
 ```
+
+## Form Interaction Design
+
+**ABSOLUTE RULE: No flash messages, banners, or content-shifting error boxes.**
+
+Forms communicate through physical metaphor, like real-world objects:
+
+- **Resistance, not messages** — A lock doesn't scroll and show text when the wrong
+  key is used. You feel resistance. Forms work the same way.
+- **Form shakes on rejection** — Invalid submission triggers a shake animation
+- **Color indicates state** — Form outline/background changes color (red for error,
+  amber for advisory, green for valid)
+- **Field-level feedback** — Individual fields show their validation state with
+  rings and hint text below
+- **Button reflects form state** — Submit button styling changes based on whether
+  the form is valid and ready to submit
+
+**What is BANNED:**
+
+- Flash messages that appear/disappear
+- Error banners or boxes that shift content
+- Toast notifications for form errors
+- Any element that pops into existence and disrupts layout flow
+- Ad-hoc flags like `form-error`, `rejected?`, etc.
+
+**Validation timing:**
+
+- **Pristine field + blur** — No validation (user hasn't interacted meaningfully)
+- **Touched field + blur** — Validate on blur
+- **Field with existing error + input** — Validate immediately (debounced) so user
+  sees when they've fixed the problem
+- **Form submission** — Validate all fields, show errors, shake if invalid
+
+The quality of this interaction pattern is critical to the product. It must feel
+polished, intentional, and physical.
 
 ## Clojure
 
@@ -544,6 +600,45 @@ Use **lowercase** for all header names and Ring utilities for access.
 - **Consistency** — Ring normalizes request headers to lowercase; match this for responses
 - **Case-insensitive access** — Ring utilities handle case variations safely
 - **HTTP spec compliance** — Header names are case-insensitive per RFC 7230
+
+### Qualified Keywords for Enum Values
+
+Values that cross namespace boundaries MUST be qualified keywords. Naked keywords like
+`:pristine`, `:valid`, `:error` are unacceptable — they can't be traced, can't be
+spec'd effectively, and pollute the keyword space.
+
+```clojure
+;; Good: Qualified status keywords
+:bits.form/pristine
+:bits.form/advisory
+:bits.form/error
+
+;; Bad: Naked keywords crossing namespace boundaries
+:pristine
+:advisory
+:error
+```
+
+Define these as vars in a set for documentation and tooling:
+
+```clojure
+(def statuses
+  #{:bits.form/pristine
+    :bits.form/advisory
+    :bits.form/error})
+```
+
+**When naked keywords are acceptable:**
+
+- Function-local values that don't leave the function
+- Options maps documented in a single place (e.g., `{:direction :asc}`)
+- Well-known Clojure conventions (`:keys`, `:as`, `:or`)
+
+**When qualified keywords are required:**
+
+- Status values passed between namespaces
+- Domain entities stored in maps
+- Anything you'd want to spec or validate
 
 ### Qualified Keywords as Domain Identifiers
 

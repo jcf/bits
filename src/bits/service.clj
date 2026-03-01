@@ -1,6 +1,7 @@
 (ns bits.service
   (:require
    [bits.coerce :as coerce]
+   [bits.form :as form]
    [bits.html :as html]
    [bits.locale :refer [tru]]
    [bits.middleware :as mw]
@@ -155,6 +156,7 @@
          [mw/wrap-state service]
          [mw/wrap-datomic]
          [middleware.params/wrap-params]
+         [form/wrap-form-params]
          [middleware.cookies/wrap-cookies]
          [mw/wrap-realm realms]
          [middleware.session/wrap-session {:cookie-attrs {:http-only true

@@ -6,6 +6,11 @@
   let channelId = null;
   let retryDelay = 1000;
 
+  // Live form state — tracks which fields have been interacted with
+  const _timers = new Map();
+  const _used = new Set();
+  let _focusoutTimer = null;
+
   const log = {
     info: (msg) =>
       console.log("%c[bits]%c " + msg, "color: #0af; font-weight: bold", ""),
@@ -120,9 +125,38 @@
     morph: (data) => {
       const target = document.getElementById("morph");
       if (target && window.Idiomorph) {
+        // Check if incoming content has a form requesting reset
+        const temp = document.createElement("div");
+        temp.innerHTML = data;
+        const shouldReset = temp.querySelector("form[data-reset]") !== null;
+
         Idiomorph.morph(target, data, {
-          ignoreActiveValue: true,
+          ignoreActiveValue: false,
           morphStyle: "innerHTML",
+          callbacks: {
+            beforeNodeMorphed: (oldNode, newNode) => {
+              // Copy values to new node, allowing class updates while preserving input
+              if (
+                !shouldReset &&
+                oldNode instanceof HTMLInputElement &&
+                newNode instanceof HTMLInputElement &&
+                oldNode.value
+              ) {
+                // Preserve password and focused input values
+                if (oldNode.type === "password" || oldNode === document.activeElement) {
+                  newNode.value = oldNode.value;
+                }
+              }
+              // Preserve select values
+              if (
+                !shouldReset &&
+                oldNode instanceof HTMLSelectElement &&
+                newNode instanceof HTMLSelectElement
+              ) {
+                newNode.value = oldNode.value;
+              }
+            },
+          },
         });
         initMouseTracking();
       }
@@ -215,12 +249,16 @@
 
   document.addEventListener("submit", (e) => {
     const form = e.target;
+    // Cancel any pending focusout validation — submit takes precedence
+    clearTimeout(_focusoutTimer);
+
     // `form.action` will return an input with name "action", if present. We
     // want the action attribute on the form element.
     const formAction = form.getAttribute("action");
     if (formAction && formAction.endsWith("/action")) {
       e.preventDefault();
-      const params = Object.fromEntries(new FormData(form));
+      // Pass e.submitter to include the submit button's name/value in FormData
+      const params = Object.fromEntries(new FormData(form, e.submitter));
       const action = params.action;
       delete params.action;
       if (action) {
@@ -228,6 +266,78 @@
       } else {
         log.warn("Form missing required hidden action input:", form);
       }
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Live Form Validation
+
+  function postFormAction(form, target) {
+    const raw = new FormData(form);
+    const params = {};
+    const action = raw.get("action");
+
+    for (const [k, v] of raw.entries()) {
+      // Skip control params that get special handling
+      if (k === "action" || k === "csrf") continue;
+      // Pass submit through unprefixed — it's a control param, not a field
+      if (k === "submit") {
+        params[k] = v;
+        continue;
+      }
+      // Prefix unused fields so server can distinguish pristine from touched
+      params[_used.has(k) ? k : "_unused_" + k] = v;
+    }
+
+    params._target = target;
+    postAction(action, params);
+  }
+
+  document.addEventListener("input", (e) => {
+    const form = e.target.closest('form[action="/action"]');
+    if (!form || !e.target.name) return;
+
+    _used.add(e.target.name);
+
+    if (e.target.dataset.used === "true") {
+      const key = e.target.name;
+      clearTimeout(_timers.get(key));
+      _timers.set(key, setTimeout(() => postFormAction(form, key), 300));
+    }
+  });
+
+  document.addEventListener("change", (e) => {
+    const form = e.target.closest('form[action="/action"]');
+    if (!form || !e.target.name) return;
+
+    _used.add(e.target.name);
+    const tag = e.target.tagName;
+    const type = e.target.type;
+
+    // Immediate validation for discrete inputs (no debounce needed)
+    if (tag === "SELECT" || type === "checkbox" || type === "radio") {
+      clearTimeout(_timers.get(e.target.name));
+      postFormAction(form, e.target.name);
+    }
+  });
+
+  document.addEventListener("focusout", (e) => {
+    const form = e.target.closest('form[action="/action"]');
+    if (!form || !e.target.name) return;
+
+    if (e.relatedTarget?.type === "submit") return;
+
+    if (_used.has(e.target.name)) {
+      clearTimeout(_timers.get(e.target.name));
+      clearTimeout(_focusoutTimer);
+      // Small delay lets submit event fire first and cancel this
+      _focusoutTimer = setTimeout(() => postFormAction(form, e.target.name), 10);
+    }
+  });
+
+  document.addEventListener("animationend", (e) => {
+    if (e.target.classList.contains("form-shake")) {
+      e.target.classList.remove("form-shake");
     }
   });
 
