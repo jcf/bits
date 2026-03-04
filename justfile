@@ -208,6 +208,17 @@ perf *args:
             -M:dev:test:otel:runner:{{ os }} \
             {{ args }}
 
+# Run tests with Jaeger tracing (requires Jaeger on localhost:4317)
+[group('test')]
+trace *args:
+    env \
+        OTEL_SERVICE_NAME=bits-test \
+        OTEL_TRACES_EXPORTER=otlp \
+        OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
+        clojure \
+            -M:dev:test:otel:runner:{{ os }} \
+            {{ args }}
+
 # ------------------------------------------------------------------------------
 # Build
 
@@ -322,3 +333,72 @@ systemctl *args:
 [no-exit-message]
 logs container *args:
     @exec ssh -tt compute "exec sudo journalctl --output=cat CONTAINER_NAME={{ container }} {{ args }}"
+
+# ------------------------------------------------------------------------------
+# CI
+
+forgejo_api := "https://code.invetica.team/api/v1"
+forgejo_repo := "jcf/bits"
+
+# Authenticate with Forgejo UI for log access
+[group('ci')]
+ci-login:
+    fj-ex auth login --host code.invetica.team
+
+# Show the latest CI run status
+[group('ci')]
+ci-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    token=$(op read "op://Employee/Forgejo/tokens/everything")
+    curl -s -H "Authorization: token $token" \
+        "{{ forgejo_api }}/repos/{{ forgejo_repo }}/actions/runs" \
+    | jq -r '[.workflow_runs[] | select(.created != null)] | sort_by(.created) | reverse | .[0] | "Run #\(.index_in_repo): \(.title)\nStatus: \(.status)\nURL: \(.html_url)"'
+
+# List recent CI runs
+[group('ci')]
+ci-runs limit="10":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    token=$(op read "op://Employee/Forgejo/tokens/everything")
+    curl -s -H "Authorization: token $token" \
+        "{{ forgejo_api }}/repos/{{ forgejo_repo }}/actions/runs" \
+    | jq -r --argjson n "{{ limit }}" \
+        '[.workflow_runs[] | select(.created != null)] | sort_by(.created) | reverse | .[:$n][] | "#\(.index_in_repo)\t\(.status)\t\(.title)"'
+
+# Show jobs for a CI run (index is first column, use with ci-logs)
+[group('ci')]
+ci-jobs run:
+    fj-ex actions jobs --run-index {{ run }}
+
+# Show failed jobs from the latest CI run
+[group('ci')]
+ci-failures:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    token=$(op read "op://Employee/Forgejo/tokens/everything")
+
+    # Get latest run number (sorted by created date)
+    run=$(curl -s -H "Authorization: token $token" \
+        "{{ forgejo_api }}/repos/{{ forgejo_repo }}/actions/runs" \
+    | jq -r '[.workflow_runs[] | select(.created != null)] | sort_by(.created) | reverse | .[0].index_in_repo')
+
+    echo "Run #$run failures:"
+    curl -s -H "Authorization: token $token" \
+        "{{ forgejo_api }}/repos/{{ forgejo_repo }}/actions/tasks" \
+    | jq -r --arg run "$run" \
+        '.workflow_runs[] | select(.run_number == ($run | tonumber) and .status == "failure") | "  - \(.name)"'
+
+    echo ""
+    echo "View logs: https://code.invetica.team/{{ forgejo_repo }}/actions/runs/$run"
+
+# Fetch logs for a CI run or specific job (requires fj-ex to be authenticated)
+[group('ci')]
+ci-logs run job="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -z "{{ job }}" ]]; then
+        fj-ex actions logs run --run-index {{ run }}
+    else
+        fj-ex actions logs job --run-index {{ run }} --job-index {{ job }}
+    fi

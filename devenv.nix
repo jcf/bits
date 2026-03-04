@@ -12,6 +12,7 @@
 
   # Local packages
   datomic-pro = pkgs.callPackage ./pkgs/datomic-pro {};
+  forgejo-cli-ex = pkgs.callPackage ./pkgs/forgejo-cli-ex {};
   jaeger = pkgs.callPackage ./pkgs/jaeger {};
   otel-agent = pkgs.callPackage ./pkgs/opentelemetry-javaagent {};
 
@@ -97,6 +98,7 @@ in {
 
     # Development
     fd
+    forgejo-cli-ex
     just
     tokei
     tree
