@@ -1,0 +1,72 @@
+#+title:  Client-side validation is coupled to wall-clock time
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2026-03-04
+
+* Context
+The client-side form validation in =bits.js= uses =setTimeout= for debouncing
+input events. When a user types in a field that has been touched, validation is
+debounced by 300ms to avoid excessive server requests.
+
+#+begin_src javascript
+setTimeout(() => postFormAction(form, key), 300)
+#+end_src
+
+This creates a testing problem: generative tests that simulate rapid user
+interactions cannot deterministically verify form state because validation
+timing depends on wall-clock time. Tests either:
+
+1. Skip debounce testing entirely (incomplete coverage)
+2. Use =Thread/sleep= with hardcoded delays (slow, brittle)
+3. Race against timers (flaky)
+
+* Options Considered
+** Option 1: Accept the coupling, test with real delays
+Use explicit =:debounce= actions in tests that sleep for 310ms to allow timers
+to fire. Simple, works today, but slow.
+
+** Option 2: Abstract the scheduler
+Inject a clock/scheduler abstraction into the client JS. Tests provide a
+synthetic clock that can be advanced programmatically. Validation logic becomes
+a pure state machine tested independently of time.
+
+#+begin_src javascript
+// Production
+const scheduler = realScheduler;
+
+// Test
+const scheduler = syntheticScheduler;
+scheduler.advance(300); // Instantly fires pending timers
+#+end_src
+
+** Option 3: Server-driven debounce
+Move debounce logic to the server. Client sends all events immediately; server
+coalesces them. Eliminates client-side timing but increases server load and
+adds latency to every keystroke.
+
+* Decision
+**Short term:** Option 1. Add explicit =:debounce= actions to generative tests
+with correct timing (310ms). Ban arbitrary/random sleeps. Document the debt.
+
+**Long term:** Option 2. The client validation should be refactored to:
+
+1. Separate the state machine (pure logic) from the scheduler (I/O)
+2. Allow injection of a synthetic clock for testing
+3. Test the state machine with deterministic, instant transitions
+
+This requires non-trivial refactoring of =bits.js= and is not a quick fix.
+
+* Consequences
+** Accepted
+- Generative tests with =:debounce= actions will be slower (~310ms per debounce)
+- Test coverage of debounce behavior is explicit but coarse-grained
+- The architectural debt is documented and queued for future work
+
+** Deferred
+- Deterministic, fast testing of time-dependent behavior
+- Ability to test edge cases (e.g., timer cancelled by subsequent input)
+- Clean separation of concerns in client code
+
+* References
+- =resources/public/bits.js= — Client-side validation with setTimeout
+- =test/bits/form/gen_test.clj= — Generative tests with :debounce action
+- =AGENTS.md= — Testing guidelines on sleeps
