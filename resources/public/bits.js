@@ -12,6 +12,7 @@
   const _focusValues = new Map(); // Value when field gained focus
   let _focusoutTimer = null;
   let _validationController = null;
+  let _pendingValidations = 0; // Track in-flight validation requests
 
   const log = {
     info: (msg) =>
@@ -301,6 +302,7 @@
     clearTimeout(_focusoutTimer);
     _validationController?.abort();
     _validationController = null;
+    _pendingValidations = 0; // Reset counter so aborted requests don't interfere
 
     // `form.action` will return an input with name "action", if present. We
     // want the action attribute on the form element.
@@ -351,13 +353,17 @@
     }
 
     params._target = target;
+    _pendingValidations++;
     form.setAttribute("aria-busy", "true");
     postAction(action, params, _validationController.signal)
       .catch((err) => {
         if (err.name !== "AbortError") throw err;
       })
       .finally(() => {
-        form.removeAttribute("aria-busy");
+        _pendingValidations--;
+        if (_pendingValidations === 0) {
+          form.removeAttribute("aria-busy");
+        }
       });
   }
 
