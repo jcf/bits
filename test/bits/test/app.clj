@@ -12,7 +12,8 @@
    [datomic.api :as d]
    [hato.client :as http]
    [java-time.api :as time]
-   [ring.util.response :as response])
+   [ring.util.response :as response]
+   [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (io.opentelemetry.api GlobalOpenTelemetry)
    (io.opentelemetry.instrumentation.httpclient JavaHttpClientTelemetry)
@@ -27,11 +28,12 @@
 
 (defn must-start-system
   [system-map]
-  (try
-    (component/start-system system-map)
-    (catch Exception cause
-      (some-> cause ex-data :system component/stop-system)
-      (throw (system-ex-info cause)))))
+  (span/with-span! {:name ::must-start-system}
+    (try
+      (component/start-system system-map)
+      (catch Exception cause
+        (some-> cause ex-data :system component/stop-system)
+        (throw (system-ex-info cause))))))
 
 (defmacro with-system
   {:arglists     ['([system-binding system-map] body*)]
