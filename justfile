@@ -119,8 +119,10 @@ fmt *args:
 # Clean up generated classes and screenshots
 [group('dev')]
 clean:
-    @rm -r target/classes
-    @rm -r target/screenshots
+    @rm -r \
+        target/browser-sessions \
+        target/classes \
+        target/screenshots
 
 [group('dev')]
 nrepl *args:

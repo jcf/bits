@@ -211,7 +211,7 @@
 (defn screenshot
   ([driver]
    (let [ts (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))]
-     (screenshot driver (str "screenshot-" ts ".png"))))
+     (screenshot driver (str "target/screenshot/" ts ".png"))))
   ([driver path]
    (log/debug :msg "Capturing screenshot..." :path path)
    (e/screenshot (->etaoin driver) path)))
