@@ -1,10 +1,9 @@
 (ns bits.form-test
   (:require
    [bits.form :as sut]
-   [bits.morph :as morph]
    [bits.test.app :as t]
    [bits.test.browser :as browser]
-   [bits.ui :as ui]
+   [bits.test.form :as test.form]
    [clojure.test :refer [are deftest is]]
    [matcher-combinators.test :refer [match?]]))
 
@@ -75,34 +74,8 @@
 ;;; ----------------------------------------------------------------------------
 ;;; E2E
 
-(def ^:private form-schema
-  {:string [:string {:min 3}]
-   :email  [:re #".+@.+"]})
-
-(def ^:const ^:private action-key ::action)
-
-(defn- form-view
-  [request]
-  (let [f (sut/build request {:schema form-schema})]
-    (sut/form f action-key
-      (sut/field f :string {:label "Name" :type "text"})
-      (sut/field f :email {:label "Email" :type "text"})
-      (sut/submit f))))
-
-(defn- validate-action
-  [request]
-  (let [raw (::sut/raw request)]
-    (when (or (::sut/submitted? raw) (::sut/target raw))
-      (morph/respond (form-view request)))))
-
-(defn- system
-  []
-  (assoc-in (t/system) [:service :modules]
-            {:actions {action-key {:handler validate-action}}
-             :routes  [["/" (morph/morphable ui/layout form-view)]]}))
-
 (deftest ^:e2e pristine-no-validation
-  (t/with-system [{:keys [service]} (system)]
+  (t/with-system [{:keys [service]} (test.form/system)]
     (browser/with-driver [driver service]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "ab")
@@ -110,7 +83,7 @@
       (is (not (browser/invalid? driver :string))))))
 
 (deftest ^:e2e blur-shows-advisory
-  (t/with-system [{:keys [service]} (system)]
+  (t/with-system [{:keys [service]} (test.form/system)]
     (browser/with-driver [driver service]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "ab")
@@ -120,7 +93,7 @@
       (is (browser/described? driver :string)))))
 
 (deftest ^:e2e submit-shows-errors
-  (t/with-system [{:keys [service]} (system)]
+  (t/with-system [{:keys [service]} (test.form/system)]
     (browser/with-driver [driver service]
       (browser/goto driver "/")
       (browser/click driver "button[type='submit']")
@@ -130,11 +103,18 @@
       (is (= "Whoops!" (browser/text driver :submit))))))
 
 (deftest ^:e2e form-reset
-  (t/with-system [{:keys [service]} (system)]
+  (t/with-system [{:keys [service]} (test.form/system)]
     (browser/with-driver [driver service]
       (browser/goto driver "/")
-      (browser/wait-to-fill driver :string "abc")
-      (browser/wait-to-fill driver :email "test@example.com")
+      ;; Fill all required fields
+      (let [{:keys [string email number color fruit bio]} test.form/params]
+        (browser/wait-to-fill driver :string string)
+        (browser/wait-to-fill driver :email email)
+        (browser/wait-to-fill driver :number number)
+        (browser/select-option driver :color color)
+        (browser/select-radio driver :fruit fruit)
+        (browser/check driver :agree)
+        (browser/wait-to-fill driver :bio bio))
       (browser/wait-for-form driver)
       (is (= "Submit" (browser/text driver :submit)))
       (browser/click driver "button[type='submit']")
@@ -145,7 +125,7 @@
       (is (= "Success!" (browser/text driver :submit))))))
 
 (deftest ^:e2e values-preserved-on-error
-  (t/with-system [{:keys [service]} (system)]
+  (t/with-system [{:keys [service]} (test.form/system)]
     (browser/with-driver [driver service]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "ab")
@@ -157,7 +137,7 @@
       (is (browser/invalid? driver :string)))))
 
 (deftest ^:e2e no-race-condition
-  (t/with-system [{:keys [service]} (system)]
+  (t/with-system [{:keys [service]} (test.form/system)]
     (browser/with-driver [driver service]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "abc")

@@ -16,4 +16,9 @@
 
    {:id                       :e2e
     :kaocha.filter/focus-meta [:e2e]
+    :kaocha.filter/skip-meta  [:generative]
+    :kaocha.hooks/before      [bits.test.hooks/pre-suite]}
+
+   {:id                       :generative
+    :kaocha.filter/focus-meta [:generative]
     :kaocha.hooks/before      [bits.test.hooks/pre-suite]}]}

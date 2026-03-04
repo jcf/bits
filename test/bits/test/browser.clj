@@ -78,6 +78,52 @@
   [driver selector]
   (e/submit (->etaoin driver) (->query selector)))
 
+(defn clear
+  [driver selector]
+  (e/clear (->etaoin driver) (->query selector)))
+
+(defn press-key
+  [driver key]
+  (let [code (ns-resolve 'etaoin.keys (symbol (name key)))]
+    (e/fill-active (->etaoin driver) (if code @code (name key)))))
+
+(defn select-option
+  [driver selector value]
+  (let [e (->etaoin driver)
+        q (->query selector)]
+    ;; Select by option value attribute, not text content
+    (e/click e (assoc q :css (str (or (:css q)
+                                      (format "[name='%s']" (clojure.core/name (:name q))))
+                                  (format " option[value='%s']" value))))))
+
+(defn check
+  [driver selector]
+  (let [e (->etaoin driver)
+        q (->query selector)]
+    (when-not (e/selected? e q)
+      (e/click e q))))
+
+(defn uncheck
+  [driver selector]
+  (let [e (->etaoin driver)
+        q (->query selector)]
+    (when (e/selected? e q)
+      (e/click e q))))
+
+(defn toggle
+  [driver selector]
+  (e/click (->etaoin driver) (->query selector)))
+
+(defn select-radio
+  [driver name value]
+  (e/click (->etaoin driver) {:css (format "input[name='%s'][value='%s']"
+                                           (clojure.core/name name)
+                                           value)}))
+
+(defn selected?
+  [driver selector]
+  (e/selected? (->etaoin driver) (->query selector)))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Queries
 
