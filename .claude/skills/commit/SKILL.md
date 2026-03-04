@@ -17,6 +17,10 @@ Create atomic commits for **only the changes we made together** in this session.
 Review your tool use history from this conversation. List the files you edited
 using Edit or Write tools. These are "our changes."
 
+**Important:** A "session" spans multiple context windows. After compaction, check
+the conversation summary for files edited earlier. Don't ignore uncommitted changes
+just because they're not in the current tool history.
+
 ## Step 3: Cross-Reference with Git
 
 !`git status --short`
