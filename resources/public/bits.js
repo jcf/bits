@@ -414,8 +414,13 @@
     const focusValue = _focusValues.get(name);
     const changed = focusValue !== e.target.value;
 
-    // Only validate if the value actually changed during this focus
-    if (_used.has(name) && changed) {
+    // For fields with data-used (previously validated), always validate on blur
+    // to catch cases where user clears and re-enters the same value.
+    // For other fields, only validate if value changed during this focus.
+    const shouldValidate =
+      e.target.dataset.used === "true" || (_used.has(name) && changed);
+
+    if (shouldValidate) {
       clearTimeout(_timers.get(name));
       clearTimeout(_focusoutTimer);
       // Small delay lets submit event fire first and cancel this
