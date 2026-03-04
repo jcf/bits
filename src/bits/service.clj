@@ -13,6 +13,7 @@
    [bits.response]
    [bits.ui :as ui]
    [clojure.core.async :as a]
+   [clojure.spec.alpha :as s]
    [com.stuartsierra.component :as component]
    [io.pedestal.log :as log]
    [medley.core :as medley]
@@ -141,6 +142,7 @@
            :headers {"content-type" "text/html; charset=utf-8"}
            :body    (html/html (ui/layout request (ui/not-found-view request)))})
 
+        _             (s/assert :bits.module/combined modules)
         actions       (:actions modules)
         action-schema (morph/actions->schema actions)
         routes        (conj (:routes modules)

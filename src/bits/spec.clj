@@ -68,6 +68,19 @@
                    :bits.auth.rate-limit/ip-window-minutes]))
 
 ;;; ----------------------------------------------------------------------------
+;;; Module
+
+(s/def :bits.module/actions :bits.morph/actions)
+(s/def :bits.module/name qualified-keyword?)
+(s/def :bits.module/routes vector?)
+
+(s/def :bits/module
+  (s/keys :req-un [::actions ::name ::routes]))
+
+(s/def :bits.module/combined
+  (s/keys :req-un [:bits.module/actions :bits.module/routes]))
+
+;;; ----------------------------------------------------------------------------
 ;;; Service
 
 (s/def :realm/layout fn?)
@@ -91,6 +104,7 @@
 (s/def :bits.service/http-host string?)
 (s/def :bits.service/http-port (s/or :zero zero? :pos-int pos-int?))
 (s/def :bits.service/max-refresh-ms pos-int?)
+(s/def :bits.service/modules :bits.module/combined)
 (s/def :bits.service/platform-domain string?)
 (s/def :bits.service/realms (s/map-of qualified-keyword? :session/realm))
 (s/def :bits.service/routes vector?)

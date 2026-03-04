@@ -1,18 +1,7 @@
 (ns bits.module
   (:require
    [bits.anomaly :as anom]
-   [clojure.spec.alpha :as s]
    [medley.core :as medley]))
-
-;;; ----------------------------------------------------------------------------
-;;; Specs
-
-(s/def ::actions :bits.morph/actions)
-(s/def ::name qualified-keyword?)
-(s/def ::routes vector?)
-
-(s/def :bits/module
-  (s/keys :req-un [::actions ::name ::routes]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Normalization
