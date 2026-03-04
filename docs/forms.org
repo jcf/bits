@@ -1,0 +1,85 @@
+#+title: Form Interaction Design
+#+author: James Conroy-Finn
+
+* Overview
+Forms communicate through physical metaphor, like real-world objects. Claude
+should read this document when working on form-related UI.
+
+* Core Principle: Resistance, Not Messages
+*ABSOLUTE RULE: No flash messages, banners, or content-shifting error boxes.*
+
+A lock doesn't scroll and show text when the wrong key is used. You feel
+resistance. Forms work the same way.
+
+* Physical Feedback Patterns
+- *Form shakes on rejection* — Invalid submission triggers a shake animation
+- *Color indicates state* — Form outline/background changes color (red for error,
+  amber for advisory, green for valid)
+- *Field-level feedback* — Individual fields show validation state with rings and
+  hint text below
+- *Button reflects form state* — Submit button styling changes based on validity
+
+* What is BANNED
+- Flash messages that appear/disappear
+- Error banners or boxes that shift content
+- Toast notifications for form errors
+- Any element that pops into existence and disrupts layout flow
+- Ad-hoc flags like =form-error=, =rejected?=, etc.
+
+* Validation Timing
+| User action | Validation behavior |
+|-------------------------+---------------------------------------------------|
+| Pristine field + blur | No validation (user hasn't interacted) |
+| Touched field + blur | Validate on blur |
+| Field with error + input | Validate immediately (debounced) |
+| Form submission | Validate all fields, show errors, shake if invalid |
+
+The quality of this interaction pattern is critical to the product. It must feel
+polished, intentional, and physical.
+
+* Tailwind CSS
+** CSS Generation
+Tailwind CSS is generated from a Selmer template at
+=dev-resources/templates/tailwind.css.selmer=. After modifying, regenerate:
+
+#+begin_src shell
+just css
+#+end_src
+
+The =just tailwind= command watches for class changes in Clojure source files.
+
+** Use Data Structures for Classes
+Use =bits.tailwind/merge-classes= and data structures for class composition.
+Winnow handles nil values automatically.
+
+#+begin_src clojure
+;; Bad: String concatenation
+:class (str "h-5 flex items-center "
+            (if message "opacity-100" "opacity-0"))
+
+;; Good: Data structures with Winnow
+:class (tw/merge-classes ["h-5" "flex" "items-center"
+                          (if message "opacity-100" "opacity-0")])
+
+;; Good: Use with-defaults for element attrs
+[:input (tw/with-defaults attrs ["w-full" "rounded-lg" ring-class])]
+#+end_src
+
+** No Hiccup Class Shorthand
+*BANNED: Tailwind class shorthand in Hiccup keywords.*
+
+Never use the dot syntax to embed classes in element keywords. This breaks
+tooling (Tailwind's class scanner, editor highlighting, search).
+
+#+begin_src clojure
+;; BANNED: Class shorthand
+[:label.block.text-xs.font-medium.text-zinc-500 "Email"]
+[:div.space-y-1 ...]
+
+;; REQUIRED: Explicit :class attribute
+[:label {:class "block text-xs font-medium text-zinc-500"} "Email"]
+[:div {:class "space-y-1"} ...]
+#+end_src
+
+This is non-negotiable. The shorthand syntax is never acceptable in this
+codebase.

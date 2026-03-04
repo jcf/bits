@@ -1,0 +1,368 @@
+#+title: Clojure Conventions
+#+author: James Conroy-Finn
+
+* Overview
+Code style and patterns for Clojure in this project. Claude should read this
+document when working on Clojure code.
+
+* Docstrings
+Docstrings should elucidate, not take up space. Omit them when the function
+name already communicates the intent.
+
+*Never include:*
+- Parameter lists or option descriptions (use specs)
+- Return value descriptions for obvious returns
+- Restatements of the function name in sentence form
+
+*Good reasons for a docstring:*
+- Non-obvious algorithm or data format (e.g., "BLAKE3-256 hash, 64 hex chars")
+- Security context that explains why (e.g., "Constant-time to prevent timing attacks")
+- Important caveats or side effects not evident from the name
+
+#+begin_src clojure
+;; Bad: Restates the function name
+(defn delete-session!
+  "Delete a session by sid."
+  [store sid] ...)
+
+;; Good: No docstring needed - name says it all
+(defn delete-session!
+  [store sid] ...)
+
+;; Good: Adds non-obvious information
+(defn random-sid
+  "160-bit (20 byte) secure random, URL-safe base64 encoded."
+  [] ...)
+#+end_src
+
+* Configuration
+All configuration originates in =bits.app/read-config=. This is the single
+source of truth. Defaults are defined there, not scattered across component
+namespaces.
+
+*BANNED: =System/getenv= scattered in the codebase.*
+
+Never read environment variables directly in component namespaces, test helpers,
+or utility modules. All environment variable reading happens in =bits.app=.
+
+#+begin_src clojure
+;; BANNED: Reading env vars anywhere except bits.app
+(def ^:private timeout
+  (if-let [s (System/getenv "BROWSER_WAIT_TIMEOUT")]  ; <- NO!
+    (parse-long s)
+    15))
+
+;; GOOD: All config flows from bits.app
+;; In bits.app/read-config:
+(defn read-config []
+  {:browser {:wait-timeout (or (some-> (System/getenv "BROWSER_WAIT_TIMEOUT")
+                                       parse-long)
+                               15)}
+   ...})
+
+;; In test system, override via assoc-in:
+(-> (t/system)
+    (assoc-in [:service :browser :wait-timeout] 30))
+#+end_src
+
+* Component Structure
+Every component namespace follows the same structure:
+
+1. *API functions* — Functions that operate on the component (component as first arg)
+2. *Record* — The component record implementing =component/Lifecycle=
+3. *Factory* — =make-<component>= function with =:pre= validation
+4. *Print method* — Simplified representation for REPL/logs
+
+*Specs in =bits.spec=* to avoid cyclic dependencies. Use literal keywords
+(=:bits.keymaster/config=) since =bits.spec= can't require component namespaces.
+
+#+begin_src clojure
+;; In bits.spec (literal keywords, no requires):
+(s/def :bits.crypto/argon map?)
+(s/def :bits.crypto/idle-timeout-days pos-int?)
+(s/def :bits.crypto/config
+  (s/keys :req-un [:bits.crypto/argon
+                   :bits.crypto/idle-timeout-days]))
+
+;; In bits.crypto:
+(ns bits.crypto
+  (:require
+   [bits.spec]
+   [clojure.spec.alpha :as s]
+   [com.stuartsierra.component :as component]))
+
+;;; ----------------------------------------------------------------------------
+;;; API
+
+(defn derive
+  [keymaster cryptex]
+  (hashers/derive (cryptex/reveal cryptex) (:argon keymaster)))
+
+;;; ----------------------------------------------------------------------------
+;;; Component
+
+(defrecord Keymaster [argon dummy-hash idle-timeout-days]
+  component/Lifecycle
+  (start [this] ...)
+  (stop [this] ...))
+
+(defn make-keymaster
+  [config]
+  {:pre [(s/valid? ::config config)]}
+  (map->Keymaster config))
+
+(defmethod print-method Keymaster
+  [keymaster ^java.io.Writer w]
+  (.write w (format "#<Keymaster idle-timeout-days=%d>"
+                    (:idle-timeout-days keymaster))))
+#+end_src
+
+*Key points:*
+- Factory is always =make-<name>= — =make-keymaster=, =make-service=, =make-pool=
+- Factory takes config map — not destructured args with defaults
+- =:pre= validates with spec — catches config errors at system construction
+- Print method hides internals — don't dump hashes, connections, etc.
+- API functions take component first — enables testing with mock components
+- No defaults in component — all defaults live in =bits.app/read-config=
+
+* Functions That Need Config Take a Component
+When a function needs configuration, it takes the component as its first
+argument. The component holds the config.
+
+*Never add a configuration parameter to an existing function.* Configuration
+implies state, state implies a component, and the component goes first.
+
+#+begin_src clojure
+;; BAD: Adding config as an extra parameter
+(defn derive
+  [cryptex config]  ; <- NO! Don't tack on parameters
+  (hashers/derive (cryptex/reveal cryptex) config))
+
+;; GOOD: Component owns config and functions that use it
+(defn derive
+  [keymaster cryptex]
+  (hashers/derive (cryptex/reveal cryptex) (:argon-config keymaster)))
+#+end_src
+
+* Routes Are Static Data
+Route definitions are pure data. No computation, no function calls, no
+normalization. Computation happens in =make-app= or component startup.
+
+#+begin_src clojure
+;; Good: Static data
+(def routes
+  [["/" {:get home-handler}]
+   ["/action" {:post {:handler action-handler}}]])
+
+;; Bad: Computation in route definition
+(def routes
+  [["/" {:get home-handler}]
+   ["/action" {:post {:parameters {:form (build-schema actions)}  ; <- NO!
+                      :handler (make-handler (normalize actions))}}]])
+#+end_src
+
+* Variable Naming
+Avoid Hungarian notation. Don't encode types in names when context is clear.
+
+#+begin_src clojure
+;; Good: Plain names
+(let [action (get-in request [:parameters :form :action])]
+  (get actions action))
+
+;; Bad: Hungarian notation
+(let [action-kw (get-in request [:parameters :form :action])]
+  (get actions action-kw))
+#+end_src
+
+* Namespace Aliases
+Use descriptive aliases that are subsets of the full namespace.
+
+#+begin_src clojure
+;; Good: Descriptive subset of namespace
+[reitit.coercion.malli :as coercion.malli]
+[reitit.ring.coercion :as ring.coercion]
+[clojure.core.async :as a]
+
+;; Bad: Cryptic abbreviations
+[reitit.coercion.malli :as rcm]
+[reitit.ring.coercion :as rrc]
+#+end_src
+
+* Separation of Pure and I/O
+Keep pure data separate from functions that perform I/O. Queries should be
+defined as pure data; execution should happen in separate functions.
+
+#+begin_src clojure
+;;; ----------------------------------------------------------------------------
+;;; Queries (pure data)
+
+(def user-by-email-query
+  '[:find (pull ?u [:user/id :user/password-hash]) .
+    :in $ ?email
+    :where
+    [?e :email/address ?email]
+    [?e :email/user ?u]])
+
+;;; ----------------------------------------------------------------------------
+;;; I/O (functions that execute queries)
+
+(defn find-by-email
+  [database email]
+  (datahike/q user-by-email-query (datahike/db database) email))
+#+end_src
+
+*Notes:*
+- Use =.= after find pattern for unique attribute lookups — returns single result
+- Use =(pull ?e [...])= to get maps with exact keys — no post-processing
+- Keep I/O functions minimal — just execute the query
+
+* Coercion at Boundaries
+Use middleware coercion to convert external representations at system
+boundaries. Keep internal code working with native types.
+
+#+begin_src clojure
+;; Good: Coercion in middleware, handler receives keyword
+["/action"
+ {:post {:parameters {:form {:action :keyword}}
+         :handler    (action-handler actions)}}]
+
+;; Bad: Manual string→keyword conversion in handler
+(defn action-handler [actions]
+  (fn [request]
+    (let [action-str (get-in request [:params "action"])
+          action     (keyword action-str)]  ; <- NO!
+      (get actions action))))
+#+end_src
+
+* HTTP Headers
+Use *lowercase* for all header names and Ring utilities for access.
+
+#+begin_src clojure
+;; Good: lowercase headers, Ring utilities
+(response/get-header request "content-type")
+{:headers {"content-type" "text/html"}}
+
+;; Bad: Camel-Case headers, direct map access
+(get-in request [:headers "Content-Type"])
+#+end_src
+
+* Qualified Keywords
+** For Enum Values
+Values that cross namespace boundaries MUST be qualified keywords.
+
+#+begin_src clojure
+;; Good: Qualified status keywords
+:bits.form/pristine
+:bits.form/advisory
+:bits.form/error
+
+;; Bad: Naked keywords crossing namespace boundaries
+:pristine
+:advisory
+:error
+#+end_src
+
+*When naked keywords are acceptable:*
+- Function-local values that don't leave the function
+- Options maps documented in a single place
+- Well-known Clojure conventions (=:keys=, =:as=, =:or=)
+
+** As Domain Identifiers
+Namespace-qualified keywords identify domain entities, not code locations. One
+entity gets one keyword, used everywhere.
+
+#+begin_src clojure
+;; Good: One canonical name for the entity, used everywhere
+(get request :bits.crypto/keymaster)
+(assoc ctx :bits.crypto/keymaster km)
+
+;; Bad: Different keywords per namespace for the same thing
+(get request ::keymaster)  ; becomes :bits.auth/keymaster
+(get request ::keymaster)  ; becomes :bits.next/keymaster
+#+end_src
+
+* Logging
+Use =clojure.tools.logging= with structured key-value pairs. Always include a
+=:msg= key with a sentence-style message.
+
+*Punctuation rules:*
+- *Work in progress* — End with three periods: ="Applying migrations..."=
+- *Completed/status* — End with full stop: ="Server running."=
+- *Exceptional/unusual* — End with interrobang: ="Unknown action?!"=
+
+#+begin_src clojure
+(log/info :msg "Applying migrations..." :count (count migrations))
+(log/info :msg "Schema installed.")
+(log/warn :msg "Unable to find resource?!" :path path)
+#+end_src
+
+* Transaction Function Naming
+Functions that return transaction data use suffix conventions:
+- *=-tx=* — Returns a single transaction map
+- *=-txes=* — Returns a vector of transaction maps (plural)
+
+#+begin_src clojure
+;; -tx: Returns one map
+(defn domain-tx [name]
+  {:domain/name name})
+
+;; -txes: Returns a vector of maps
+(defn realm-txes []
+  [{:db/id "tenant" :tenant/id (random-uuid) :tenant/domains ["domain"]}
+   {:db/id "domain" :domain/name "bits.page.test"}])
+
+;; Usage: transact! expects a vector
+(datahike/transact! db [(domain-tx "example.com")])  ; wrap -tx in vector
+(datahike/transact! db (realm-txes))                 ; -txes already a vector
+#+end_src
+
+* Datahike Schema: Relationship Naming
+Name relationships from the "one" side to the "many" side. The namespace
+indicates the owner; the attribute name indicates what they own.
+
+#+begin_src clojure
+;; Good: Owner's perspective — "a tenant has domains"
+{:db/ident       :tenant/domains
+ :db/valueType   :db.type/ref
+ :db/cardinality :db.cardinality/many}
+
+;; Bad: Inverse perspective — "a domain belongs to a tenant"
+:domain/tenant
+#+end_src
+
+* Composition Over Specialized Predicates
+Prefer composing general functions over creating specialized =foo?= helpers.
+
+#+begin_src clojure
+;; Bad: Specialized predicate bundling parsing + checking
+(defn has-class? [driver selector class-name]
+  (let [classes (attr driver selector "class")]
+    (some #{class-name} (str/split classes #"\s+"))))
+
+;; Good: General parser + standard predicate
+(defn words [s] (into #{} (str/split (or s "") #"\s+")))
+(defn classes [driver selector] (words (attr driver selector "class")))
+
+(contains? (classes driver :form) "ring-red-500/30")
+#+end_src
+
+* Dev Namespace Conventions
+Functions in =dev/= namespaces that are internal helpers should be private
+(=defn-=). Keep I/O in the REPL comment block, not in functions.
+
+#+begin_src clojure
+;; Good: Private helper builds pure data, I/O in comment block
+(defn- user-txes [email password-hash]
+  [{:db/id "user" :user/id (random-uuid) ...}
+   {:email/address email :email/user "user"}])
+
+(comment
+  (datahike/transact! (:datahike system) (user-txes "dev@bits.page" hash)))
+
+;; Bad: Function takes system map and does I/O
+(defn create-user! [system email password]
+  (let [hash (crypto/derive (:keymaster system) ...)]
+    (datahike/transact! (:datahike system) ...)))
+#+end_src
+
+*Never pass the system map to a function.* Keep I/O at the call site.

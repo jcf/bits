@@ -1,0 +1,176 @@
+#+title: Testing Conventions
+#+author: James Conroy-Finn
+
+* Overview
+Testing philosophy and patterns for this project. Claude should read this
+document when writing or reviewing tests.
+
+* No Arbitrary Sleeps
+*BANNED: Arbitrary =Thread/sleep= in tests.*
+
+Never use =Thread/sleep= with arbitrary or random durations. This causes slow,
+flaky tests that pass by accident rather than correctness.
+
+#+begin_src clojure
+;; BANNED
+(Thread/sleep 100)
+(Thread/sleep (rand-int 100))
+[:wait (gen/choose 10 100)]  ; Random wait actions
+#+end_src
+
+*Exception: Explicit timing actions for time-dependent behavior.*
+
+When testing time-dependent behavior (e.g., debounce timers), use explicit,
+clearly-named actions with the exact required duration:
+
+#+begin_src clojure
+;; ALLOWED: Explicit debounce action with correct timing
+(defmethod execute-action :debounce
+  [_driver _]
+  ;; Wait for client-side debounce timer (300ms) to fire.
+  (Thread/sleep 310))
+#+end_src
+
+*Prefer condition-based waits:*
+
+#+begin_src clojure
+(browser/wait-for-form driver)      ; Waits for aria-busy to clear
+(browser/wait-visible driver :submit)
+#+end_src
+
+If a test is flaky without a sleep, either:
+1. The test is missing a proper condition-based wait
+2. The code under test has a race condition bug
+3. The system needs architectural changes to decouple from wall-clock time
+
+* Test Organization
+Test fixtures, helper modules, and test-specific components belong in the test
+namespace that uses them (e.g., =bits.form-test=), not in separate files.
+
+* Test System Customization
+Never add optional parameters to =bits.test.app/system=. Instead, customize the
+returned system map with =assoc-in=:
+
+#+begin_src clojure
+;; Good: Customize after system creation
+(-> (t/system)
+    (assoc-in [:service :modules] custom-modules))
+
+;; Bad: Adding optional args to system function
+(defn system
+  ([] (system []))
+  ([extra-modules] ...))  ; NO!
+#+end_src
+
+* File Naming
+No special suffixes like =_e2e_= in test file names. Kaocha uses metadata
+selectors to run test subsets:
+
+#+begin_src clojure
+;; In test file
+(deftest ^:e2e form-validation
+  ...)
+
+;; Run with: just test :e2e
+#+end_src
+
+* Standard Attributes Over Visual Selectors
+Tests should check meaning, not presentation. Use standard HTML and ARIA
+attributes—don't invent custom =data-*= attributes when platform APIs exist.
+
+#+begin_src clojure
+;; Bad: Checking color classes (fragile)
+(contains? (classes driver :form) "ring-red-500/30")
+
+;; Bad: Custom data attributes when standards exist
+[:input {:data-invalid "true" ...}]
+
+;; Good: Standard ARIA attributes
+[:input {:aria-invalid (when (= status ::error) "true")
+         :aria-describedby (when message (str field-id "-hint"))
+         ...}]
+[:div {:id (str field-id "-hint") :role "alert"} message]
+
+;; In test—check semantic state
+(= "true" (browser/attr driver :email "aria-invalid"))
+#+end_src
+
+*Prefer in order:*
+1. Standard HTML attributes (=required=, =disabled=, =readonly=)
+2. ARIA attributes (=aria-invalid=, =aria-describedby=, =aria-errormessage=)
+3. =data-*= only when no standard exists
+
+* No Side Effects in Test Helpers
+Never use =println=, =prn=, or other side effects for test diagnostics. Test
+helpers return data; assertions happen in =deftest= using =is=.
+
+#+begin_src clojure
+;; Bad: Side effects for debugging
+(defn check-invariants [driver]
+  (let [valid? (form-valid? driver)]
+    (when-not valid?
+      (println "INVARIANT FAILED"))  ; NO!
+    valid?))
+
+;; Good: Return data, assert in test
+(defn check-invariants [driver]
+  (and (form-not-stuck? driver)
+       (aria-consistent? driver)))
+
+(deftest form-chaos
+  (is (form-not-stuck? driver) "Form stuck in aria-busy state")
+  (is (aria-consistent? driver)
+      (str "Inconsistent state: " (field-states driver))))
+#+end_src
+
+* Systematic Solutions Over Quick Fixes
+When facing a challenge, don't cobble together the first solution that works.
+Consider:
+
+1. What infrastructure would make this trivial?
+2. How can we improve the system to simplify this class of problems?
+3. Does the solution strengthen the codebase or add debt?
+
+Adding semantic markup to support testing also improves accessibility,
+documentation, and maintainability.
+
+* REPL-Based Test Debugging
+Run tests without spawning a new JVM:
+
+#+begin_src clojure
+;; Run all tests in a namespace
+(require '[clojure.test :refer [run-tests]])
+(run-tests 'bits.foo-test)
+
+;; Run a single test
+(require '[clojure.test :refer [test-var]])
+(test-var #'bits.foo-test/my-test)
+
+;; Reload and test
+(require '[bits.foo :as foo] :reload)
+(run-tests 'bits.foo-test)
+#+end_src
+
+Use =just test= for the full suite before commits; use REPL tests for rapid
+iteration during development.
+
+* Common Test Patterns
+** Generative Tests
+Generative test failures show the shrunk failing sequence:
+
+#+begin_example
+Failed: [[[:type :number "aAA"] ...]]
+#+end_example
+
+Use the REPL to reproduce the exact sequence against a running system.
+
+** E2E Test Failures
+- Check if the form submission flow is broken
+- Look at the failing test line to understand what it's waiting for
+- Browser screenshots are uploaded as CI artifacts
+
+** Quick Local Reproduction
+#+begin_src shell
+just test :e2e           # Run only E2E tests
+just test :generative    # Run only generative tests
+#+end_src
