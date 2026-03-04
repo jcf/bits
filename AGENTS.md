@@ -14,18 +14,115 @@ attribute. Available servers:
 
 ### clojure-mcp
 
-Provides REPL tools for evaluating Clojure code and Clojure-aware structural
-editing. Configured with `:config-profile :cli-assist` for CLI assistants.
+Provides live REPL integration and Clojure-aware structural editing. This
+fundamentally changes the development workflow — Claude has access to a Turing-
+complete environment with instant feedback.
 
 **Expects nREPL running on port 9999.** The user typically runs `devenv up` or
 `just nrepl` before starting Claude Code. If clojure-mcp tools fail to connect,
 ask the user to start the REPL — do not attempt to start it yourself.
 
-Key tools:
+**Tools:**
 
-- `clojure_eval` — Evaluate Clojure in the connected REPL
-- `clojure_edit` — Structure-aware form editing (fallback when Edit fails)
-- `read_file` — Smart Clojure file reader with collapsed view
+| Tool           | Purpose                                                 |
+| -------------- | ------------------------------------------------------- |
+| `clojure_eval` | Evaluate any Clojure expression in the connected REPL   |
+| `clojure_edit` | Structure-aware form editing (fallback when Edit fails) |
+| `deps_list`    | List project dependencies with Maven coordinates        |
+| `deps_grep`    | Search inside dependency jars for code patterns         |
+| `deps_read`    | Read files from inside dependency jars                  |
+| `paren_repair` | Fix unbalanced delimiters using parinfer                |
+
+**REPL helper functions** (available in `clj-mcp.repl-tools`):
+
+- `list-ns` — List all loaded namespaces
+- `list-vars` — List vars in a namespace
+- `doc-symbol` / `source-symbol` — Documentation and source lookup
+- `find-symbols` — Search for symbols by pattern
+- `complete` — Completion for a prefix
+
+## REPL-Driven Development
+
+The REPL connection enables a **verify-then-commit** workflow. Claude can:
+
+1. **Explore** — Query the database, inspect component state, call functions
+2. **Prototype** — Define functions in the REPL and test them immediately
+3. **Verify** — Run individual tests without JVM startup cost
+4. **Iterate** — Refine implementations based on instant feedback
+5. **Commit** — Write to files only after verifying code works
+
+This eliminates the traditional limitation where Claude couldn't verify code
+before writing it to files.
+
+### Testing via REPL
+
+Run tests without spawning a new JVM:
+
+```clojure
+;; Run all tests in a namespace
+(require '[clojure.test :refer [run-tests]])
+(run-tests 'bits.foo-test)
+
+;; Run a single test
+(require '[clojure.test :refer [test-var]])
+(test-var #'bits.foo-test/my-test)
+
+;; Reload and test
+(require '[bits.foo :as foo] :reload)
+(run-tests 'bits.foo-test)
+```
+
+Use `just test` for the full suite before commits; use REPL tests for rapid
+iteration during development.
+
+### System Exploration
+
+With the system running, Claude can inspect live state:
+
+```clojure
+;; Access the running system (in dev namespace)
+(require '[dev.user :refer [system]])
+
+;; Query the database
+(require '[datahike.api :as d])
+(d/q '[:find ?e :where [?e :user/email]] (d/db (:datahike system)))
+
+;; Check component state
+(:keymaster system)
+```
+
+### Dependency Exploration
+
+Search and read code from project dependencies:
+
+```clojure
+;; List dependencies
+(deps_list)
+
+;; Search for patterns in a library
+(deps_grep {:pattern "defprotocol" :library "datahike/datahike"})
+
+;; Read a specific file from a jar
+(deps_read {:file_path "path/from/grep:entry.clj"})
+```
+
+### REPL vs Shell Commands
+
+| Task                          | Use REPL               | Use Shell (`just`)       |
+| ----------------------------- | ---------------------- | ------------------------ |
+| Run single test               | `(test-var #'ns/test)` | —                        |
+| Run test namespace            | `(run-tests 'ns-test)` | —                        |
+| Run full test suite           | —                      | `just test`              |
+| Quick verification during dev | REPL                   | —                        |
+| Pre-commit validation         | —                      | `just` (runs all checks) |
+| Linting                       | —                      | `just lint`              |
+| Formatting                    | —                      | `just fmt`               |
+| E2E tests                     | —                      | `just test :e2e`         |
+| Explore data/state            | REPL                   | —                        |
+| Debug behavior                | REPL                   | —                        |
+
+**Rule of thumb:** Use REPL for rapid iteration and exploration. Use `just` for
+comprehensive validation before commits.
 
 ### devenv
 
@@ -81,6 +178,28 @@ Do **not** use full GitHub URLs as this bypasses the mirror and is extremely slo
 
 The CI container (`bits-ci`) is built via the bootstrap workflow and pushed to
 the Forgejo registry. Update the `IMAGE` env var in `ci.yml` after rebuilding.
+
+### API Access
+
+The Forgejo API is available at `https://code.invetica.team/api/v1`. For API
+documentation, see the Swagger docs at https://codeberg.org/api/swagger (Codeberg
+runs Forgejo, so the API is identical).
+
+**Authentication:** Use the 1Password token at `op://Employee/Forgejo/tokens/everything`.
+
+**CI tasks in justfile:**
+
+| Task                  | Description                               |
+| --------------------- | ----------------------------------------- |
+| `ci-login`            | Authenticate with Forgejo UI (for logs)   |
+| `ci-status`           | Show latest CI run status                 |
+| `ci-runs [n]`         | List recent n runs (default 10)           |
+| `ci-jobs <run>`       | Show jobs for a run (index in 1st column) |
+| `ci-failures`         | Failed jobs from latest run + URL         |
+| `ci-logs <run> [job]` | Fetch logs (all jobs, or specific index)  |
+
+**Log access:** Run `just ci-login` once to authenticate, then use `just ci-logs`.
+The job index is 0-based (shown in first column of `just ci-jobs` output).
 
 ### Step Naming
 
@@ -164,18 +283,38 @@ Never use the dot syntax to embed classes in element keywords. This breaks tooli
 
 This is non-negotiable. The shorthand syntax is never acceptable in this codebase.
 
-## Clojure
+## Clojure Implementation Workflow
 
-**Claude Code Restriction**: Do not write new Clojure implementations. Claude may:
+### REPL-Verified Development
 
-- Suggest code examples in conversation
-- Suggest plans and architectural approaches
-- Research supporting technologies (libraries, patterns)
-- Explain existing code and answer questions
-- Identify files that need modification
-- Perform mechanical transformations (renames, deletes, moves)
+With REPL access, Claude follows a **verify-then-commit** workflow:
 
-But Claude must not use Edit or Write tools to write new Clojure logic, functions, or implementations. All new Clojure code must be written by the user.
+1. **Prototype in REPL** — Define functions, test with real data
+2. **Verify behavior** — Run tests, check edge cases, inspect results
+3. **Iterate until correct** — Refine based on immediate feedback
+4. **Write to file** — Only after verification succeeds
+
+This addresses the historical concern that Claude might write broken code the
+user has to fix. The REPL provides the feedback loop to catch errors before
+they reach files.
+
+**Workflow options** (user's choice):
+
+| Mode              | Description                                           |
+| ----------------- | ----------------------------------------------------- |
+| **Autonomous**    | Claude prototypes in REPL, verifies, writes to files  |
+| **Collaborative** | Claude proposes in REPL, user approves, Claude writes |
+| **Advisory**      | Claude suggests code in conversation, user writes     |
+
+The default is **Autonomous** when the REPL is connected. Users can request a
+different mode explicitly.
+
+**Quality gates before writing to files:**
+
+- Code evaluates without errors
+- Relevant tests pass (when applicable)
+- Behavior matches requirements
+- Code follows project conventions (from this document)
 
 ## Rust
 
@@ -315,7 +454,9 @@ Forms communicate through physical metaphor, like real-world objects:
 The quality of this interaction pattern is critical to the product. It must feel
 polished, intentional, and physical.
 
-## Clojure
+## Clojure Conventions
+
+Code style and patterns for Clojure in this project.
 
 ### Docstrings
 
@@ -875,7 +1016,97 @@ Keep I/O in the REPL comment block, not in functions.
 
 **Never pass the system map to a function.** Keep I/O at the call site.
 
+## OpenTelemetry
+
+Use `steffan-westcott.clj-otel.api.trace.span` for tracing.
+
+### Span Naming
+
+Use auto-resolved keywords (`::name`) for span names. This follows the existing
+codebase convention and produces qualified names like `:bits.foo/bar`.
+
+```clojure
+(span/with-span! {:name ::my-operation}
+  ...)
+```
+
+### Attribute Naming
+
+Attributes use **string keys** with dot-namespaced `snake_case` per OTEL semantic
+conventions:
+
+```clojure
+;; Good: OTEL convention for attributes
+(span/with-span! {:name       ::fill
+                  :attributes {"browser.field" (name field-name)
+                               "tenant_id"     (str tenant-id)}}
+  ...)
+
+;; Bad: Clojure keywords in attributes
+(span/with-span! {:name       ::fill
+                  :attributes {:browser/field (name field-name)}}
+  ...)
+```
+
+**Rules:**
+
+- Lowercase letters, numbers, underscores, dots only
+- Dots delimit namespaces: `http.request.method`, `db.system`
+- Underscores separate words within a name: `tenant_id`, `session_count`
+- Custom attributes should be namespaced: `browser.field`, `test.iteration`
+
+### Running with Jaeger
+
+```sh
+just trace :generative  # Exports to Jaeger on localhost:4317
+just perf :generative   # Logs traces to console
+```
+
 ## Testing
+
+### No Arbitrary Sleeps
+
+**BANNED: Arbitrary `Thread/sleep` in tests.**
+
+Never use `Thread/sleep` with arbitrary or random durations. This causes slow,
+flaky tests that pass by accident rather than correctness.
+
+```clojure
+;; BANNED: Arbitrary/random sleeps
+(Thread/sleep 100)
+(Thread/sleep (rand-int 100))
+[:wait (gen/choose 10 100)]  ; Random wait actions
+```
+
+**Exception: Explicit timing actions for time-dependent behavior.**
+
+When testing time-dependent behavior (e.g., debounce timers), use explicit,
+clearly-named actions with the exact required duration:
+
+```clojure
+;; ALLOWED: Explicit debounce action with correct timing
+(defmethod execute-action :debounce
+  [_driver _]
+  ;; Wait for client-side debounce timer (300ms) to fire.
+  (Thread/sleep 310))
+```
+
+The action name must describe what time-dependent behavior is being tested, and
+the duration must match the actual system timing (not arbitrary padding).
+
+**Prefer condition-based waits:**
+
+```clojure
+;; PREFERRED: Wait for actual conditions
+(browser/wait-for-form driver)      ; Waits for aria-busy to clear
+(browser/wait-visible driver :submit)
+```
+
+If a test is flaky without a sleep, either:
+
+1. The test is missing a proper condition-based wait
+2. The code under test has a race condition bug
+3. The system needs architectural changes to decouple from wall-clock time
 
 ### Test Organization
 
