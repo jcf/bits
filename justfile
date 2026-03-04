@@ -212,7 +212,6 @@ perf *args:
 [group('test')]
 trace *args:
     env \
-        OTEL_SERVICE_NAME=bits-test \
         OTEL_TRACES_EXPORTER=otlp \
         OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
         clojure \
