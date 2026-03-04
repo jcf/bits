@@ -15,7 +15,7 @@
 
 (def ^:const ^:private session-dir "target/browser-sessions")
 
-(defrecord Driver [etaoin browser])
+(defrecord Driver [etaoin service])
 
 (defmethod print-method Driver
   [_ ^java.io.Writer w]
@@ -26,17 +26,12 @@
   (pr "#<Driver>"))
 
 (defn- ->etaoin  [driver] (:etaoin driver))
-(defn- ->browser [driver] (:browser driver))
-(defn- ->service [driver] (:service (->browser driver)))
-
-(defn- wait-timeout
-  [driver]
-  (:wait-timeout (->browser driver)))
+(defn- ->service [driver] (:service driver))
 
 (defn make-driver
-  [browser]
+  [service]
   (span/with-span! {:name ::make-driver}
-    (->Driver (e/firefox {:headless (:headless browser)}) browser)))
+    (->Driver (e/firefox {:headless true}) service)))
 
 (defn quit
   [driver]
@@ -76,7 +71,7 @@
   [driver selector value]
   (let [e (->etaoin driver)
         q (->query selector)]
-    (e/wait-visible e q {:timeout (wait-timeout driver)})
+    (e/wait-visible e q)
     (e/fill e q value)))
 
 (defn click
@@ -183,23 +178,22 @@
 (defn wait-to-click
   [driver selector]
   (let [e (->etaoin driver)]
-    (e/wait-visible e selector {:timeout (wait-timeout driver)})
+    (e/wait-visible e selector)
     (e/click e selector)))
 
 (defn wait-visible
   [driver selector]
   (span/with-span! {:name ::wait-visible :attributes {"browser.selector" (pr-str selector)}}
-    (e/wait-visible (->etaoin driver) selector {:timeout (wait-timeout driver)})))
+    (e/wait-visible (->etaoin driver) selector)))
 
 (defn wait-predicate
   [driver pred]
-  (e/wait-predicate #(pred driver) {:timeout (wait-timeout driver)}))
+  (e/wait-predicate #(pred driver)))
 
 (defn wait-for-form
   [driver]
   (span/with-span! {:name ::wait-for-form}
-    (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy"))
-                      {:timeout (wait-timeout driver)})))
+    (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
@@ -211,7 +205,7 @@
 (defn screenshot
   ([driver]
    (let [ts (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))]
-     (screenshot driver (str "target/screenshot/" ts ".png"))))
+     (screenshot driver (str "screenshot-" ts ".png"))))
   ([driver path]
    (log/debug :msg "Capturing screenshot..." :path path)
    (e/screenshot (->etaoin driver) path)))
@@ -230,25 +224,24 @@
     (ex-info msg data ex)))
 
 (defn with-driver*
-  [browser body-fn]
-  (span/with-span! {:name ::with-driver}
-    (let [driver (make-driver browser)]
-      (try
-        (body-fn driver)
-        (catch Throwable cause
-          (let [ts  (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
-                dir (fs/file session-dir ts)]
-            (fs/create-dirs dir)
-            (screenshot driver (str (fs/file dir "screenshot.png")))
-            (spit (fs/file dir "page-source.html") (get-source driver))
-            (when (e/supports-logs? (->etaoin driver))
-              (spit (fs/file dir "console.edn")
-                    (with-out-str
-                      (pprint/pprint (e/get-logs (->etaoin driver))))))
-            (throw (browser-exception cause {:dir dir :timestamp ts}))))
-        (finally
-          (quit driver))))))
+  [service body-fn]
+  (let [driver (make-driver service)]
+    (try
+      (body-fn driver)
+      (catch Throwable cause
+        (let [ts   (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
+              dir  (fs/file session-dir ts)]
+          (fs/create-dirs dir)
+          (screenshot driver (str (fs/file dir "screenshot.png")))
+          (spit (fs/file dir "page-source.html") (get-source driver))
+          (when (e/supports-logs? (->etaoin driver))
+            (spit (fs/file dir "console.edn")
+                  (with-out-str
+                    (pprint/pprint (e/get-logs (->etaoin driver))))))
+          (throw (browser-exception cause {:dir dir :timestamp ts}))))
+      (finally
+        (quit driver)))))
 
 (defmacro with-driver
-  [[binding browser] & body]
-  `(with-driver* ~browser (^:once fn* [~binding] ~@body)))
+  [[binding service] & body]
+  `(with-driver* ~service (^:once fn* [~binding] ~@body)))

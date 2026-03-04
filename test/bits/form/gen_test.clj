@@ -212,8 +212,8 @@
     (check-invariants driver)))
 
 (deftest ^:e2e ^:generative form-handles-chaos
-  (t/with-system [{:keys [browser]} (test.form/system)]
-    (browser/with-driver [driver browser]
+  (t/with-system [{:keys [service]} (test.form/system)]
+    (browser/with-driver [driver service]
       (let [result (tc/quick-check 25 (form-chaos-property driver))]
         (is (:pass? result)
             (str "Failed: " (get-in result [:shrunk :smallest])))))))

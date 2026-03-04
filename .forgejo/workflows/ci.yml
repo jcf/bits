@@ -128,7 +128,6 @@ jobs:
 
       - name: Test
         env:
-          BROWSER_WAIT_TIMEOUT: 30
           CLUSTER_KEYSTORE_PASSWORD: correct-horse-battery-staple
           DATABASE_URL: postgres://bits:please@postgres:5432/bits_test
           PLATFORM_DOMAIN: localhost
