@@ -138,8 +138,8 @@ in {
     mcpServers = {
       clojure-mcp = {
         type = "stdio";
-        command = "clojure";
-        args = ["-Tmcp" "start" ":port" "9999" ":config-profile" ":cli-assist"];
+        command = "clojure-mcp";
+        args = [":port" "9999" ":config-profile" ":cli-assist"];
       };
       devenv = {
         type = "stdio";
