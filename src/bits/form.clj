@@ -138,8 +138,8 @@
                (and error submitted? (not editing?)) {:status ::error :message error :value value :used true}
                error                                 {:status ::advisory :message error :value value :used true}
                (and blank? submitted?)               {:status ::error :message (tru "Required") :value value :used true}
-               (not blank?)                          {:status ::pristine :value value :used true}
-               :else                                 {:status ::pristine :value value :used true})]))))
+               (not blank?)                          {:status ::pristine :value value}
+               :else                                 {:status ::pristine :value value})]))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Build
@@ -202,7 +202,7 @@
         {:keys [ring bg shadow]}  (get form-classes status (::pristine form-classes))
         shake?                    (and (= status ::error) (not editing?))]
     (into [:form (-> attrs
-                     (assoc :method "post" :action "/action")
+                     (assoc :method "post" :action "/action" :novalidate true)
                      (tw/with-defaults [ring bg shadow
                                         "transition-all" "duration-500" "ease-out"
                                         (when shake? "form-shake")])
@@ -243,11 +243,13 @@
    "text-zinc-200"])
 
 (defn- hint
-  [status message]
-  [:div {:class (str "h-5 flex items-center pl-0.5 "
-                     "transition-opacity duration-300 ease-out "
-                     (if message "opacity-100" "opacity-0") " "
-                     (get hint-classes status "text-zinc-500"))}
+  [field-id status message]
+  [:div {:id    (str field-id "-hint")
+         :role  (when (= status ::error) "alert")
+         :class (tw/merge-classes ["h-5" "flex" "items-center" "pl-0.5"
+                                   "transition-opacity" "duration-300" "ease-out"
+                                   (if message "opacity-100" "opacity-0")
+                                   (get hint-classes status "text-zinc-500")])}
    [:span {:class "text-xs"} (or message "\u00A0")]])
 
 (defn field
@@ -259,18 +261,21 @@
          :or   {type "text"}}               attrs
         password?                           (= type "password")
         success?                            (:success? f)
+        hint-id                             (str field-id "-hint")
         input-attrs                         (-> (dissoc attrs :label)
                                                 (assoc :id field-id
                                                        :name field-id
                                                        :type type)
                                                 (cond->
                                                  (and value (not password?) (not success?)) (assoc :value value)
-                                                 (and used (not success?))                  (assoc :data-used "true")))]
+                                                 (and used (not success?))                  (assoc :data-used "true")
+                                                 (= status ::error)                         (assoc :aria-invalid "true")
+                                                 message                                    (assoc :aria-describedby hint-id)))]
     [:div
      [:label {:for field-id :class label-classes} label]
      [:div {:class "relative"}
       [:input (tw/with-defaults input-attrs (conj input-base-classes ring bg shadow outline))]]
-     (hint status message)]))
+     (hint field-id status message)]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Select
@@ -301,12 +306,15 @@
         field-id                            (name key)
         {:keys [label placeholder]}         attrs
         success?                            (:success? f)
+        hint-id                             (str field-id "-hint")
         select-attrs                        (-> (dissoc attrs :label :placeholder)
                                                 (assoc :id field-id
                                                        :name field-id)
                                                 (cond->
                                                  (and value (not success?)) (assoc :value value)
-                                                 (and used (not success?))  (assoc :data-used "true")))]
+                                                 (and used (not success?))  (assoc :data-used "true")
+                                                 (= status ::error)         (assoc :aria-invalid "true")
+                                                 message                    (assoc :aria-describedby hint-id)))]
     [:div
      [:label {:for field-id :class label-classes} label]
      [:div {:class "grid grid-cols-1"}
@@ -315,7 +323,7 @@
                     [:option {:value ""} placeholder])
                   options))
       chevron-icon]
-     (hint status message)]))
+     (hint field-id status message)]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Textarea
@@ -335,17 +343,20 @@
         {:keys [label rows]
          :or   {rows 3}}                    attrs
         success?                            (:success? f)
+        hint-id                             (str field-id "-hint")
         textarea-attrs                      (-> (dissoc attrs :label)
                                                 (assoc :id field-id
                                                        :name field-id
                                                        :rows rows)
                                                 (cond->
                                                  (and value (not success?)) (assoc :value value)
-                                                 (and used (not success?))  (assoc :data-used "true")))]
+                                                 (and used (not success?))  (assoc :data-used "true")
+                                                 (= status ::error)         (assoc :aria-invalid "true")
+                                                 message                    (assoc :aria-describedby hint-id)))]
     [:div
      [:label {:for field-id :class label-classes} label]
      [:textarea (tw/with-defaults textarea-attrs (conj textarea-base-classes ring bg shadow outline))]
-     (hint status message)]))
+     (hint field-id status message)]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Checkbox
@@ -363,7 +374,8 @@
         field-id                         (name key)
         {:keys [label]}                  attrs
         success?                         (:success? f)
-        checked?                         (and (= value "true") (not success?))]
+        checked?                         (and (= value "true") (not success?))
+        hint-id                          (str field-id "-hint")]
     [:div
      [:div {:class "flex items-center gap-2"}
       [:input (cond-> {:type  "checkbox"
@@ -371,14 +383,18 @@
                        :name  field-id
                        :value "true"
                        :class (tw/merge-classes (conj checkbox-base-classes ring bg shadow))}
-                checked? (assoc :checked true))]
+                checked?            (assoc :checked true)
+                (= status ::error)  (assoc :aria-invalid "true")
+                message             (assoc :aria-describedby hint-id))]
       [:label {:for   field-id
                :class "text-sm text-zinc-300 cursor-pointer select-none"}
        label]]
-     [:div {:class (str "h-5 flex items-center pl-6 "
-                        "transition-opacity duration-300 ease-out "
-                        (if message "opacity-100" "opacity-0") " "
-                        (get hint-classes status "text-zinc-500"))}
+     [:div {:id    hint-id
+            :role  (when (= status ::error) "alert")
+            :class (tw/merge-classes ["h-5" "flex" "items-center" "pl-6"
+                                      "transition-opacity" "duration-300" "ease-out"
+                                      (if message "opacity-100" "opacity-0")
+                                      (get hint-classes status "text-zinc-500")])}
       [:span {:class "text-xs"} (or message "\u00A0")]]]))
 
 ;;; ----------------------------------------------------------------------------
@@ -396,10 +412,13 @@
         {:keys [ring bg shadow]}            (get field-classes status (::pristine field-classes))
         field-name                          (name key)
         {:keys [label]}                     attrs
-        success?                            (:success? f)]
+        success?                            (:success? f)
+        hint-id                             (str field-name "-hint")]
     [:div
      [:div {:class label-classes} label]
-     [:div {:class "space-y-2"}
+     [:div {:class "space-y-2"
+            :role  "radiogroup"
+            :aria-describedby (when message hint-id)}
       (for [{:keys [option-value option-label]} options
             :let [option-id (str field-name "-" option-value)]]
         [:div {:class "flex items-center gap-2" :key option-value}
@@ -409,11 +428,12 @@
                           :value option-value
                           :class (tw/merge-classes (conj radio-base-classes ring bg shadow))}
                    (and (= value option-value) (not success?)) (assoc :checked true)
-                   (and used (not success?))                   (assoc :data-used "true"))]
+                   (and used (not success?))                   (assoc :data-used "true")
+                   (= status ::error)                          (assoc :aria-invalid "true"))]
          [:label {:for   option-id
                   :class "text-sm text-zinc-300 cursor-pointer select-none"}
           option-label]])]
-     (hint status message)]))
+     (hint field-name status message)]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Submit button

@@ -1,6 +1,7 @@
 (ns bits.test.browser
   (:require
    [babashka.fs :as fs]
+   [bits.string :as string]
    [bits.test.app :as t]
    [clojure.pprint :as pprint]
    [etaoin.api :as e]
@@ -84,6 +85,10 @@
   [driver selector]
   (e/get-element-text (->etaoin driver) (->query selector)))
 
+(defn value
+  [driver selector]
+  (e/get-element-value (->etaoin driver) (->query selector)))
+
 (defn visible?
   [driver selector]
   (e/visible? (->etaoin driver) (->query selector)))
@@ -91,6 +96,22 @@
 (defn exists?
   [driver selector]
   (e/exists? (->etaoin driver) (->query selector)))
+
+(defn attr
+  [driver selector attr-name]
+  (e/get-element-attr (->etaoin driver) (->query selector) attr-name))
+
+(defn classes
+  [driver selector]
+  (string/words (attr driver selector "class")))
+
+(defn invalid?
+  [driver selector]
+  (= "true" (attr driver selector "aria-invalid")))
+
+(defn described?
+  [driver selector]
+  (some? (attr driver selector "aria-describedby")))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Wait
@@ -104,6 +125,14 @@
 (defn wait-visible
   [driver selector]
   (e/wait-visible (->etaoin driver) selector))
+
+(defn wait-predicate
+  [driver pred]
+  (e/wait-predicate #(pred driver)))
+
+(defn wait-for-form
+  [driver]
+  (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy"))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
@@ -123,14 +152,24 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Helpful Driver
 
+(defn- browser-exception
+  [ex more]
+  (let [data (ex-data ex)
+        [msg data]
+        (case (:type data)
+          :etaoin/timeout
+          [(format "Timeout (%d): %s" (:timeout data) (:message data)) more]
+          [(ex-message ex) (merge (ex-data ex) more)])]
+    (ex-info msg data ex)))
+
 (defn with-driver*
   [service body-fn]
   (let [driver (make-driver service)]
     (try
       (body-fn driver)
-      (catch Throwable t
-        (let [ts  (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
-              dir (fs/file session-dir ts)]
+      (catch Throwable cause
+        (let [ts   (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
+              dir  (fs/file session-dir ts)]
           (fs/create-dirs dir)
           (screenshot driver (str (fs/file dir "screenshot.png")))
           (spit (fs/file dir "page-source.html") (get-source driver))
@@ -138,10 +177,7 @@
             (spit (fs/file dir "console.edn")
                   (with-out-str
                     (pprint/pprint (e/get-logs (->etaoin driver))))))
-          (throw (ex-info "Browser session failed?!"
-                          {:dir       (str dir)
-                           :timestamp ts}
-                          t))))
+          (throw (browser-exception cause {:dir dir :timestamp ts}))))
       (finally
         (quit driver)))))
 

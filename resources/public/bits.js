@@ -9,7 +9,9 @@
   // Live form state — tracks which fields have been interacted with
   const _timers = new Map();
   const _used = new Set();
+  const _focusValues = new Map(); // Value when field gained focus
   let _focusoutTimer = null;
+  let _validationController = null;
 
   const log = {
     info: (msg) =>
@@ -140,21 +142,25 @@
           });
         }
 
-Idiomorph.morph(target, data, {
+        Idiomorph.morph(target, data, {
+          restoreFocus: true,
           ignoreActiveValue: false,
           morphStyle: "innerHTML",
           callbacks: {
             beforeNodeMorphed: (oldNode, newNode) => {
               if (shouldReset) return;
 
-              // Preserve input values
+              // Preserve input values (unless data-server marks it as server-controlled)
               if (
                 oldNode instanceof HTMLInputElement &&
                 newNode instanceof HTMLInputElement
               ) {
                 if (oldNode.type === "checkbox" || oldNode.type === "radio") {
                   newNode.checked = oldNode.checked;
-                } else if (oldNode.type !== "password" && oldNode === document.activeElement) {
+                } else if (
+                  oldNode.type !== "password" &&
+                  !oldNode.hasAttribute("data-server")
+                ) {
                   newNode.value = oldNode.value;
                 }
               }
@@ -244,13 +250,14 @@ Idiomorph.morph(target, data, {
     return match ? match[2] : null;
   }
 
-  function postAction(action, params) {
+  function postAction(action, params, signal) {
     const csrf = getCsrf();
     return fetch("/action", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ action, csrf, ...params }),
       credentials: "same-origin",
+      signal,
     }).then((response) => {
       // If we have a Location header in the response, we redirect to that
       // location, trusting that the server will always send us somewhere safe.
@@ -273,17 +280,27 @@ Idiomorph.morph(target, data, {
       const form = el.form || el.closest("form");
       const params = form ? Object.fromEntries(new FormData(form)) : {};
 
-      if (form) form.inert = true;
+      const activeId = document.activeElement?.id;
+      if (form) {
+        form.inert = true;
+        form.setAttribute("aria-busy", "true");
+      }
       postAction(el.dataset.action, params).finally(() => {
-        if (form) form.inert = false;
+        if (form) {
+          form.inert = false;
+          form.removeAttribute("aria-busy");
+          if (activeId) document.getElementById(activeId)?.focus();
+        }
       });
     }
   });
 
   document.addEventListener("submit", (e) => {
     const form = e.target;
-    // Cancel any pending focusout validation — submit takes precedence
+    // Cancel any pending validation — submit takes precedence
     clearTimeout(_focusoutTimer);
+    _validationController?.abort();
+    _validationController = null;
 
     // `form.action` will return an input with name "action", if present. We
     // want the action attribute on the form element.
@@ -295,7 +312,14 @@ Idiomorph.morph(target, data, {
       const action = params.action;
       delete params.action;
       if (action) {
-        postAction(action, params);
+        const activeId = document.activeElement?.id;
+        form.inert = true;
+        form.setAttribute("aria-busy", "true");
+        postAction(action, params).finally(() => {
+          form.inert = false;
+          form.removeAttribute("aria-busy");
+          if (activeId) document.getElementById(activeId)?.focus();
+        });
       } else {
         log.warn("Form missing required hidden action input:", form);
       }
@@ -306,6 +330,10 @@ Idiomorph.morph(target, data, {
   // Live Form Validation
 
   function postFormAction(form, target) {
+    // Abort any pending validation request
+    _validationController?.abort();
+    _validationController = new AbortController();
+
     const raw = new FormData(form);
     const params = {};
     const action = raw.get("action");
@@ -323,13 +351,22 @@ Idiomorph.morph(target, data, {
     }
 
     params._target = target;
-    postAction(action, params);
+    form.setAttribute("aria-busy", "true");
+    postAction(action, params, _validationController.signal)
+      .catch((err) => {
+        if (err.name !== "AbortError") throw err;
+      })
+      .finally(() => {
+        form.removeAttribute("aria-busy");
+      });
   }
 
   document.addEventListener("focusin", (e) => {
     const form = e.target.closest('form[action="/action"]');
     if (!form || !e.target.name) return;
     _used.add(e.target.name);
+    // Capture value at focus time to detect changes on blur
+    _focusValues.set(e.target.name, e.target.value);
   });
 
   document.addEventListener("input", (e) => {
@@ -339,7 +376,10 @@ Idiomorph.morph(target, data, {
     if (e.target.dataset.used === "true") {
       const key = e.target.name;
       clearTimeout(_timers.get(key));
-      _timers.set(key, setTimeout(() => postFormAction(form, key), 300));
+      _timers.set(
+        key,
+        setTimeout(() => postFormAction(form, key), 300),
+      );
     }
   });
 
@@ -364,11 +404,16 @@ Idiomorph.morph(target, data, {
 
     if (e.relatedTarget?.type === "submit") return;
 
-    if (_used.has(e.target.name)) {
-      clearTimeout(_timers.get(e.target.name));
+    const name = e.target.name;
+    const focusValue = _focusValues.get(name);
+    const changed = focusValue !== e.target.value;
+
+    // Only validate if the value actually changed during this focus
+    if (_used.has(name) && changed) {
+      clearTimeout(_timers.get(name));
       clearTimeout(_focusoutTimer);
       // Small delay lets submit event fire first and cancel this
-      _focusoutTimer = setTimeout(() => postFormAction(form, e.target.name), 10);
+      _focusoutTimer = setTimeout(() => postFormAction(form, name), 10);
     }
   });
 
