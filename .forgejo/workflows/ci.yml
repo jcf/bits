@@ -88,8 +88,12 @@ jobs:
         run: .forgejo/scripts/cache-deps.sh /tmp/deps-lock.json
 
   test:
-    name: Test
+    name: Test (${{ matrix.suite }})
     runs-on: nixos
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [unit, e2e, generative]
     container:
       image: ${{ env.IMAGE }}
       credentials:
@@ -119,6 +123,7 @@ jobs:
         run: .forgejo/scripts/wait-postgres.sh postgres 5432 bits
 
       - name: Generate CSS
+        if: matrix.suite != 'unit'
         run: tailwindcss --input resources/tailwind.css --output resources/public/app.css
 
       - name: Test
@@ -127,13 +132,13 @@ jobs:
           CLUSTER_KEYSTORE_PASSWORD: correct-horse-battery-staple
           DATABASE_URL: postgres://bits:please@postgres:5432/bits_test
           PLATFORM_DOMAIN: localhost
-        run: just os=linux-x86_64 test --reporter documentation
+        run: just os=linux-x86_64 test :${{ matrix.suite }} --reporter documentation
 
       - name: Upload browser sessions
-        if: failure()
+        if: failure() && matrix.suite != 'unit'
         uses: actions/upload-artifact@v4
         with:
-          name: browser-sessions
+          name: browser-sessions-${{ matrix.suite }}
           path: target/browser-sessions
           if-no-files-found: ignore
 
