@@ -85,6 +85,32 @@ After modifying the template, regenerate with:
 The `just tailwind` command watches for class changes in Clojure source files and
 rebuilds `resources/public/app.css`.
 
+### Use Data Structures for Classes
+
+Use `bits.tailwind/merge-classes` and data structures for class composition. Winnow
+handles nil values automatically - no need for manual string concatenation:
+
+```clojure
+;; Bad: String concatenation
+:class (str "h-5 flex items-center "
+            (if message "opacity-100" "opacity-0") " "
+            (get hint-classes status))
+
+;; Good: Data structures with Winnow
+:class (tw/merge-classes ["h-5" "flex" "items-center"
+                          (if message "opacity-100" "opacity-0")
+                          (get hint-classes status)])
+
+;; Good: Use with-defaults for element attrs
+[:input (tw/with-defaults attrs ["w-full" "rounded-lg" ring-class])]
+```
+
+**Rationale:**
+
+- Winnow ignores nil values automatically
+- Data structures are easier to read and compose
+- `with-defaults` merges user-provided classes with defaults
+
 ### No Hiccup Class Shorthand
 
 **BANNED: Tailwind class shorthand in Hiccup keywords.**
@@ -767,6 +793,33 @@ the owner; the attribute name indicates what they own.
 - **Domain modeling** — Reflects how you think about relationships, not storage details
 - **Consistency** — All relationships read the same way: owner/owned
 
+### Composition Over Specialized Predicates
+
+Prefer composing general functions over creating specialized `foo?` helpers:
+
+```clojure
+;; Bad: Specialized predicate bundling parsing + checking
+(defn has-class?
+  [driver selector class-name]
+  (let [classes (attr driver selector "class")]
+    (some #{class-name} (str/split classes #"\s+"))))
+
+(has-class? driver :form "ring-red-500/30")
+
+;; Good: General parser + domain accessor + standard predicate
+(defn words [s] (into #{} (str/split (or s "") #"\s+")))
+(defn classes [driver selector] (words (attr driver selector "class")))
+
+(contains? (classes driver :form) "ring-red-500/30")
+```
+
+**Rationale:**
+
+- `words` is reusable beyond this context
+- Each function does one transformation
+- Standard predicates (`contains?`, `some`, `empty?`) over custom `foo?` helpers
+- Easier to compose in new ways
+
 ### Dev Namespace Conventions
 
 Functions in `dev/` namespaces that are internal helpers should be private (`defn-`).
@@ -789,6 +842,91 @@ Keep I/O in the REPL comment block, not in functions.
 ```
 
 **Never pass the system map to a function.** Keep I/O at the call site.
+
+## Testing
+
+### Test Organization
+
+Test fixtures, helper modules, and test-specific components belong in the test
+namespace that uses them (e.g., `bits.form-test`), not in separate files. Keep
+test code close to the tests.
+
+### Test System Customization
+
+Never add optional parameters to `bits.test.app/system`. Instead, customize the
+returned system map with `assoc-in`:
+
+```clojure
+;; Good: Customize after system creation
+(-> (t/system)
+    (assoc-in [:service :modules] custom-modules))
+
+;; Bad: Adding optional args to system function
+(defn system
+  ([] (system []))
+  ([extra-modules] ...))  ; NO! Don't add args
+```
+
+### File Naming
+
+No special suffixes like `_e2e_` in test file names. Kaocha uses metadata
+selectors to run test subsets:
+
+```clojure
+;; In test file
+(deftest ^:e2e form-validation
+  ...)
+
+;; Run with: just test :e2e
+```
+
+### Standard Attributes Over Visual Selectors
+
+Tests should check meaning, not presentation. Use standard HTML and ARIA
+attributes - don't invent custom `data-*` attributes when platform APIs exist:
+
+```clojure
+;; Bad: Checking color classes (fragile, couples to visual design)
+(contains? (classes driver :form) "ring-red-500/30")
+
+;; Bad: Custom data attributes when standards exist
+[:input {:data-invalid "true" ...}]
+
+;; Good: Standard ARIA attributes
+[:input {:aria-invalid (when (= status ::error) "true")
+         :aria-describedby (when message (str field-id "-hint"))
+         ...}]
+[:div {:id (str field-id "-hint") :role "alert"} message]
+
+;; In test - check semantic state
+(= "true" (browser/attr driver :email "aria-invalid"))
+```
+
+**Prefer in order:**
+
+1. Standard HTML attributes (`required`, `disabled`, `readonly`)
+2. ARIA attributes (`aria-invalid`, `aria-describedby`, `aria-errormessage`)
+3. `data-*` only when no standard exists
+
+**Rationale:**
+
+- Platform APIs are well-documented and understood
+- Accessibility comes for free
+- Screen readers and browser tools understand these attributes
+- Tests verify the same semantics users experience
+
+### Systematic Solutions Over Quick Fixes
+
+When facing a challenge, don't cobble together the first solution that works.
+Consider:
+
+1. What infrastructure would make this trivial?
+2. How can we improve the system to simplify this class of problems?
+3. Does the solution strengthen the codebase or add debt?
+
+Adding semantic markup to support testing also improves accessibility,
+documentation, and maintainability. A color-based selector only solves the
+immediate problem while creating fragility.
 
 ## Org-mode
 
