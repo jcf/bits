@@ -429,7 +429,8 @@
                           :class (tw/merge-classes (conj radio-base-classes ring bg shadow))}
                    (and (= value option-value) (not success?)) (assoc :checked true)
                    (and used (not success?))                   (assoc :data-used "true")
-                   (= status ::error)                          (assoc :aria-invalid "true"))]
+                   (= status ::error)                          (assoc :aria-invalid "true")
+                   message                                     (assoc :aria-describedby hint-id))]
          [:label {:for   option-id
                   :class "text-sm text-zinc-300 cursor-pointer select-none"}
           option-label]])]
