@@ -276,6 +276,10 @@ in {
       ALTER USER bits WITH PASSWORD 'please' CREATEDB;
       ALTER DATABASE bits_test OWNER TO bits;
 
+      -- Allow bits to terminate connections for DROP DATABASE ... WITH (FORCE)
+      -- Used by ephemeral test databases in bits.test.postgres
+      GRANT pg_signal_backend TO bits;
+
       -- Datomic KV storage table
       \c datomic
       CREATE TABLE IF NOT EXISTS datomic_kvs (
