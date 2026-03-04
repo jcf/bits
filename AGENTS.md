@@ -915,6 +915,37 @@ attributes - don't invent custom `data-*` attributes when platform APIs exist:
 - Screen readers and browser tools understand these attributes
 - Tests verify the same semantics users experience
 
+### No Side Effects in Test Helpers
+
+Never use `println`, `prn`, or other side effects for test diagnostics. Test helpers
+return data; assertions happen in `deftest` using `is`.
+
+```clojure
+;; Bad: Side effects for debugging
+(defn check-invariants [driver]
+  (let [valid? (form-valid? driver)]
+    (when-not valid?
+      (println "INVARIANT FAILED: form-valid?"))  ; NO!
+    valid?))
+
+;; Good: Return data, assert in test
+(defn check-invariants [driver]
+  (and (form-not-stuck? driver)
+       (aria-consistent? driver)))
+
+(deftest form-chaos
+  (is (form-not-stuck? driver) "Form stuck in aria-busy state")
+  (is (aria-consistent? driver)
+      (str "Inconsistent state: " (field-states driver))))
+```
+
+**Rationale:**
+
+- `println` output gets lost in test runner noise
+- Side effects can't be composed or filtered
+- `is` integrates with test reporters and failure summaries
+- Message argument to `is` provides diagnostic context on failure
+
 ### Systematic Solutions Over Quick Fixes
 
 When facing a challenge, don't cobble together the first solution that works.
