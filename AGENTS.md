@@ -1,5 +1,37 @@
 # Bits Project Guidelines
 
+## MCP Servers
+
+MCP servers are configured in `nix/modules/claude-code.nix` under the `mcpServers`
+attribute. Available servers:
+
+| Server      | Type  | Description                                 |
+| ----------- | ----- | ------------------------------------------- |
+| clojure-mcp | stdio | REPL integration and Clojure-aware editing  |
+| devenv      | stdio | Access to devenv packages and configuration |
+| github      | http  | GitHub Copilot MCP                          |
+| linear      | http  | Linear issue tracking                       |
+
+### clojure-mcp
+
+Provides REPL tools for evaluating Clojure code and Clojure-aware structural
+editing. Configured with `:config-profile :cli-assist` for CLI assistants.
+
+**Expects nREPL running on port 9999.** The user typically runs `devenv up` or
+`just nrepl` before starting Claude Code. If clojure-mcp tools fail to connect,
+ask the user to start the REPL — do not attempt to start it yourself.
+
+Key tools:
+
+- `clojure_eval` — Evaluate Clojure in the connected REPL
+- `clojure_edit` — Structure-aware form editing (fallback when Edit fails)
+- `read_file` — Smart Clojure file reader with collapsed view
+
+### devenv
+
+Provides access to devenv packages and scripts. See `devenv.nix` for available
+packages and `justfile` for common tasks.
+
 ## Git
 
 Do not include `Co-Authored-By` trailers in commit messages.
