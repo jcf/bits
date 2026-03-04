@@ -1,0 +1,23 @@
+#+title: Licensing
+
+* Open Source License
+Bits is licensed under the GNU Affero General Public License version 3 (AGPL-3.0).
+See the [[file:LICENSE][LICENSE]] file for the complete terms.
+
+Under the AGPL, you may freely use, modify, and distribute this software provided
+that:
+
+- You license your modifications under the AGPL
+- Users interacting with your modified version over a network can obtain the
+  complete source code
+
+* Commercial License
+A commercial license is available for organisations that cannot comply with the
+AGPL. This includes:
+
+- Proprietary products or services that incorporate Bits
+- SaaS offerings where you cannot disclose your source code
+- Situations where AGPL obligations conflict with your business requirements
+
+Commercial licenses are negotiated individually. Contact [[mailto:jcf@bits.page][jcf@bits.page]] to discuss
+your needs.

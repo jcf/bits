@@ -1,5 +1,7 @@
 #_(clojure.repl.deps/sync-deps)
-{:paths ["resources" "src"]
+{:paths   ["resources" "src"]
+ :license {:name "AGPL-3.0-or-later"
+           :url  "https://spdx.org/licenses/AGPL-3.0-or-later.html"}
  :deps
  {babashka/fs                                                     {:mvn/version "0.5.31"}
   babashka/process                                                {:mvn/version "0.6.25"}

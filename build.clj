@@ -95,7 +95,7 @@
       (.setValue hf k v))
     (let [msg (.unwrap hf)]
       (doseq [comment ["Copyright (C) 2026 Invetica"
-                       "This file is distributed under the same license as the Bits package."]]
+                       "SPDX-License-Identifier: AGPL-3.0-or-later"]]
         (.addComment msg comment))
       msg)))
 
