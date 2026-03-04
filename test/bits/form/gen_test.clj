@@ -6,7 +6,8 @@
    [clojure.test :refer [deftest is]]
    [clojure.test.check :as tc]
    [clojure.test.check.generators :as gen]
-   [clojure.test.check.properties :as prop]))
+   [clojure.test.check.properties :as prop]
+   [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Field definitions
@@ -94,8 +95,8 @@
 (def enter-action-gen
   (gen/fmap (fn [f] [:enter f]) text-field-gen))
 
-(def wait-action-gen
-  (gen/fmap (fn [ms] [:wait ms]) (gen/choose 10 100)))
+(def debounce-action-gen
+  (gen/return [:debounce]))
 
 (def action-gen
   (gen/frequency
@@ -108,7 +109,7 @@
     [2 tab-action-gen]
     [2 submit-action-gen]
     [1 enter-action-gen]
-    [1 wait-action-gen]]))
+    [1 debounce-action-gen]]))
 
 (def action-sequence-gen
   (gen/vector action-gen 5 20))
@@ -157,9 +158,11 @@
   (browser/click driver field)
   (browser/press-key driver :enter))
 
-(defmethod execute-action :wait
-  [_driver [_ ms]]
-  (Thread/sleep ms))
+(defmethod execute-action :debounce
+  [_driver _]
+  ;; Wait for client-side debounce timer (300ms) to fire.
+  ;; See bits.js input handler and the decision record on time coupling.
+  (Thread/sleep 310))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Invariant checks
@@ -187,27 +190,30 @@
 
 (defn check-invariants
   [driver]
-  (and (form-not-stuck? driver)
-       (aria-invalid-consistent? driver)
-       (describedby-refs-exist? driver)))
+  (span/with-span! {:name ::check-invariants}
+    (and (form-not-stuck? driver)
+         (aria-invalid-consistent? driver)
+         (describedby-refs-exist? driver))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Property test
 
 (defn form-chaos-property
-  [service]
+  [driver]
   (prop/for-all [actions action-sequence-gen]
-    (browser/with-driver [driver service]
-      (browser/goto driver "/")
-      (browser/wait-visible driver :string)
-      (doseq [action actions]
-        (try
-          (execute-action driver action)
-          (catch Exception _)))
-      (check-invariants driver))))
+    (browser/goto driver "/")
+    (browser/wait-visible driver :string)
+    (doseq [action actions]
+      (try
+        (span/with-span! {:name       ::execute-action
+                          :attributes {"test.action" (pr-str action)}}
+          (execute-action driver action))
+        (catch Exception _)))
+    (check-invariants driver)))
 
 (deftest ^:e2e ^:generative form-handles-chaos
   (t/with-system [{:keys [service]} (test.form/system)]
-    (let [result (tc/quick-check 25 (form-chaos-property service))]
-      (is (:pass? result)
-          (str "Failed: " (get-in result [:shrunk :smallest]))))))
+    (browser/with-driver [driver service]
+      (let [result (tc/quick-check 25 (form-chaos-property driver))]
+        (is (:pass? result)
+            (str "Failed: " (get-in result [:shrunk :smallest])))))))

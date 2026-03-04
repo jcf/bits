@@ -7,7 +7,8 @@
    [etaoin.api :as e]
    [io.pedestal.log :as log]
    [java-time.api :as time]
-   [lambdaisland.uri :as uri]))
+   [lambdaisland.uri :as uri]
+   [steffan-westcott.clj-otel.api.trace.span :as span]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Driver lifecycle
@@ -29,7 +30,8 @@
 
 (defn make-driver
   [service]
-  (->Driver (e/firefox {:headless true}) service))
+  (span/with-span! {:name ::make-driver}
+    (->Driver (e/firefox {:headless true}) service)))
 
 (defn quit
   [driver]
@@ -40,7 +42,8 @@
 
 (defn goto
   [driver path]
-  (e/go (->etaoin driver) (t/service-url (->service driver) path)))
+  (span/with-span! {:name ::goto :attributes {"browser.path" path}}
+    (e/go (->etaoin driver) (t/service-url (->service driver) path))))
 
 (defn current-path
   [driver]
@@ -61,7 +64,8 @@
 
 (defn fill
   [driver field-name value]
-  (e/fill (->etaoin driver) {:name (name field-name)} value))
+  (span/with-span! {:name ::fill :attributes {"browser.field" (name field-name)}}
+    (e/fill (->etaoin driver) {:name (name field-name)} value)))
 
 (defn wait-to-fill
   [driver selector value]
@@ -72,29 +76,35 @@
 
 (defn click
   [driver selector]
-  (e/click (->etaoin driver) (->query selector)))
+  (span/with-span! {:name ::click :attributes {"browser.selector" (pr-str selector)}}
+    (e/click (->etaoin driver) (->query selector))))
 
 (defn submit
   [driver selector]
-  (e/submit (->etaoin driver) (->query selector)))
+  (span/with-span! {:name ::submit :attributes {"browser.selector" (pr-str selector)}}
+    (e/submit (->etaoin driver) (->query selector))))
 
 (defn clear
   [driver selector]
-  (e/clear (->etaoin driver) (->query selector)))
+  (span/with-span! {:name ::clear :attributes {"browser.selector" (pr-str selector)}}
+    (e/clear (->etaoin driver) (->query selector))))
 
 (defn press-key
   [driver key]
-  (let [code (ns-resolve 'etaoin.keys (symbol (name key)))]
-    (e/fill-active (->etaoin driver) (if code @code (name key)))))
+  (span/with-span! {:name ::press-key :attributes {"browser.key" (name key)}}
+    (let [code (ns-resolve 'etaoin.keys (symbol (name key)))]
+      (e/fill-active (->etaoin driver) (if code @code (name key))))))
 
 (defn select-option
   [driver selector value]
-  (let [e (->etaoin driver)
-        q (->query selector)]
-    ;; Select by option value attribute, not text content
-    (e/click e (assoc q :css (str (or (:css q)
-                                      (format "[name='%s']" (clojure.core/name (:name q))))
-                                  (format " option[value='%s']" value))))))
+  (span/with-span! {:name ::select-option :attributes {"browser.selector" (pr-str selector)
+                                                       "browser.value"    value}}
+    (let [e (->etaoin driver)
+          q (->query selector)]
+      ;; Select by option value attribute, not text content
+      (e/click e (assoc q :css (str (or (:css q)
+                                        (format "[name='%s']" (clojure.core/name (:name q))))
+                                    (format " option[value='%s']" value)))))))
 
 (defn check
   [driver selector]
@@ -112,13 +122,16 @@
 
 (defn toggle
   [driver selector]
-  (e/click (->etaoin driver) (->query selector)))
+  (span/with-span! {:name ::toggle :attributes {"browser.selector" (pr-str selector)}}
+    (e/click (->etaoin driver) (->query selector))))
 
 (defn select-radio
   [driver name value]
-  (e/click (->etaoin driver) {:css (format "input[name='%s'][value='%s']"
-                                           (clojure.core/name name)
-                                           value)}))
+  (span/with-span! {:name ::select-radio :attributes {"browser.field" (clojure.core/name name)
+                                                      "browser.value" value}}
+    (e/click (->etaoin driver) {:css (format "input[name='%s'][value='%s']"
+                                             (clojure.core/name name)
+                                             value)})))
 
 (defn selected?
   [driver selector]
@@ -170,7 +183,8 @@
 
 (defn wait-visible
   [driver selector]
-  (e/wait-visible (->etaoin driver) selector))
+  (span/with-span! {:name ::wait-visible :attributes {"browser.selector" (pr-str selector)}}
+    (e/wait-visible (->etaoin driver) selector)))
 
 (defn wait-predicate
   [driver pred]
@@ -178,7 +192,8 @@
 
 (defn wait-for-form
   [driver]
-  (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy"))))
+  (span/with-span! {:name ::wait-for-form}
+    (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
