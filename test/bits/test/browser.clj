@@ -76,7 +76,7 @@
   [driver selector value]
   (let [e (->etaoin driver)
         q (->query selector)]
-    (e/wait-visible e q)
+    (e/wait-visible e q {:timeout (wait-timeout driver)})
     (e/fill e q value)))
 
 (defn click
@@ -183,13 +183,13 @@
 (defn wait-to-click
   [driver selector]
   (let [e (->etaoin driver)]
-    (e/wait-visible e selector)
+    (e/wait-visible e selector {:timeout (wait-timeout driver)})
     (e/click e selector)))
 
 (defn wait-visible
   [driver selector]
   (span/with-span! {:name ::wait-visible :attributes {"browser.selector" (pr-str selector)}}
-    (e/wait-visible (->etaoin driver) selector)))
+    (e/wait-visible (->etaoin driver) selector {:timeout (wait-timeout driver)})))
 
 (defn wait-predicate
   [driver pred]
