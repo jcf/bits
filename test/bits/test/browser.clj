@@ -231,22 +231,23 @@
 
 (defn with-driver*
   [browser body-fn]
-  (let [driver (make-driver browser)]
-    (try
-      (body-fn driver)
-      (catch Throwable cause
-        (let [ts   (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
-              dir  (fs/file session-dir ts)]
-          (fs/create-dirs dir)
-          (screenshot driver (str (fs/file dir "screenshot.png")))
-          (spit (fs/file dir "page-source.html") (get-source driver))
-          (when (e/supports-logs? (->etaoin driver))
-            (spit (fs/file dir "console.edn")
-                  (with-out-str
-                    (pprint/pprint (e/get-logs (->etaoin driver))))))
-          (throw (browser-exception cause {:dir dir :timestamp ts}))))
-      (finally
-        (quit driver)))))
+  (span/with-span! {:name ::with-driver}
+    (let [driver (make-driver browser)]
+      (try
+        (body-fn driver)
+        (catch Throwable cause
+          (let [ts  (time/format "yyyyMMdd-HHmmssSSS" (time/local-date-time))
+                dir (fs/file session-dir ts)]
+            (fs/create-dirs dir)
+            (screenshot driver (str (fs/file dir "screenshot.png")))
+            (spit (fs/file dir "page-source.html") (get-source driver))
+            (when (e/supports-logs? (->etaoin driver))
+              (spit (fs/file dir "console.edn")
+                    (with-out-str
+                      (pprint/pprint (e/get-logs (->etaoin driver))))))
+            (throw (browser-exception cause {:dir dir :timestamp ts}))))
+        (finally
+          (quit driver))))))
 
 (defmacro with-driver
   [[binding browser] & body]
