@@ -509,6 +509,44 @@ of truth. Defaults are defined there, not scattered across component namespaces.
 
 **Components never define defaults.** They receive config and use it as-is.
 
+**BANNED: `System/getenv` scattered in the codebase.**
+
+Never read environment variables directly in component namespaces, test helpers,
+or utility modules. All environment variable reading happens in `bits.app`:
+
+```clojure
+;; BANNED: Reading env vars anywhere except bits.app
+(def ^:private timeout
+  (if-let [s (System/getenv "BROWSER_WAIT_TIMEOUT")]  ; <- NO!
+    (parse-long s)
+    15))
+
+;; BANNED: Conditional defaults based on environment
+(def config
+  (if (System/getenv "CI")  ; <- NO!
+    {:timeout 30}
+    {:timeout 7}))
+
+;; GOOD: All config flows from bits.app
+;; In bits.app/read-config:
+(defn read-config []
+  {:browser {:wait-timeout (or (some-> (System/getenv "BROWSER_WAIT_TIMEOUT")
+                                       parse-long)
+                               15)}
+   ...})
+
+;; In test system, override via assoc-in:
+(-> (t/system)
+    (assoc-in [:service :browser :wait-timeout] 30))
+```
+
+**Why this matters:**
+
+- **Traceability** — All config values can be found in one file
+- **Testability** — Tests override config through the system, not env vars
+- **Validation** — `bits.spec` validates the complete config
+- **No hidden behavior** — Code doesn't silently change based on environment
+
 ```clojure
 ;; BAD: Defaults in component namespace
 (def ^:private default-argon-config
