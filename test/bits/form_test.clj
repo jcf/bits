@@ -75,16 +75,16 @@
 ;;; E2E
 
 (deftest ^:e2e pristine-no-validation
-  (t/with-system [{:keys [service]} (test.form/system)]
-    (browser/with-driver [driver service]
+  (t/with-system [{:keys [browser]} (test.form/system)]
+    (browser/with-driver [driver browser]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "ab")
       (is (= "ab" (browser/value driver :string)))
       (is (not (browser/invalid? driver :string))))))
 
 (deftest ^:e2e blur-shows-advisory
-  (t/with-system [{:keys [service]} (test.form/system)]
-    (browser/with-driver [driver service]
+  (t/with-system [{:keys [browser]} (test.form/system)]
+    (browser/with-driver [driver browser]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "ab")
       (browser/click driver :email)
@@ -93,8 +93,8 @@
       (is (browser/described? driver :string)))))
 
 (deftest ^:e2e submit-shows-errors
-  (t/with-system [{:keys [service]} (test.form/system)]
-    (browser/with-driver [driver service]
+  (t/with-system [{:keys [browser]} (test.form/system)]
+    (browser/with-driver [driver browser]
       (browser/goto driver "/")
       (browser/click driver "button[type='submit']")
       (browser/wait-for-form driver)
@@ -103,8 +103,8 @@
       (is (= "Whoops!" (browser/text driver :submit))))))
 
 (deftest ^:e2e form-reset
-  (t/with-system [{:keys [service]} (test.form/system)]
-    (browser/with-driver [driver service]
+  (t/with-system [{:keys [browser]} (test.form/system)]
+    (browser/with-driver [driver browser]
       (browser/goto driver "/")
       ;; Fill all required fields
       (let [{:keys [string email number color fruit bio]} test.form/params]
@@ -125,8 +125,8 @@
       (is (= "Success!" (browser/text driver :submit))))))
 
 (deftest ^:e2e values-preserved-on-error
-  (t/with-system [{:keys [service]} (test.form/system)]
-    (browser/with-driver [driver service]
+  (t/with-system [{:keys [browser]} (test.form/system)]
+    (browser/with-driver [driver browser]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "ab")
       (browser/wait-to-fill driver :email "test@example.com")
@@ -137,8 +137,8 @@
       (is (browser/invalid? driver :string)))))
 
 (deftest ^:e2e no-race-condition
-  (t/with-system [{:keys [service]} (test.form/system)]
-    (browser/with-driver [driver service]
+  (t/with-system [{:keys [browser]} (test.form/system)]
+    (browser/with-driver [driver browser]
       (browser/goto driver "/")
       (browser/wait-to-fill driver :string "abc")
       (browser/wait-to-fill driver :email "test@example.com")

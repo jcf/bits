@@ -8,12 +8,12 @@
    [datomic.api :as d]))
 
 (deftest login
-  (t/with-system [{:keys [service]} (t/system)]
+  (t/with-system [{:keys [service browser]} (t/system)]
     @(d/transact (datomic/conn (:datomic service)) (fixture/realm-txes))
     (let [email    "bits@example.com"
           password "password"]
       (t/create-user! service email password)
-      (browser/with-driver [driver service]
+      (browser/with-driver [driver browser]
         (browser/goto driver "/")
         (browser/click driver {:tag :a :fn/text "Login"})
         (browser/wait-to-fill driver :email email)

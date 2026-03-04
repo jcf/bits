@@ -15,7 +15,7 @@
 
 (def ^:const ^:private session-dir "target/browser-sessions")
 
-(defrecord Driver [etaoin service])
+(defrecord Driver [etaoin browser])
 
 (defmethod print-method Driver
   [_ ^java.io.Writer w]
@@ -26,12 +26,17 @@
   (pr "#<Driver>"))
 
 (defn- ->etaoin  [driver] (:etaoin driver))
-(defn- ->service [driver] (:service driver))
+(defn- ->browser [driver] (:browser driver))
+(defn- ->service [driver] (:service (->browser driver)))
+
+(defn- wait-timeout
+  [driver]
+  (:wait-timeout (->browser driver)))
 
 (defn make-driver
-  [service]
+  [browser]
   (span/with-span! {:name ::make-driver}
-    (->Driver (e/firefox {:headless true}) service)))
+    (->Driver (e/firefox {:headless (:headless browser)}) browser)))
 
 (defn quit
   [driver]
@@ -188,12 +193,13 @@
 
 (defn wait-predicate
   [driver pred]
-  (e/wait-predicate #(pred driver)))
+  (e/wait-predicate #(pred driver) {:timeout (wait-timeout driver)}))
 
 (defn wait-for-form
   [driver]
   (span/with-span! {:name ::wait-for-form}
-    (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
+    (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy"))
+                      {:timeout (wait-timeout driver)})))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
@@ -224,8 +230,8 @@
     (ex-info msg data ex)))
 
 (defn with-driver*
-  [service body-fn]
-  (let [driver (make-driver service)]
+  [browser body-fn]
+  (let [driver (make-driver browser)]
     (try
       (body-fn driver)
       (catch Throwable cause
@@ -243,5 +249,5 @@
         (quit driver)))))
 
 (defmacro with-driver
-  [[binding service] & body]
-  `(with-driver* ~service (^:once fn* [~binding] ~@body)))
+  [[binding browser] & body]
+  `(with-driver* ~browser (^:once fn* [~binding] ~@body)))

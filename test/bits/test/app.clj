@@ -6,6 +6,7 @@
    [bits.datomic :as datomic]
    [bits.postgres :as postgres]
    [bits.test.postgres :as test.postgres]
+   [camel-snake-kebab.core :as csk]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [com.stuartsierra.component :as component]
@@ -18,6 +19,36 @@
    (io.opentelemetry.api GlobalOpenTelemetry)
    (io.opentelemetry.instrumentation.httpclient JavaHttpClientTelemetry)
    (java.net CookieManager CookiePolicy)))
+
+;;; ----------------------------------------------------------------------------
+;;; Config
+
+(defmacro ^:private env
+  [k]
+  (let [s (csk/->SCREAMING_SNAKE_CASE_STRING (name k))]
+    `(System/getenv ~s)))
+
+(defmacro ^:private env-or
+  [k default]
+  `(or (env ~k) ~default))
+
+(defn read-config
+  []
+  (assoc (app/read-config)
+         :browser {:wait-timeout (parse-long (env-or :browser-wait-timeout "15"))
+                   :headless     true}))
+
+;;; ----------------------------------------------------------------------------
+;;; Browser Component
+
+(defrecord Browser [wait-timeout headless service])
+
+(defn make-browser
+  [config]
+  (map->Browser config))
+
+;;; ----------------------------------------------------------------------------
+;;; System
 
 (defn- system-ex-info
   [cause]
@@ -49,7 +80,7 @@
 
 (defn system
   []
-  (let [config                  (app/read-config)
+  (let [config                  (read-config)
         database-url            (postgres/replace-dbname
                                  (get-in config [:postgres :database-url]) "bits_test")
         {:keys [ephemeral-url
@@ -66,12 +97,14 @@
         deps                    (-> app/dependencies
                                     (update :datomic (fnil conj []) :ephemeron)
                                     (update :migrator (fnil conj []) :ephemeron)
-                                    (update :postgres (fnil conj []) :ephemeron))]
+                                    (update :postgres (fnil conj []) :ephemeron)
+                                    (assoc :browser [:service]))]
     (-> config
         app/components
-        (assoc :ephemeron ephemeron)
+        (assoc :ephemeron ephemeron
+               :browser (make-browser (:browser config)))
         (component/system-using deps)
-        (component/subsystem #{:service}))))
+        (component/subsystem #{:service :browser}))))
 
 (defn replace-allowed-origins
   [system origins]
