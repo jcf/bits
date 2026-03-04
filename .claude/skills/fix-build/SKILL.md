@@ -16,15 +16,21 @@ Diagnose and fix CI build failures on Forgejo.
 
 ## Step 2: Fetch Logs for Failed Jobs
 
-Get the job list to find indices, then fetch logs:
+From the ci-status output above, note the run number (e.g., "Run #437").
 
-!`just ci-jobs $(just ci-status | grep -oP 'Run #\K[0-9]+')`
+Get the job list to find indices:
 
-Fetch logs for the Test job (usually index 2):
+```bash
+just ci-jobs <run-number>
+```
 
-!`just ci-logs $(just ci-status | grep -oP 'Run #\K[0-9]+') 2`
+Fetch logs for a specific job (job-index is **0-based**):
 
-Note: job-index is **0-based** (first job is 0, second is 1, etc.)
+```bash
+just ci-logs <run-number> <job-index>
+```
+
+Test job is usually index 2.
 
 ## Step 3: Analyze the Failure
 
