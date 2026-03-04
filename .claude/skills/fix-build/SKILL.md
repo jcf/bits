@@ -1,7 +1,7 @@
 ---
 name: fix-build
 description: Diagnose and fix CI build failures
-allowed-tools: Bash(just ci-*, git diff*, git status, git log), Read, Grep, Glob
+allowed-tools: Bash(just ci-*, git diff*, git status, git log, gh run download), Read, Grep, Glob, ToolSearch, Task, mcp__clojure-mcp__*
 ---
 
 # Fix Build
@@ -14,7 +14,19 @@ Diagnose and fix CI build failures on Forgejo.
 
 !`just ci-failures`
 
-## Step 2: Analyze the Failure
+## Step 2: Fetch Logs for Failed Jobs
+
+Get the job list to find indices, then fetch logs:
+
+!`just ci-jobs $(just ci-status | grep -oP 'Run #\K[0-9]+')`
+
+Fetch logs for the Test job (usually index 2):
+
+!`just ci-logs $(just ci-status | grep -oP 'Run #\K[0-9]+') 2`
+
+Note: job-index is **0-based** (first job is 0, second is 1, etc.)
+
+## Step 3: Analyze the Failure
 
 Based on which job(s) failed, investigate:
 
@@ -29,11 +41,34 @@ Based on which job(s) failed, investigate:
 - **Fix**: Run `just deps-lock` to regenerate, then commit
 
 ### Test job failed
-- **Cause**: Test failures or missing CSS
-- **Fix**: Run `just test` locally to reproduce. Check for:
-  - Missing `resources/public/app.css` (run `just css`)
-  - E2E test failures (check `target/browser-sessions/` for screenshots)
-  - Database connection issues
+
+**Common patterns in test logs:**
+
+| Pattern                     | Likely cause                                     |
+| --------------------------- | ------------------------------------------------ |
+| `Timeout (7):`              | E2E test timed out waiting for element/condition |
+| `Wait until ... is visible` | UI element didn't appear after action            |
+| `Failed: [[...]]`           | Generative test with shrunk failing case         |
+| `aria-busy` stuck           | Form validation/morph not completing             |
+
+**E2E timeout failures:**
+
+- Check if the form submission flow is broken
+- Look at the failing test line to understand what it's waiting for
+- Browser screenshots are uploaded as artifacts (see Step 4)
+
+**Generative test failures:**
+
+- The log shows the shrunk failing sequence, e.g.: `Failed: [[[:type :number "aAA"] ...]]`
+- Use the REPL to reproduce the exact sequence against a running system
+- Check form invariants: aria-invalid consistency, describedby refs exist
+
+**Quick local reproduction:**
+
+```bash
+just test :e2e           # Run only E2E tests
+just test :generative    # Run only generative tests
+```
 
 ### Build job failed
 
@@ -45,23 +80,38 @@ Based on which job(s) failed, investigate:
 - **Cause**: Container registry or SSH issues
 - **Fix**: Check secrets and SSH connectivity to compute
 
-## Step 3: View Logs
+## Step 4: Download Browser Artifacts
 
-Fetch logs for a specific job using `fj-ex` (requires `just ci-login` first):
+CI uploads browser screenshots on E2E failures. Download and examine:
 
 ```bash
-just ci-logs <run-number> <job-index>
+# List artifacts for the run
+gh api repos/jcf/bits/actions/runs/<run-id>/artifacts
+
+# Download artifact (artifact ID shown in test logs)
+curl -L -o screenshots.zip "<artifact-url>"
+unzip screenshots.zip -d target/ci-screenshots
 ```
 
-Note: job-index is **0-based** (first job is 0, second is 1, etc.)
+The artifact download URL appears in test logs as:
+`Artifact download URL: https://code.invetica.team/jcf/bits/actions/runs/.../artifacts/...`
 
-Example: `just ci-logs 437 0` fetches logs for the first job of run 437.
+## Step 5: REPL-Based Debugging
 
-The run URL is also available for browser viewing:
+For complex test failures, use the REPL (requires nREPL on port 9999):
 
-!`just ci-status | grep URL`
+```clojure
+;; Run specific failing test
+(require '[clojure.test :refer [test-var]])
+(test-var #'bits.form-test/form-reset)
 
-## Step 4: Fix and Verify
+;; Reproduce generative test failure with exact sequence
+(require '[bits.form.gen-test :as gen-test])
+(require '[bits.test.browser :as browser])
+;; Execute the shrunk failing actions manually
+```
+
+## Step 6: Fix and Verify
 
 1. Make the necessary fixes locally
 2. Run `just` to verify all checks pass
