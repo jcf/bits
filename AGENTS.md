@@ -67,7 +67,8 @@ Use REPL for iteration; use `just test` before commits.
 
 ## Git
 
-No `Co-Authored-By` trailers in commit messages.
+- **Forgejo** at `code.invetica.team` (not GitHub—`gh` CLI won't work)
+- No `Co-Authored-By` trailers in commit messages
 
 ## Critical Constraints
 
