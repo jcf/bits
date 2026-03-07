@@ -88,6 +88,28 @@ These apply at all times—violations are never acceptable.
 - **Component first arg** for functions needing config
 - **Lowercase HTTP headers** with Ring utilities
 - **`make-<name>` factory** with `:pre` spec validation
+- **Small, composable functions** — extract reusable logic, don't hide it in compound expressions
+
+## Clojure Style
+
+- Use `cond->` for conditional transformations, not `if`
+- Extract helpers when you spot repeated expressions, even small ones
+- Omit docstrings when function name + signature is self-documenting
+- Use `^:const` for primitive constants
+- Avoid comments that restate what code obviously does
+
+## Testing Style
+
+- Use full namespace aliases, not abbreviations (`identifier` not `id`)
+- Prefer Clojure built-ins over interop (`random-uuid` not `java.util.UUID/randomUUID`)
+- Sort requires alphabetically
+- Name tests after the function they test (`encode` not `encode-known-values`)
+- Consolidate related assertions into single `are` tables
+- Use generic `are` bindings (`in out`) when transformation is the point
+- Align columns in `are` tables for scannability
+- Use `defspec` for format/property validation, not single random examples
+- Group tests with section headers (`;;; ---`)
+- Omit default values (`defspec name` not `defspec name 100`)
 
 ## Rust
 
