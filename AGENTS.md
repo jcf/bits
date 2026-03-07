@@ -100,6 +100,7 @@ These apply at all times—violations are never acceptable.
 
 ## Testing Style
 
+- Alias the subject under test as `sut` (`[bits.money :as sut]`)
 - Use full namespace aliases, not abbreviations (`identifier` not `id`)
 - Prefer Clojure built-ins over interop (`random-uuid` not `java.util.UUID/randomUUID`)
 - Sort requires alphabetically
