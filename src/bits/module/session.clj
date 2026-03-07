@@ -128,11 +128,20 @@
       (morph/redirect "/" {:session (session/new-session session-store)}))))
 
 ;;; ----------------------------------------------------------------------------
+;;; Layout
+
+(defn- realm-layout
+  [request & content]
+  (let [layout-fn (get-in request [:session/realm :realm/layout])]
+    (assert (fn? layout-fn) "No :realm/layout in session realm?!")
+    (apply layout-fn request content)))
+
+;;; ----------------------------------------------------------------------------
 ;;; Module
 
 (def module
   {:name    :bits.module/session
-   :routes  [["/login" (assoc (morph/morphable ui/layout #(login-view % {}))
+   :routes  [["/login" (assoc (morph/morphable realm-layout #(login-view % {}))
                               :bits/page (fn [_request] {:page/title (tru "Login")}))]]
    :actions {:auth/login    {:handler authenticate
                              :params  [[:email :email]
