@@ -50,21 +50,22 @@ devenv up
 *** Setup
 To get our =*.test= URLs to work takes some effort with DNS.
 
-#+begin_src sh :results output table :colnames '("Host" "Address")
-drill bits.test | awk '/^bits/ { print $1 "\t" $5 }'
-#+end_src
-
-#+results:
-| Host       |   Address |
-|------------+-----------|
-| bits.test. | 127.0.0.1 |
-
 #+begin_src sh :results output verbatim
 cat /etc/resolver/test
 #+end_src
 
 #+results:
-: nameserver 10.10.10.254
+: port 53
+: nameserver 127.0.0.1
+
+#+begin_src sh :results output table :colnames '("Host" "Address")
+getent hosts bits.test | awk '{print $2, "\t", $1}'
+#+end_src
+
+#+results:
+| Host      |   Address |
+|-----------+-----------|
+| bits.test | 127.0.0.1 |
 
 *** Test
 The marketing site and "catch-all" homepage where we have no realm aren't a

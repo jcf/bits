@@ -98,6 +98,7 @@ in {
 
     # Development
     fd
+    getent
     forgejo-cli-ex
     just
     tokei
