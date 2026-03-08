@@ -1,7 +1,7 @@
 ---
 name: commit-all
 description: Create atomic commits from all unstaged changes
-allowed-tools: Bash(just fmt, git status, git diff*, git add, git commit, git log)
+allowed-tools: Bash(just, just fmt, git status, git diff*, git add, git commit, git log)
 ---
 
 # Commit All Unstaged Changes
@@ -11,6 +11,16 @@ Create atomic commits from all unstaged changes.
 ## Step 1: Format Code
 
 !`just fmt`
+
+## Step 2: Verify Green Build
+
+Run the full check suite **before** doing anything else. This catches broken code
+before it gets committed.
+
+!`just`
+
+If this fails, **stop and fix the issues first**. Do not proceed to commit
+planning with a failing build. Re-run `just` after fixing until it passes.
 
 ## Current State
 
