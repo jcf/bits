@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: bits-postgres:latest
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "/app/bin/pg_isready", "-U", "bits", "-d", "bits_dev"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  transactor:
+    image: bits-transactor:latest
+    ports:
+      - "4334:4334"
+    environment:
+      SQL_URL: "jdbc:postgresql://postgres:5432/datomic?user=datomic&password=datomic"
+      DATOMIC_MEMORY_INDEX_MAX: "256m"
+      DATOMIC_OBJECT_CACHE_MAX: "128m"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  jaeger:
+    image: bits-jaeger:latest
+    ports:
+      - "4317:4317"
+      - "16686:16686"
+
+  error-pages:
+    image: bits-error-pages:latest
+
+  traefik:
+    image: bits-traefik:latest
+    ports:
+      - "443:443"
+    volumes:
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./certs:/etc/traefik/certs:ro
+    depends_on:
+      - error-pages
+
+  nrepl:
+    image: bits-dev:latest
+    command: >-
+      clojure -M:dev:test:logging:otel:nrepl:linux-aarch64
+      --report stderr --main bits.nrepl --host 0.0.0.0 --port 9999
+    working_dir: /app
+    ports:
+      - "9999:9999"
+      - "3000:3000"
+    volumes:
+      - .:/app
+    environment:
+      DATABASE_URL: "postgres://bits:please@postgres:5432/bits_dev"
+      DATOMIC_URI: "datomic:sql://bits?jdbc:postgresql://postgres:5432/datomic?user=datomic&password=datomic"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+      OTEL_SERVICE_NAME: "bits"
+      DOMAIN_PAGE: "bits.page.localhost"
+      PLATFORM_DOMAIN: "bits.page.localhost"
+      SSE_RECONNECT_MS: "50"
+      CLUSTER_KEYSTORE_PASSWORD: "correct-horse-battery-staple"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      transactor:
+        condition: service_started
+
+  tailwind:
+    image: bits-dev:latest
+    command: >-
+      tailwindcss --watch
+      --input resources/tailwind.css
+      --output resources/public/app.css
+    working_dir: /app
+    volumes:
+      - .:/app
+
+volumes:
+  pgdata:

@@ -1,0 +1,55 @@
+http:
+  routers:
+    platform:
+      rule: "Host(`bits.page.localhost`)"
+      service: app
+      tls: {}
+      priority: 30
+      middlewares:
+        - error-pages
+
+    tenant-subdomains:
+      rule: "HostRegexp(`^.+\\.bits\\.page\\.localhost$`)"
+      service: app
+      tls: {}
+      priority: 20
+      middlewares:
+        - error-pages
+
+    custom-domains:
+      rule: "HostRegexp(`^.+\\.localhost$`)"
+      service: app
+      tls: {}
+      priority: 10
+      middlewares:
+        - error-pages
+
+  middlewares:
+    error-pages:
+      errors:
+        status: "502-504"
+        service: error-pages
+        query: "/502.html"
+
+  services:
+    app:
+      loadBalancer:
+        servers:
+          - url: "http://nrepl:3000"
+        passHostHeader: true
+        responseForwarding:
+          flushInterval: "-1"
+
+    error-pages:
+      loadBalancer:
+        servers:
+          - url: "http://error-pages:8080"
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/_wildcard.page.localhost.pem
+      keyFile: /etc/traefik/certs/_wildcard.page.localhost-key.pem
+    - certFile: /etc/traefik/certs/_wildcard.bits.page.localhost.pem
+      keyFile: /etc/traefik/certs/_wildcard.bits.page.localhost-key.pem
+    - certFile: /etc/traefik/certs/_wildcard.localhost.pem
+      keyFile: /etc/traefik/certs/_wildcard.localhost-key.pem

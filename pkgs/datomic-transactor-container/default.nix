@@ -16,7 +16,7 @@
     protocol=sql
     host=0.0.0.0
     port=4334
-    alt-host=bits-transactor
+    alt-host=$ALT_HOST
 
     # PostgreSQL storage
     sql-url=$SQL_URL
@@ -65,7 +65,7 @@
     name = "datomic-transactor-libs";
     paths = [
       (runCommand "libs" {} ''
-        mkdir -p $out/lib $out/lib64
+        mkdir -p $out/lib
 
         # Copy glibc libs (not bin)
         cp -r ${glibc}/lib/* $out/lib/
@@ -73,8 +73,15 @@
         # Copy libstdc++ etc
         cp -r ${stdenv.cc.cc.lib}/lib/* $out/lib/
 
-        # ld-linux symlink
-        ln -s /lib/ld-linux-x86-64.so.2 $out/lib64/ld-linux-x86-64.so.2
+        # Dynamic linker symlink
+        ${
+          if stdenv.hostPlatform.isAarch64
+          then "ln -s /lib/ld-linux-aarch64.so.1 $out/lib/ld-linux-aarch64.so.1 2>/dev/null || true"
+          else ''
+            mkdir -p $out/lib64
+            ln -s /lib/ld-linux-x86-64.so.2 $out/lib64/ld-linux-x86-64.so.2
+          ''
+        }
       '')
     ];
   };
