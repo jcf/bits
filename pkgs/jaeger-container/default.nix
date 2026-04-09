@@ -1,69 +1,41 @@
 {
+  container-base,
   nix2container,
   pkgs,
 }: let
-  inherit (pkgs) buildEnv glibc runCommand stdenv;
-
   jaeger = pkgs.callPackage ../jaeger {};
 
-  appDir = "app";
+  files = pkgs.runCommand "jaeger-files" {} ''
+    mkdir -p $out/app/bin
+    cp ${jaeger}/bin/jaeger $out/app/bin/
+  '';
 
-  appLayer = buildEnv {
-    name = "jaeger-app";
-    paths = [
-      (runCommand "jaeger-files" {} ''
-        mkdir -p $out/${appDir}/bin $out/tmp
-        chmod 1777 $out/tmp
-        cp ${jaeger}/bin/jaeger $out/${appDir}/bin/
-      '')
-    ];
-  };
-
-  libsLayer = buildEnv {
-    name = "jaeger-libs";
-    paths = [
-      (runCommand "libs" {} ''
-        mkdir -p $out/lib
-        cp -r ${glibc}/lib/* $out/lib/
-        cp -r ${stdenv.cc.cc.lib}/lib/* $out/lib/
-
-        ${
-          if stdenv.hostPlatform.isAarch64
-          then "ln -s /lib/ld-linux-aarch64.so.1 $out/lib/ld-linux-aarch64.so.1 2>/dev/null || true"
-          else ''
-            mkdir -p $out/lib64
-            ln -s /lib/ld-linux-x86-64.so.2 $out/lib64/ld-linux-x86-64.so.2
-          ''
-        }
-      '')
-    ];
+  rootLayer = pkgs.buildEnv {
+    name = "jaeger-root";
+    paths = container-base.paths ++ [files];
   };
 in
   nix2container.buildImage {
     name = "bits-jaeger";
 
-    copyToRoot = [libsLayer appLayer];
+    copyToRoot = [rootLayer];
 
     config = {
-      Labels = {
-        "org.opencontainers.image.description" = "Jaeger distributed tracing";
-        "org.opencontainers.image.source" = "https://code.invetica.team/jcf/bits";
-        "org.opencontainers.image.title" = "bits-jaeger";
-      };
+      Labels = container-base.labels "bits-jaeger" "Jaeger distributed tracing";
 
-      Entrypoint = ["/${appDir}/bin/jaeger"];
+      Entrypoint = ["/app/bin/jaeger"];
 
       Env = [
-        "PATH=/${appDir}/bin"
         "LD_LIBRARY_PATH=/lib"
+        "PATH=/app/bin"
       ];
 
       ExposedPorts = {
-        "4317/tcp" = {};
         "16686/tcp" = {};
+        "4317/tcp" = {};
       };
 
-      User = "1000:1000";
-      WorkingDir = "/${appDir}";
+      User = "${container-base.uid}:${container-base.uid}";
+      WorkingDir = "/app";
     };
   }

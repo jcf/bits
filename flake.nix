@@ -86,60 +86,55 @@
           datomic-pro = pkgsLinux.callPackage ./pkgs/datomic-pro {};
         };
 
-      # Jaeger container builder
+      # Shared args for all container builders
+      mkContainerArgs = targetSystem: let
+        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+      in {
+        inherit pkgsLinux;
+        commonArgs = {
+          inherit (n2cHost) nix2container;
+          container-base = pkgsLinux.callPackage ./pkgs/container-base {};
+        };
+      };
+
       mkJaegerContainer = targetSystem: let
-        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/jaeger-container {
-          inherit (n2cHost) nix2container;
-        };
+        pkgsLinux.callPackage ./pkgs/jaeger-container commonArgs;
 
-      # Traefik container builder
       mkTraefikContainer = targetSystem: let
-        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/traefik-container {
-          inherit (n2cHost) nix2container;
+        pkgsLinux.callPackage ./pkgs/traefik-container (commonArgs // {
           traefik-static-config = ./docker/traefik/traefik.yml;
-        };
+        });
 
-      # Error pages container builder
       mkErrorPagesContainer = targetSystem: let
-        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/error-pages-container {
-          inherit (n2cHost) nix2container;
+        pkgsLinux.callPackage ./pkgs/error-pages-container (commonArgs // {
           error-pages-dir = ./nix/nginx;
           fonts-dir = ./resources/public;
-        };
+        });
 
-      # PostgreSQL container builder
       mkPostgresContainer = targetSystem: let
-        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/postgres-container {
-          inherit (n2cHost) nix2container;
+        pkgsLinux.callPackage ./pkgs/postgres-container (commonArgs // {
           init-sql = ./docker/postgres/init.sql;
-        };
+        });
 
-      # Dev container builder
       mkDevContainer = targetSystem: let
-        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/bits-dev-container {
-          inherit (n2cHost) nix2container;
-          container-base = pkgsLinux.callPackage ./pkgs/container-base {};
+        pkgsLinux.callPackage ./pkgs/bits-dev-container (commonArgs // {
           otel-agent = pkgsLinux.callPackage ./pkgs/opentelemetry-javaagent {};
-        };
+        });
 
-      # Tailwind container builder
       mkTailwindContainer = targetSystem: let
-        pkgsLinux = nixpkgs.legacyPackages.${targetSystem};
+        inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/tailwind-container {
-          inherit (n2cHost) nix2container;
-          container-base = pkgsLinux.callPackage ./pkgs/container-base {};
-        };
+        pkgsLinux.callPackage ./pkgs/tailwind-container commonArgs;
     in {
       # CI container (amd64 only)
       bits-ci = mkCiContainer "x86_64-linux";
