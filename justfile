@@ -42,25 +42,11 @@ mkcert:
     mkdir -p {{ justfile_directory() }}/certs
     cd {{ justfile_directory() }}/certs
 
-    # We append .test to all domains during development. The following domains
-    # need to be supported:
-    #
-    # -- usebits.app
-    # api.usebits.app
-    # edit.usebits.app
-    # www.usebits.app
-    #
-    # -- bits.page
-    # bits.page
-    # jcf.bits.page
+    # Wildcard certs for .localhost subdomains (auto-resolve to 127.0.0.1)
     domains=(
-        usebits.app.test
-        app.test
-
-        bits.page.test
-        page.test
-
-        test
+        bits.page.localhost
+        page.localhost
+        localhost
     )
 
     for domain in $domains; do
@@ -108,8 +94,43 @@ cluster-certs:
 setup:
     @just mkcert
     @just cluster-certs
+    @just build-containers
     devenv shell true
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ NORMAL }}"
+
+# Build and install container images (skips unchanged)
+[group('dev')]
+build-containers:
+    #!/usr/bin/env zsh
+    set -e
+    state="{{ justfile_directory() }}/target/container-images"
+    mkdir -p "$state"
+    typeset -A images=(
+        bits-dev              dev-container-arm64
+        bits-error-pages      error-pages-container-arm64
+        bits-jaeger           jaeger-container-arm64
+        bits-postgres         postgres-container-arm64
+        bits-tailwind         tailwind-container-arm64
+        bits-traefik          traefik-container-arm64
+        bits-transactor       transactor-container-arm64
+    )
+    for tag flake in "${(@kv)images}"; do
+        store_path=$(nix build ".#${flake}" --no-link --print-out-paths)
+        stamp="$state/${tag}"
+        if [[ -f "$stamp" ]] && [[ "$(cat "$stamp")" == "$store_path" ]]; then
+            echo >&2 "{{ BLUE }}{{ BOLD }}→{{ NORMAL }} {{ BOLD }}${tag}{{ NORMAL }} unchanged, skipping"
+            continue
+        fi
+        echo >&2 "{{ BLUE }}{{ BOLD }}→{{ NORMAL }} {{ BOLD }}Loading ${tag}...{{ NORMAL }}"
+        nix run ".#${flake}.copyTo" -- "docker-daemon:${tag}:latest"
+        echo "$store_path" > "$stamp"
+    done
+    echo >&2 "{{ BOLD }}✅ All images loaded.{{ NORMAL }}"
+
+# Start the full development stack via Docker Compose
+[group('dev')]
+dev:
+    docker compose up
 
 # Format project files
 [group('dev')]
@@ -130,7 +151,7 @@ nrepl *args:
     set -e
 
     echo >&2 \
-        "{{ BLUE }}{{ BOLD }}==>{{ NORMAL }} {{ BOLD }}Starting nREPL on localhost:9999...{{ NORMAL }}"
+        "{{ BLUE }}{{ BOLD }}→{{ NORMAL }} {{ BOLD }}Starting nREPL on localhost:9999...{{ NORMAL }}"
 
     exec clojure \
         -M:dev:test:logging:otel:nrepl:{{ os }} \
@@ -238,19 +259,10 @@ build:
 build-datomic:
     nix build .#datomic-pro
 
-# Build the container image and load into local Docker
+# Build the production container image and load into local Docker
 [group('build')]
 container:
     nix run .#bits-container-arm64.copyTo -- docker-daemon:bits:latest
-
-# Run the Docker image against the local devenv database
-[group('build')]
-docker-run tag="bits:latest" *args:
-    docker run --rm -p 3000:3000 \
-        -e DATABASE_URL=jdbc:postgresql://host.docker.internal:5432/bits_dev?user=bits\&password=please \
-        -e CSRF_SECRET=default-csrf-secret-change-in-prod \
-        --add-host=host.docker.internal:host-gateway \
-        {{ args }} {{ tag }}
 
 # ------------------------------------------------------------------------------
 # PostgreSQL

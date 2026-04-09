@@ -10,21 +10,21 @@
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url(/_nginx/fonts/DMSans.woff2) format("woff2");
+        src: url(/fonts/DMSans.woff2) format("woff2");
       }
       @font-face {
         font-family: "DM Sans";
         font-style: normal;
         font-weight: 700;
         font-display: swap;
-        src: url(/_nginx/fonts/DMSans.woff2) format("woff2");
+        src: url(/fonts/DMSans.woff2) format("woff2");
       }
       @font-face {
         font-family: "JetBrains Mono";
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: url(/_nginx/fonts/JetBrainsMono.woff2) format("woff2");
+        src: url(/fonts/JetBrainsMono.woff2) format("woff2");
       }
 
       * {
@@ -224,13 +224,13 @@
       <div class="card">
         <h1>Backend Isn't Listening</h1>
         <p class="message">
-          NGINX can't reach the Clojure server. It may not be running, or is
+          Traefik can't reach the Clojure server. It may not be running, or is
           still starting up.
         </p>
 
         <div class="hint">
           <div class="hint-label">Try running</div>
-          <code>devenv up</code>
+          <code>just dev</code>
         </div>
 
         <div class="status">
