@@ -14,7 +14,8 @@ Key properties:
   package manager caches, documentation, or shell utilities.
 - *No Dockerfile* — Nix expressions declare each image, composing precise
   package references rather than imperative shell commands.
-- *Non-root* — all images run as =1000:1000=.
+- *Shared base* — =pkgs/container-base/default.nix= provides system libraries,
+  user config, and OCI labels shared across all images.
 - *Native ARM64* — we target =aarch64-linux=, running natively on Apple Silicon
   via OrbStack with no emulation.
 - *Single-layer* — each image ships as a single OCI layer, keeping manifest
@@ -30,36 +31,25 @@ for img in $(docker images --format '{{.Repository}}' --filter 'reference=bits-*
 done
 #+end_src
 
-#+results:
-| Image            | Size   | Arch  | Layers |
-|------------------+--------+-------+--------|
-| bits-error-pages | 89.8MB | arm64 |      1 |
-| bits-jaeger      | 186MB  | arm64 |      1 |
-| bits-postgres    | 2.88GB | arm64 |      1 |
-| bits-traefik     | 253MB  | arm64 |      1 |
-| bits-transactor  | 2.18GB | arm64 |      1 |
-
 ** Sources
 | Image              | Package                                         | Config                       |
 |--------------------+-------------------------------------------------+------------------------------|
+| =bits-dev=         | =pkgs/bits-dev-container/default.nix=           |                              |
 | =bits-error-pages= | =pkgs/error-pages-container/default.nix=        |                              |
 | =bits-jaeger=      | =pkgs/jaeger-container/default.nix=             |                              |
+| =bits-postgres=    | =pkgs/postgres-container/default.nix=           | =docker/postgres/init.sql=   |
+| =bits-tailwind=    | =pkgs/tailwind-container/default.nix=           |                              |
 | =bits-traefik=     | =pkgs/traefik-container/default.nix=            | =docker/traefik/dynamic.yml= |
 | =bits-transactor=  | =pkgs/datomic-transactor-container/default.nix= |                              |
-| =bits-postgres=    | =pkgs/postgres-container/default.nix=           | =docker/postgres/init.sql=   |
-| =bits-dev=         | =pkgs/bits-dev-container/default.nix=           |                              |
 
 * Building
 #+begin_src sh :eval never
-just load-images
+just build-containers
 #+end_src
 
 Nix builds each image and =skopeo= copies it into the Docker daemon. The first
 build fetches dependencies from the Nix binary cache; subsequent builds complete
 instantly if inputs haven't changed.
-
-=bits-dev= requires =deps-lock.json= — =just load-images= generates it if
-missing.
 
 * Security
 Every service in =compose.yml= inherits a shared security baseline via YAML
@@ -67,13 +57,16 @@ anchor:
 
 - *No new privileges* — prevents =setuid= / =setgid= escalation.
 - *Drop all capabilities* — we start with zero Linux capabilities and add back
-  only what a service needs (Traefik gets =NET_BIND_SERVICE= for port 443).
-- *Read-only root filesystem* — the container filesystem is immutable. Only
-  =postgres=, =nrepl=, and =tailwind= override this (postgres writes to its data
-  volume; the dev containers write to the mounted source tree).
+  only what a service needs (postgres gets =CHOWN=, =SETUID=, =SETGID= for its
+  init sequence; Traefik gets =NET_BIND_SERVICE= for port 443).
+- *Read-only root filesystem* — the container filesystem is immutable. Postgres,
+  nrepl, and tailwind override this for data volumes and mounted source.
 - *tmpfs at /tmp* — each container gets its own in-memory =/tmp= with =noexec=
-  and =nosuid=, capped at 64 MB.
-- *Non-root user* — all images run as =1000:1000=, never =root=.
+  and =nosuid=. nrepl and tailwind override with =exec= because brotli4j and
+  lightningcss extract native libraries to =/tmp= at runtime.
+- *Non-root by default* — most images run as =bits= (uid 1000). Postgres starts
+  as root for data directory initialisation, then drops to uid 1000 following the
+  [[https://github.com/docker-library/postgres][docker-library/postgres]] pattern.
 
 Services that need exceptions declare them explicitly — the default is locked
 down.
@@ -84,12 +77,3 @@ down.
 #+begin_src sh :results output verbatim
 docker compose config --services | sort
 #+end_src
-
-#+results:
-: error-pages
-: jaeger
-: nrepl
-: postgres
-: tailwind
-: traefik
-: transactor

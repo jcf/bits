@@ -43,7 +43,7 @@ just cli --no-color --help 2>&1
 
 * Development
 #+begin_src sh :eval never
-just setup  # First time: generates certs, loads container images
+just setup  # First time: generates certs, builds container images
 just dev    # Starts all services via Docker Compose
 #+end_src
 
