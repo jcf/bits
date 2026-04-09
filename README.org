@@ -43,29 +43,17 @@ just cli --no-color --help 2>&1
 
 * Development
 #+begin_src sh :eval never
-devenv up
+just setup  # First time: generates certs, loads container images
+just dev    # Starts all services via Docker Compose
 #+end_src
 
-** HTTPS and =*.test= URLs
-*** Setup
-To get our =*.test= URLs to work takes some effort with DNS.
+All infrastructure runs in Docker containers (built with Nix). The =just dev=
+command starts PostgreSQL, Datomic transactor, Jaeger, Traefik, the Clojure
+nREPL, and Tailwind CSS watcher.
 
-#+begin_src sh :results output verbatim
-cat /etc/resolver/test
-#+end_src
-
-#+results:
-: port 53
-: nameserver 127.0.0.1
-
-#+begin_src sh :results output table :colnames '("Host" "Address")
-getent hosts bits.test | awk '{print $2, "\t", $1}'
-#+end_src
-
-#+results:
-| Host      |   Address |
-|-----------+-----------|
-| bits.test | 127.0.0.1 |
+** HTTPS and =*.localhost= URLs
+Subdomains of =localhost= automatically resolve to =127.0.0.1= per RFC 6761 —
+no custom DNS resolver needed. Traefik terminates TLS with mkcert certificates.
 
 *** Test
 The marketing site and "catch-all" homepage where we have no realm aren't a
@@ -74,11 +62,9 @@ priority so will return non-200 status codes.
 #+begin_src sh :results output verbatim :shebang "#!/usr/bin/env zsh"
 urls=(
   # These will work, provided you've applied the seeds in `bits.dev.realm`.
-  http://localhost:3000
-  https://bits.page.test
-  https://charlie.bits.page.test
-  https://charlie.bits.page.test
-  https://jcf.bits.page.test
+  https://bits.page.localhost
+  https://charlie.bits.page.localhost
+  https://jcf.bits.page.localhost
 )
 
 for url in $urls; do
@@ -92,16 +78,14 @@ done
 #+end_src
 
 #+results:
-: ✅ http://localhost:3000
-: ✅ https://bits.page.test
-: ✅ https://charlie.bits.page.test
-: ✅ https://charlie.bits.page.test
-: ✅ https://jcf.bits.page.test
+: ✅ https://bits.page.localhost
+: ✅ https://charlie.bits.page.localhost
+: ✅ https://jcf.bits.page.localhost
 
 And with a non-existent tenant, we expect a 404 response:
 
 #+begin_src sh :results output verbatim
-url="https://foo.bits.page.test"
+url="https://foo.bits.page.localhost"
 http_code="$(curl --silent --output /dev/null --write-out "%{http_code}" "$url")"
 
 if [ "$http_code" -eq 404 ]; then
@@ -112,7 +96,7 @@ fi
 #+end_src
 
 #+results:
-: ✅ https://foo.bits.page.test
+: ✅ https://foo.bits.page.localhost
 
 ** Decision records
 #+begin_src sh :results output raw :exports output :exports results

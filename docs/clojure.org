@@ -309,7 +309,7 @@ Functions that return transaction data use suffix conventions:
 ;; -txes: Returns a vector of maps
 (defn realm-txes []
   [{:db/id "tenant" :tenant/id (random-uuid) :tenant/domains ["domain"]}
-   {:db/id "domain" :domain/name "bits.page.test"}])
+   {:db/id "domain" :domain/name "bits.page.localhost"}])
 
 ;; Usage: transact! expects a vector
 (datahike/transact! db [(domain-tx "example.com")])  ; wrap -tx in vector

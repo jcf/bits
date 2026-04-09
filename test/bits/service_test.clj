@@ -150,7 +150,7 @@
   (t/with-system [{:keys [service]} (t/system)]
     (let [request (t/host {:request-method :get
                            :url            "/"}
-                          "foo.bits.page.test")]
+                          "foo.bits.page.localhost")]
       (is (match?
            {:status 404}
            (t/request service request))))))

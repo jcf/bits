@@ -25,5 +25,6 @@
   [request]
   (let [d (domain request)]
     (or (= "localhost" d)
+        (str/ends-with? d ".localhost")
         (and (InetAddresses/isInetAddress d)
              (.isLoopbackAddress (InetAddresses/forString d))))))
