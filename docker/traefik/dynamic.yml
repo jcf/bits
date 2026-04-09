@@ -2,6 +2,7 @@ http:
   routers:
     platform:
       rule: "Host(`bits.page.localhost`)"
+      entryPoints: ["https"]
       service: app
       tls: {}
       priority: 30
@@ -10,6 +11,7 @@ http:
 
     tenant-subdomains:
       rule: "HostRegexp(`^.+\\.bits\\.page\\.localhost$`)"
+      entryPoints: ["https"]
       service: app
       tls: {}
       priority: 20
@@ -18,6 +20,7 @@ http:
 
     custom-domains:
       rule: "HostRegexp(`^.+\\.localhost$`)"
+      entryPoints: ["https"]
       service: app
       tls: {}
       priority: 10
@@ -53,3 +56,8 @@ tls:
       keyFile: /etc/traefik/certs/_wildcard.bits.page.localhost-key.pem
     - certFile: /etc/traefik/certs/_wildcard.localhost.pem
       keyFile: /etc/traefik/certs/_wildcard.localhost-key.pem
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/_wildcard.localhost.pem
+        keyFile: /etc/traefik/certs/_wildcard.localhost-key.pem

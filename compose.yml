@@ -1,67 +1,110 @@
+x-security: &security
+  security_opt:
+    - "no-new-privileges:true"
+  cap_drop:
+    - ALL
+  read_only: true
+  tmpfs:
+    - /tmp:noexec,nosuid,size=64m,mode=1777
+
 services:
   postgres:
+    <<: *security
     image: bits-postgres:latest
+    read_only: false
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "/app/bin/pg_isready", "-U", "bits", "-d", "bits_dev"]
+      test: ["CMD", "/app/bin/pg_isready", "-h", "localhost", "-U", "bits", "-d", "bits_dev"]
       interval: 2s
       timeout: 5s
       retries: 10
 
   transactor:
+    <<: *security
     image: bits-transactor:latest
     ports:
       - "4334:4334"
     environment:
-      SQL_URL: "jdbc:postgresql://postgres:5432/datomic?user=datomic&password=datomic"
+      ALT_HOST: "transactor"
       DATOMIC_MEMORY_INDEX_MAX: "256m"
       DATOMIC_OBJECT_CACHE_MAX: "128m"
+      SQL_URL: "jdbc:postgresql://postgres:5432/datomic?user=datomic&password=datomic"
     depends_on:
       postgres:
         condition: service_healthy
 
   jaeger:
+    <<: *security
     image: bits-jaeger:latest
+    command:
+      - "--set=receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317"
+      - "--set=service.telemetry.logs.level=error"
     ports:
       - "4317:4317"
       - "16686:16686"
 
   error-pages:
+    <<: *security
     image: bits-error-pages:latest
 
   traefik:
+    <<: *security
     image: bits-traefik:latest
+    cap_add:
+      - NET_BIND_SERVICE
+    command:
+      - "--entrypoints.https.address=:443"
+      - "--log.level=WARN"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
     ports:
       - "443:443"
     volumes:
-      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - ./certs:/etc/traefik/certs:ro
+      - ./docker/traefik:/etc/traefik/dynamic:ro
     depends_on:
       - error-pages
 
   nrepl:
+    <<: *security
     image: bits-dev:latest
-    command: >-
-      clojure -M:dev:test:logging:otel:nrepl:linux-aarch64
-      --report stderr --main bits.nrepl --host 0.0.0.0 --port 9999
+    read_only: false
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    tmpfs:
+      - /tmp:exec,nosuid,size=64m,mode=1777
+    command:
+      ["clojure", "-M:dev:test:logging:otel:nrepl:linux-aarch64",
+       "--report", "stderr", "--main", "bits.nrepl",
+       "--bind", "0.0.0.0", "--port", "9999"]
     working_dir: /app
     ports:
-      - "9999:9999"
       - "3000:3000"
+      - "9999:9999"
     volumes:
       - .:/app
+      - home:/home/bits
     environment:
+      CLUSTER_KEYSTORE_PASSWORD: "correct-horse-battery-staple"
       DATABASE_URL: "postgres://bits:please@postgres:5432/bits_dev"
       DATOMIC_URI: "datomic:sql://bits?jdbc:postgresql://postgres:5432/datomic?user=datomic&password=datomic"
+      DOMAIN_PAGE: "bits.page.localhost"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
       OTEL_SERVICE_NAME: "bits"
-      DOMAIN_PAGE: "bits.page.localhost"
       PLATFORM_DOMAIN: "bits.page.localhost"
       SSE_RECONNECT_MS: "50"
-      CLUSTER_KEYSTORE_PASSWORD: "correct-horse-battery-staple"
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,14 +112,17 @@ services:
         condition: service_started
 
   tailwind:
-    image: bits-dev:latest
-    command: >-
-      tailwindcss --watch
-      --input resources/tailwind.css
-      --output resources/public/app.css
+    image: bits-tailwind:latest
+    tmpfs:
+      - /tmp:exec,size=64m,mode=1777
+    command:
+      ["--watch=always",
+       "--input", "resources/tailwind.css",
+       "--output", "resources/public/app.css"]
     working_dir: /app
     volumes:
       - .:/app
 
 volumes:
-  pgdata:
+  home:
+  postgres-data:
