@@ -51,6 +51,8 @@
   (are [in] (sut/local? (mock/request :get (format "http://%s/" in)))
     "127.0.0.1"
     "::1"
+    "abc.example.localhost"
+    "example.localhost"
     "localhost")
   (are [in] (not (sut/local? (mock/request :get (format "http://%s/" in))))
     "bits.page"
