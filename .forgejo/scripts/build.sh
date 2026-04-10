@@ -27,7 +27,7 @@ bold=$(tput bold)
 reset=$(tput sgr0)
 
 say() {
-  echo "${cyan}==>${reset} ${bold}$*${reset}"
+  echo "${cyan}→${reset} ${bold}$*${reset}"
 }
 
 ok() {

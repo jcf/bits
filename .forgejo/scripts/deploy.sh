@@ -31,7 +31,7 @@ red=$(tput setaf 1)
 bold=$(tput bold)
 reset=$(tput sgr0)
 
-say() { echo >&2 "${cyan}==>${reset} ${bold}$*${reset}"; }
+say() { echo >&2 "${cyan}→${reset} ${bold}$*${reset}"; }
 ok() { echo >&2 "${green}ok:${reset} $*"; }
 err() { echo >&2 "${red}error:${reset} $*"; }
 
