@@ -105,9 +105,7 @@
       mkTraefikContainer = targetSystem: let
         inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/traefik-container (commonArgs // {
-          traefik-static-config = ./docker/traefik/traefik.yml;
-        });
+        pkgsLinux.callPackage ./pkgs/traefik-container commonArgs;
 
       mkErrorPagesContainer = targetSystem: let
         inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;

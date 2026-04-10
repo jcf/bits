@@ -2,21 +2,17 @@
   container-base,
   nix2container,
   pkgs,
-  traefik-static-config,
 }: let
-  inherit (pkgs) cacert traefik writeTextDir;
-
-  config = writeTextDir "etc/traefik/traefik.yml"
-    (builtins.readFile traefik-static-config);
+  inherit (pkgs) cacert traefik;
 
   files = pkgs.runCommand "traefik-files" {} ''
-    mkdir -p $out/app/bin
+    mkdir -p $out/app/bin $out/etc/traefik/dynamic
     cp ${traefik}/bin/traefik $out/app/bin/
   '';
 
   rootLayer = pkgs.buildEnv {
     name = "traefik-root";
-    paths = container-base.paths ++ [cacert config files];
+    paths = container-base.paths ++ [cacert files];
   };
 in
   nix2container.buildImage {
@@ -27,7 +23,7 @@ in
     config = {
       Labels = container-base.labels "bits-traefik" "Traefik reverse proxy";
 
-      Entrypoint = ["/app/bin/traefik" "--configFile=/etc/traefik/traefik.yml"];
+      Entrypoint = ["/app/bin/traefik"];
 
       Env = [
         "LD_LIBRARY_PATH=/lib"
