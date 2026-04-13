@@ -147,8 +147,7 @@
 
 (defn- platform?
   [request]
-  (or (request/local? request)
-      (= (request/domain request) (request->platform-domain request))))
+  (= (request/domain request) (request->platform-domain request)))
 
 (defn wrap-realm
   [handler realms]
