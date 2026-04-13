@@ -130,8 +130,8 @@ jobs:
         env:
           CLUSTER_KEYSTORE_PASSWORD: correct-horse-battery-staple
           DATABASE_URL: postgres://bits:please@postgres:5432/bits_test
-          PLATFORM_DOMAIN: localhost
-        run: just os=linux-x86_64 test :${{ matrix.suite }} --reporter documentation
+          PLATFORM_DOMAIN: bits.page.localhost
+        run: clojure -M:dev:test:runner:linux-x86_64 :${{ matrix.suite }} --reporter documentation
 
       - name: Upload browser sessions
         if: failure() && matrix.suite != 'unit'

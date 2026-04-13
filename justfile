@@ -2,7 +2,7 @@
 
 unexport PGSERVICEFILE
 
-os := "darwin-aarch64"
+os := "linux-aarch64"
 plan_dir := justfile_directory() / ".terraform-plans"
 
 _default:
@@ -127,10 +127,20 @@ build-containers:
     done
     echo >&2 "{{ BOLD }}✅ All images loaded.{{ NORMAL }}"
 
+# Run Docker compose commands
+[group('dev')]
+docker *args:
+    docker compose {{ args }}
+
 # Start the full development stack via Docker Compose
 [group('dev')]
-dev:
-    docker compose up
+dev *args:
+    @just docker up {{ args }}
+
+# Run a one-shot command inside a throwaway nrepl container
+[group('dev')]
+run *args:
+    @just docker run --rm --no-TTY nrepl {{ args }}
 
 # Format project files
 [group('dev')]
@@ -145,45 +155,20 @@ clean:
         target/classes \
         target/screenshots
 
-[group('dev')]
-nrepl *args:
-    #!/usr/bin/env zsh
-    set -e
-
-    echo >&2 \
-        "{{ BLUE }}{{ BOLD }}→{{ NORMAL }} {{ BOLD }}Starting nREPL on localhost:9999...{{ NORMAL }}"
-
-    exec clojure \
-        -M:dev:test:logging:otel:nrepl:{{ os }} \
-        --report stderr \
-        --main bits.nrepl \
-        --host localhost \
-        --port 9999 \
-        {{ args }}
-
-# Watch source code for Tailwind classes
-[group('dev')]
-tailwind:
-    mkdir -p resources/public
-    tailwindcss \
-        --watch \
-        --input resources/tailwind.css \
-        --output resources/public/app.css
-
 # Regenerate Tailwind CSS from template
 [group('dev')]
 css:
-    clojure -M:dev --report stderr -m bits.dev.assets
+    @just run clojure -M:dev --report stderr -m bits.dev.assets
 
 # Import clj-kondo configs
 [group('dev')]
 clj-kondo-import:
-    clj-kondo --lint "$(clojure -Spath)" --dependencies --skip-lint --copy-configs
+    @just docker run --rm --no-TTY nrepl sh -c 'clj-kondo --lint "$(clojure -Spath)" --dependencies --skip-lint --copy-configs'
 
 # Run bits.cli with given args
 [group('dev')]
 cli *args:
-    clojure -M:cli --report stderr -m bits.cli {{ args }}
+    @just run clojure -M:cli --report stderr -m bits.cli {{ args }}
 
 # ------------------------------------------------------------------------------
 # Locales
@@ -191,12 +176,12 @@ cli *args:
 # Extract translatable strings to .pot file
 [group('locales')]
 locales-extract:
-    clojure -T:build --report stderr locales-extract
+    @just run clojure -T:build --report stderr locales-extract
 
 # Build translation bundles from .po files
 [group('locales')]
 locales-build:
-    clojure -T:build --report stderr build-translations
+    @just run clojure -T:build --report stderr build-translations
 
 # ------------------------------------------------------------------------------
 # Test
@@ -215,31 +200,17 @@ lint:
 # Compile bits namespaces
 [group('test')]
 compile:
-    clojure -M:cli -m bits.cli warmup
+    @just run clojure -M:cli -m bits.cli warmup
 
 # Run tests
 [group('test')]
 test *args:
-    clojure -M:dev:test:runner:{{ os }} {{ args }}
+    @just run clojure -M:dev:test:runner:{{ os }} {{ args }}
 
-# Run tests with performance tracing output
+# Run tests with spans logged to stdout
 [group('test')]
 perf *args:
-    env \
-        OTEL_TRACES_EXPORTER=logging-otlp \
-        clojure \
-            -M:dev:test:otel:runner:{{ os }} \
-            {{ args }}
-
-# Run tests with Jaeger tracing (requires Jaeger on localhost:4317)
-[group('test')]
-trace *args:
-    env \
-        OTEL_TRACES_EXPORTER=otlp \
-        OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
-        clojure \
-            -M:dev:test:otel:runner:{{ os }} \
-            {{ args }}
+    @just run env OTEL_TRACES_EXPORTER=logging-otlp clojure -M:dev:test:otel:runner:{{ os }} {{ args }}
 
 # ------------------------------------------------------------------------------
 # Build

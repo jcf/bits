@@ -55,6 +55,8 @@
       jdk
       otel-agent
       passwd
+      pkgs.firefox
+      pkgs.geckodriver
       usrBinEnv
     ];
   };
@@ -73,7 +75,7 @@ in
         "HOME=/home/${user}"
         "LD_LIBRARY_PATH=${stdenv.cc.cc.lib}/lib"
         "OTEL_JAVAAGENT_PATH=${otel-agent}/lib/opentelemetry-javaagent.jar"
-        "PATH=/bin:/usr/bin:${lib.makeBinPath [coreutils clj git jdk]}"
+        "PATH=/bin:/usr/bin:${lib.makeBinPath [coreutils clj git jdk pkgs.firefox pkgs.geckodriver]}"
         "SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt"
         "USER=${user}"
       ];

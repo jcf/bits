@@ -110,24 +110,27 @@
       mkErrorPagesContainer = targetSystem: let
         inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/error-pages-container (commonArgs // {
-          error-pages-dir = ./nix/nginx;
-          fonts-dir = ./resources/public;
-        });
+        pkgsLinux.callPackage ./pkgs/error-pages-container (commonArgs
+          // {
+            error-pages-dir = ./nix/nginx;
+            fonts-dir = ./resources/public;
+          });
 
       mkPostgresContainer = targetSystem: let
         inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/postgres-container (commonArgs // {
-          init-sql = ./docker/postgres/init.sql;
-        });
+        pkgsLinux.callPackage ./pkgs/postgres-container (commonArgs
+          // {
+            init-sql = ./docker/postgres/init.sql;
+          });
 
       mkDevContainer = targetSystem: let
         inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;
       in
-        pkgsLinux.callPackage ./pkgs/bits-dev-container (commonArgs // {
-          otel-agent = pkgsLinux.callPackage ./pkgs/opentelemetry-javaagent {};
-        });
+        pkgsLinux.callPackage ./pkgs/bits-dev-container (commonArgs
+          // {
+            otel-agent = pkgsLinux.callPackage ./pkgs/opentelemetry-javaagent {};
+          });
 
       mkTailwindContainer = targetSystem: let
         inherit (mkContainerArgs targetSystem) pkgsLinux commonArgs;

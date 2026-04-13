@@ -31,7 +31,6 @@ just cli --no-color --help 2>&1
 #+end_src
 
 #+results:
-: clojure -M:cli --report stderr -m bits.cli --no-color --help
 : Usage: bits <command> [options]
 :
 : Commands:
