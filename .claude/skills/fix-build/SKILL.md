@@ -1,7 +1,7 @@
 ---
 name: fix-build
 description: Diagnose and fix CI build failures
-allowed-tools: Bash(just ci-*, git diff*, git status, git log, gh run download), Read, Grep, Glob, ToolSearch, Task, mcp__clojure-mcp__*
+allowed-tools: Bash(just ci-status, just ci-failures, just ci-jobs*, just ci-logs*, just check, just fmt, just test*, just deps-lock, just, git diff*, git status, git log*), Read, Grep, Glob, Edit, Write, ToolSearch, Task, mcp__clojure-mcp__*
 ---
 
 # Fix Build
@@ -10,13 +10,19 @@ Diagnose and fix CI build failures on Forgejo.
 
 ## Step 1: Check CI Status
 
-!`just ci-status`
+Run both of these commands to get the current CI status:
 
-!`just ci-failures`
+```bash
+just ci-status
+```
+
+```bash
+just ci-failures
+```
 
 ## Step 2: Fetch Logs for Failed Jobs
 
-From the ci-status output above, note the run number (e.g., "Run #437").
+From the ci-status output, note the run number (e.g., "Run #437").
 
 Get the job list to find indices:
 
