@@ -269,7 +269,7 @@
       if (location) {
         window.location.href = location;
       } else if (response.status === 200) {
-        response.text().then((html) => handlers.morph(html));
+        return response.text().then((html) => handlers.morph(html));
       }
     });
   }
