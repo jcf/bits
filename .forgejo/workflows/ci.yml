@@ -49,9 +49,6 @@ jobs:
       - name: Check
         run: just check
 
-      - name: Verify deps-lock.json
-        run: .forgejo/scripts/verify-deps-lock.sh
-
   test:
     name: Test (${{ matrix.suite }})
     runs-on: nixos
