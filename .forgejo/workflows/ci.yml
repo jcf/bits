@@ -49,43 +49,8 @@ jobs:
       - name: Check
         run: just check
 
-  deps:
-    name: Deps
-    runs-on: nixos
-    container:
-      image: ${{ env.IMAGE }}
-      credentials:
-        username: jcf
-        password: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure Attic
-        env:
-          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
-        run: .forgejo/scripts/attic-setup.sh
-
-      - name: Restore deps
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.gitlibs
-            ~/.deps.clj
-          key: clj-${{ hashFiles('deps.edn') }}
-          restore-keys: clj-
-
-      - name: Generate Clojure checksums
-        run: deps-lock && mv deps-lock.json /tmp/
-
-      - name: Upload Clojure checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: deps-lock
-          path: /tmp/deps-lock.json
-
-      - name: Push deps to Attic
-        run: .forgejo/scripts/cache-deps.sh /tmp/deps-lock.json
+      - name: Verify deps-lock.json
+        run: .forgejo/scripts/verify-deps-lock.sh
 
   test:
     name: Test (${{ matrix.suite }})
@@ -144,7 +109,7 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}
     runs-on: nixos
-    needs: [check, deps, test]
+    needs: [check, test]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
     strategy:
@@ -156,20 +121,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Clojure checksums
-        uses: actions/download-artifact@v4
-        with:
-          name: deps-lock
-          path: /tmp
-
       - name: Configure Attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: .forgejo/scripts/attic-setup.sh
 
+      - name: Cache deps
+        run: .forgejo/scripts/cache-deps.sh
+
       - name: Build container
         id: build
-        run: .forgejo/scripts/build.sh "${{ matrix.output }}" /tmp/deps-lock.json
+        run: .forgejo/scripts/build.sh "${{ matrix.output }}"
 
       - name: Push to Attic
         run: attic push invetica:invetica "${{ steps.build.outputs.image_path }}"
