@@ -174,8 +174,16 @@
    {:db/ident :journal-entry.status/posted}
    {:db/ident :journal-entry.status/archived}
 
+   ;; Checkout status
+   {:db/ident :checkout.status/pending}
+   {:db/ident :checkout.status/processing}
+   {:db/ident :checkout.status/succeeded}
+   {:db/ident :checkout.status/failed}
+   {:db/ident :checkout.status/refunded}
+
    ;; Payment processor
    {:db/ident :processor/stripe}
+   {:db/ident :processor/high-risk}
    {:db/ident :processor/monero}
 
    ;; Currencies (ISO 4217) — add as needed per tenant
@@ -222,7 +230,6 @@
    {:db/ident       :product/title
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Display title of the product."}
 
    {:db/ident       :product/description
@@ -271,7 +278,6 @@
    {:db/ident       :variant/name
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Display name, e.g. 'A3 Wall Calendar' or 'Digital Download'."}
 
    {:db/ident       :variant/sku
@@ -320,7 +326,6 @@
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
     :db/unique      :db.unique/identity
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Creator-assigned SKU code. Unique within the tenant database."}
 
    {:db/ident       :sku/gtin
@@ -346,14 +351,12 @@
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
     :db/unique      :db.unique/identity
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Hierarchical account code, e.g. 'revenue:platform-fees'.
                      The primary human-readable identifier. Unique within tenant."}
 
    {:db/ident       :ledger-account/name
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Human-friendly display name, e.g. 'Platform Fees'."}
 
    {:db/ident       :ledger-account/type
@@ -486,7 +489,6 @@
    {:db/ident       :receipt/external-id
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "The processor's identifier for this event. Stripe PaymentIntent
                      ID, Monero tx hash, etc. Used for reconciliation."}
 
@@ -494,7 +496,6 @@
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
     :db/unique      :db.unique/value
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Prevents duplicate journal entries from webhook retries.
                      Unique within tenant database. Typically derived from the
                      processor event: e.g. 'stripe:{intent-id}:{event-type}'."}
@@ -543,19 +544,16 @@
    {:db/ident       :line-item/product-title
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Snapshot of product title at time of purchase."}
 
    {:db/ident       :line-item/variant-name
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Snapshot of variant name at time of purchase."}
 
    {:db/ident       :line-item/sku-code
     :db/valueType   :db.type/string
     :db/cardinality :db.cardinality/one
-    :db.attr/preds  'bits.string/present?
     :db/doc         "Snapshot of SKU code at time of purchase."}
 
    {:db/ident       :line-item/unit-price
@@ -576,6 +574,44 @@
     :db/doc         "When this purchase was made."}])
 
 ;;; ----------------------------------------------------------------------------
+;;; Checkout
+
+(def checkout-schema
+  [{:db/ident       :checkout/id
+    :db/valueType   :db.type/uuid
+    :db/cardinality :db.cardinality/one
+    :db/unique      :db.unique/identity}
+
+   {:db/ident       :checkout/external-id
+    :db/valueType   :db.type/string
+    :db/cardinality :db.cardinality/one
+    :db/doc         "Processor's checkout ID."}
+
+   {:db/ident       :checkout/status
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :checkout/processor
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :checkout/variant
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :checkout/buyer
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :checkout/payment-method
+    :db/valueType   :db.type/keyword
+    :db/cardinality :db.cardinality/one}
+
+   {:db/ident       :checkout/created-at
+    :db/valueType   :db.type/instant
+    :db/cardinality :db.cardinality/one}])
+
+;;; ----------------------------------------------------------------------------
 ;;; Tenant Ownership (Shop)
 
 (def tenant-shop-schema
@@ -592,10 +628,116 @@
    {:db/ident       :tenant/ledger-accounts
     :db/valueType   :db.type/ref
     :db/cardinality :db.cardinality/many
-    :db/doc         "Ledger accounts belonging to this tenant's financial system."}])
+    :db/doc         "Ledger accounts belonging to this tenant's financial system."}
+
+   {:db/ident       :tenant/checkouts
+    :db/valueType   :db.type/ref
+    :db/cardinality :db.cardinality/many}])
+
+;;; ----------------------------------------------------------------------------
+;;; Entity specs
+;;;
+;;; Each spec declares the attributes an entity of that kind must have. Opt in
+;;; per transaction by adding `:db/ensure :<entity>/ensure` to the entity map.
+;;; Pure data — no user code on the transactor classpath required. Datomic
+;;; enforces these via `:db.entity/attrs`.
+;;;
+;;; See https://docs.datomic.com/schema/schema-reference.html#entity-specs
+
+(def entity-spec-schema
+  [{:db/ident        :user/ensure
+    :db.entity/attrs [:user/id :user/email :user/created-at]}
+
+   {:db/ident        :tenant/ensure
+    :db.entity/attrs [:tenant/id :tenant/purpose :tenant/created-at]}
+
+   {:db/ident        :domain/ensure
+    :db.entity/attrs [:domain/name]}
+
+   {:db/ident        :creator/ensure
+    :db.entity/attrs [:creator/handle :creator/display-name]}
+
+   {:db/ident        :post/ensure
+    :db.entity/attrs [:post/id :post/text :post/created-at]}
+
+   {:db/ident        :membership/ensure
+    :db.entity/attrs [:membership/id
+                      :membership/user
+                      :membership/tenant
+                      :membership/role]}
+
+   {:db/ident        :money/ensure
+    :db.entity/attrs [:money/amount :money/currency]}
+
+   {:db/ident        :product/ensure
+    :db.entity/attrs [:product/id
+                      :product/title
+                      :product/status
+                      :product/created-at]}
+
+   {:db/ident        :variant/ensure
+    :db.entity/attrs [:variant/id
+                      :variant/name
+                      :variant/sku
+                      :variant/price
+                      :variant/type
+                      :variant/active?
+                      :variant/created-at]}
+
+   {:db/ident        :sku/ensure
+    :db.entity/attrs [:sku/code]}
+
+   {:db/ident        :ledger-account/ensure
+    :db.entity/attrs [:ledger-account/id
+                      :ledger-account/code
+                      :ledger-account/name
+                      :ledger-account/type
+                      :ledger-account/currency
+                      :ledger-account/active?
+                      :ledger-account/created-at]}
+
+   {:db/ident        :journal-entry/ensure
+    :db.entity/attrs [:journal-entry/id
+                      :journal-entry/description
+                      :journal-entry/status
+                      :journal-entry/postings
+                      :journal-entry/effective-at
+                      :journal-entry/created-at]}
+
+   {:db/ident        :posting/ensure
+    :db.entity/attrs [:posting/account :posting/amount :posting/direction]}
+
+   {:db/ident        :receipt/ensure
+    :db.entity/attrs [:receipt/processor
+                      :receipt/external-id
+                      :receipt/idempotency-key
+                      :receipt/received-at]}
+
+   {:db/ident        :line-item/ensure
+    :db.entity/attrs [:line-item/id
+                      :line-item/variant
+                      :line-item/buyer
+                      :line-item/journal-entry
+                      :line-item/quantity
+                      :line-item/product-title
+                      :line-item/variant-name
+                      :line-item/sku-code
+                      :line-item/unit-price
+                      :line-item/created-at]}
+
+   {:db/ident        :checkout/ensure
+    :db.entity/attrs [:checkout/id
+                      :checkout/status
+                      :checkout/processor
+                      :checkout/variant
+                      :checkout/buyer
+                      :checkout/created-at]}])
 
 ;;; ----------------------------------------------------------------------------
 ;;; Full schema
+;;;
+;;; Entity specs must be transacted after the attributes they reference, so
+;;; they come last.
 
 (def schema
   (->> [user-schema
@@ -614,5 +756,7 @@
         posting-schema
         receipt-schema
         line-item-schema
-        tenant-shop-schema]
+        checkout-schema
+        tenant-shop-schema
+        entity-spec-schema]
        (reduce into)))
