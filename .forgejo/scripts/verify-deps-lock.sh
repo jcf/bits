@@ -34,11 +34,8 @@ fi
 cp deps-lock.json deps-lock.json.orig
 just deps-lock
 
-if ! diff -q deps-lock.json.orig deps-lock.json >/dev/null 2>&1; then
+if ! cmp -s deps-lock.json.orig deps-lock.json; then
   err "deps-lock.json is out of date"
-  echo ""
-  echo "Diff (first 50 lines):"
-  diff deps-lock.json.orig deps-lock.json | head -50 || true
   echo ""
   echo "Regenerate and commit with:"
   echo ""
