@@ -195,6 +195,13 @@
   (span/with-span! {:name ::wait-for-form}
     (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
 
+(defn wait-for-navigation
+  [driver]
+  (span/with-span! {:name ::wait-for-navigation}
+    (e/wait-predicate
+     #(= "complete"
+         (e/js-execute (->etaoin driver) "return document.readyState")))))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
 
