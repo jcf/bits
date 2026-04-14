@@ -195,6 +195,14 @@
   (span/with-span! {:name ::wait-for-form}
     (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
 
+(defn wait-for-submission
+  [driver]
+  (span/with-span! {:name ::wait-for-submission}
+    (let [e (->etaoin driver)
+          q {:css "form"}]
+      (e/wait-predicate #(some? (e/get-element-attr e q "aria-busy")))
+      (e/wait-predicate #(nil? (e/get-element-attr e q "aria-busy"))))))
+
 (defn wait-for-navigation
   [driver]
   (span/with-span! {:name ::wait-for-navigation}
