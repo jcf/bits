@@ -463,6 +463,12 @@
   // ---------------------------------------------------------------------------
   // Init
 
+  // Signal that all event listeners are registered. Deferred scripts
+  // execute after HTML parsing, so server-rendered elements are visible
+  // before this runs. Tests must wait for this attribute before
+  // interacting with forms to avoid racing the native submit path.
+  document.documentElement.dataset.ready = "";
+
   document.addEventListener("DOMContentLoaded", () => {
     connect();
     initMouseTracking();
