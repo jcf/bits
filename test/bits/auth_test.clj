@@ -19,6 +19,6 @@
         (browser/wait-to-fill driver :email email)
         (browser/wait-to-fill driver :password password)
         (browser/click driver "button[type='submit']")
-        (browser/wait-for-navigation driver)
+        (browser/wait-ready driver)
         (browser/wait-to-click driver {:tag :button :fn/has-text "Sign out"})
         (is (= "/" (browser/current-path driver)))))))

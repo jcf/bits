@@ -40,12 +40,17 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Navigation
 
+(defn wait-ready
+  [driver]
+  (span/with-span! {:name ::wait-ready}
+    (e/wait-predicate
+     #(some? (e/get-element-attr (->etaoin driver) {:css "html"} "data-ready")))))
+
 (defn goto
   [driver path]
   (span/with-span! {:name ::goto :attributes {"browser.path" path}}
     (e/go (->etaoin driver) (t/service-url (->service driver) path))
-    (e/wait-predicate
-     #(some? (e/get-element-attr (->etaoin driver) {:css "html"} "data-ready")))))
+    (wait-ready driver)))
 
 (defn current-path
   [driver]
@@ -188,35 +193,10 @@
   (span/with-span! {:name ::wait-visible :attributes {"browser.selector" (pr-str selector)}}
     (e/wait-visible (->etaoin driver) selector)))
 
-(defn wait-predicate
-  [driver pred]
-  (e/wait-predicate #(pred driver)))
-
 (defn wait-for-form
   [driver]
   (span/with-span! {:name ::wait-for-form}
     (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
-
-(defn wait-for-submission
-  [driver]
-  (span/with-span! {:name ::wait-for-submission}
-    (let [e (->etaoin driver)
-          q {:css "form"}]
-      (e/wait-predicate #(some? (e/get-element-attr e q "aria-busy")))
-      (e/wait-predicate #(nil? (e/get-element-attr e q "aria-busy"))))))
-
-(defn wait-ready
-  [driver]
-  (span/with-span! {:name ::wait-ready}
-    (e/wait-predicate
-     #(some? (e/get-element-attr (->etaoin driver) {:css "html"} "data-ready")))))
-
-(defn wait-for-navigation
-  [driver]
-  (span/with-span! {:name ::wait-for-navigation}
-    (e/wait-predicate
-     #(= "complete"
-         (e/js-execute (->etaoin driver) "return document.readyState")))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
