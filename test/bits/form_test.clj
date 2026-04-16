@@ -118,7 +118,7 @@
       (browser/wait-for-form driver)
       (is (= "Submit" (browser/text driver :submit)))
       (browser/click driver "button[type='submit']")
-      (browser/wait-for-form driver)
+      (browser/wait-for-submission driver)
       (is (= "" (browser/value driver :string)))
       (is (= "" (browser/value driver :email)))
       (is (= "Success!" (browser/text driver :submit))))))
