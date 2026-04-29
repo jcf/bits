@@ -133,60 +133,34 @@
         temp.innerHTML = data;
         const shouldReset = temp.querySelector("form[data-reset]") !== null;
 
-        // Capture password values before morph (they're never in server HTML)
-        const passwordValues = new Map();
-        if (!shouldReset) {
-          target.querySelectorAll('input[type="password"]').forEach((input) => {
-            if (input.id && input.value) {
-              passwordValues.set(input.id, input.value);
-            }
-          });
-        }
-
         Idiomorph.morph(target, data, {
           restoreFocus: true,
-          ignoreActiveValue: false,
           morphStyle: "innerHTML",
           callbacks: {
-            beforeNodeMorphed: (oldNode, newNode) => {
+            beforeAttributeUpdated: (name, element, mutationType) => {
               if (shouldReset) return;
+              if (element.hasAttribute("data-server")) return;
 
-              // Preserve input values (unless data-server marks it as server-controlled)
+              // Veto value/checked updates on form inputs — idiomorph's
+              // attribute sync runs after beforeNodeMorphed and overwrites
+              // the value property. Returning false tells idiomorph to
+              // leave the DOM value untouched.
               if (
-                oldNode instanceof HTMLInputElement &&
-                newNode instanceof HTMLInputElement
+                (name === "value" || name === "checked") &&
+                (element instanceof HTMLInputElement ||
+                  element instanceof HTMLTextAreaElement ||
+                  element instanceof HTMLSelectElement)
               ) {
-                if (oldNode.type === "checkbox" || oldNode.type === "radio") {
-                  newNode.checked = oldNode.checked;
-                } else if (
-                  oldNode.type !== "password" &&
-                  !oldNode.hasAttribute("data-server")
-                ) {
-                  newNode.value = oldNode.value;
-                }
+                return false;
               }
-              // Preserve textarea values
               if (
-                oldNode instanceof HTMLTextAreaElement &&
-                newNode instanceof HTMLTextAreaElement
+                name === "selected" &&
+                element instanceof HTMLOptionElement
               ) {
-                newNode.value = oldNode.value;
-              }
-              // Preserve select values
-              if (
-                oldNode instanceof HTMLSelectElement &&
-                newNode instanceof HTMLSelectElement
-              ) {
-                newNode.value = oldNode.value;
+                return false;
               }
             },
           },
-        });
-
-        // Restore password values after morph
-        passwordValues.forEach((value, id) => {
-          const input = document.getElementById(id);
-          if (input) input.value = value;
         });
 
         // Sync _used set from server's data-used attributes
@@ -463,13 +437,15 @@
   // ---------------------------------------------------------------------------
   // Init
 
-  // Signal that all event listeners are registered. Deferred scripts
-  // execute after HTML parsing, so server-rendered elements are visible
-  // before this runs. Tests must wait for this attribute before
-  // interacting with forms to avoid racing the native submit path.
-  document.documentElement.dataset.ready = "";
-
   document.addEventListener("DOMContentLoaded", () => {
+    // Seed from the server-rendered content hash so the first SSE
+    // connect sends Last-Event-ID and the server skips the redundant
+    // init morph when nothing has changed.
+    const morph = document.getElementById("morph");
+    if (morph?.dataset.eventId) {
+      lastEventId = morph.dataset.eventId;
+    }
+
     connect();
     initMouseTracking();
   });

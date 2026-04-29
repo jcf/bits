@@ -234,4 +234,7 @@
       [:script {:src (asset-path "/idiomorph@0.7.4.min.js") :defer true}]
       [:script {:src (asset-path "/bits.js") :defer true}]]
      [:body {:class ["min-h-screen" "bg-surface" "text-primary" "font-sans"]}
-      (into [:main#morph {:class ["min-h-screen" "flex" "flex-col"]}] content)]]))
+      (into [:main#morph (cond-> {:class ["min-h-screen" "flex" "flex-col"]}
+                           (:bits.morph/event-id request)
+                           (assoc :data-event-id (:bits.morph/event-id request)))]
+            content)]]))

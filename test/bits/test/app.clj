@@ -61,7 +61,7 @@
                                     (assoc-in [:service :cookie-secure] false)
                                     (assoc-in [:service :csrf-cookie-name] "bits-csrf")
                                     (assoc-in [:service :http-port] 0)
-                                    (assoc-in [:service :platform-domain] "bits.page.localhost"))
+                                    (assoc-in [:service :platform-domain] "localhost"))
         ephemeron               (test.postgres/make-ephemeron {:database-url  ephemeral-url
                                                                :template-name template-name})
         deps                    (-> app/dependencies
@@ -97,7 +97,7 @@
 (defn service-url
   [service path]
   (let [port (service-port service)]
-    (str "http://bits.page.localhost"
+    (str "http://localhost"
          (when port (str ":" port))
          (str/replace-first path #"^/?" "/"))))
 

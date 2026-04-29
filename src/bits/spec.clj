@@ -43,6 +43,7 @@
 ;;; These specs live here to avoid cyclic dependencies. bits.morph may require
 ;;; bits.spec, so bits.spec cannot require bits.morph.
 
+(s/def :bits.morph/event-id string?)
 (s/def :bits.morph/handler fn?)
 (s/def :bits.morph/params vector?)
 (s/def :bits.morph/action-map

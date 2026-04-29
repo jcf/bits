@@ -97,10 +97,9 @@
     (browser/with-driver [driver service]
       (browser/goto driver "/")
       (browser/click driver "button[type='submit']")
-      (browser/wait-for-form driver)
+      (browser/wait-visible driver {:tag :button :fn/text "Whoops!"})
       (is (browser/invalid? driver :string))
-      (is (browser/invalid? driver :email))
-      (is (= "Whoops!" (browser/text driver :submit))))))
+      (is (browser/invalid? driver :email)))))
 
 (deftest ^:e2e form-reset
   (t/with-system [{:keys [service]} (test.form/system)]
@@ -118,10 +117,9 @@
       (browser/wait-for-form driver)
       (is (= "Submit" (browser/text driver :submit)))
       (browser/click driver "button[type='submit']")
-      (browser/wait-for-submission driver)
+      (browser/wait-visible driver {:tag :button :fn/text "Success!"})
       (is (= "" (browser/value driver :string)))
-      (is (= "" (browser/value driver :email)))
-      (is (= "Success!" (browser/text driver :submit))))))
+      (is (= "" (browser/value driver :email))))))
 
 (deftest ^:e2e values-preserved-on-error
   (t/with-system [{:keys [service]} (test.form/system)]

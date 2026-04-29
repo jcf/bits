@@ -40,17 +40,10 @@
 ;;; ----------------------------------------------------------------------------
 ;;; Navigation
 
-(defn wait-ready
-  [driver]
-  (span/with-span! {:name ::wait-ready}
-    (e/wait-predicate
-     #(some? (e/get-element-attr (->etaoin driver) {:css "html"} "data-ready")))))
-
 (defn goto
   [driver path]
   (span/with-span! {:name ::goto :attributes {"browser.path" path}}
-    (e/go (->etaoin driver) (t/service-url (->service driver) path))
-    (wait-ready driver)))
+    (e/go (->etaoin driver) (t/service-url (->service driver) path))))
 
 (defn current-path
   [driver]
@@ -197,14 +190,6 @@
   [driver]
   (span/with-span! {:name ::wait-for-form}
     (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
-
-(defn wait-for-submission
-  [driver]
-  (span/with-span! {:name ::wait-for-submission}
-    (let [e (->etaoin driver)
-          q {:css "form"}]
-      (e/wait-predicate #(some? (e/get-element-attr e q "aria-busy")))
-      (e/wait-predicate #(nil? (e/get-element-attr e q "aria-busy"))))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
