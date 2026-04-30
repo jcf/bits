@@ -207,6 +207,11 @@ compile:
 test *args:
     @just run clojure -M:dev:test:runner:{{ os }} {{ args }}
 
+# Run a Clojure main inside the container
+[group('test')]
+debug *args:
+    @just run clojure -M:dev:test:{{ os }} {{ args }}
+
 # Run tests with spans logged to stdout
 [group('test')]
 perf *args:

@@ -200,9 +200,13 @@
   ([layout-fn view-fn options]
    (let [status #(get-in % [:session/realm :realm/status] 200)]
      {:get  (fn [request]
-              {:status  (status request)
-               :headers {"content-type" "text/html; charset=utf-8"}
-               :body    (html/html (layout-fn request (view-fn request)))})
+              (let [view     (view-fn request)
+                    event-id (content-hash (html/htmx view))
+                    _        (assert (string? event-id) "morphable GET must produce an event-id")
+                    request  (assoc request :bits.morph/event-id event-id)]
+                {:status  (status request)
+                 :headers {"content-type" "text/html; charset=utf-8"}
+                 :body    (html/html (layout-fn request view))}))
       :post (render-handler view-fn options)})))
 
 ;;; ----------------------------------------------------------------------------

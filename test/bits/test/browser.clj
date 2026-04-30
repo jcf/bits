@@ -186,10 +186,6 @@
   (span/with-span! {:name ::wait-visible :attributes {"browser.selector" (pr-str selector)}}
     (e/wait-visible (->etaoin driver) selector)))
 
-(defn wait-predicate
-  [driver pred]
-  (e/wait-predicate #(pred driver)))
-
 (defn wait-for-form
   [driver]
   (span/with-span! {:name ::wait-for-form}
