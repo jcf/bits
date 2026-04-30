@@ -391,3 +391,26 @@ ci-logs run job="":
     else
         fj-ex actions logs job --run-index {{ run }} --job-index {{ job }}
     fi
+
+# Diagnose the latest CI failure: show status, failed jobs, and their logs
+[group('ci')]
+ci-diagnose:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    json=$(fj-ex actions jobs --latest --json)
+    run=$(echo "$json" | jq -r '.runIndex')
+    failed=$(echo "$json" | jq -r '.jobs[] | select(.status == "failure")')
+    if [[ -z "$failed" ]]; then
+        echo "Run #$run: all jobs passed"
+        echo "$json" | jq -r '.jobs[] | "  \(.jobIndex) \(.name): \(.status)"'
+        exit 0
+    fi
+    echo "Run #$run failed jobs:"
+    echo "$failed" | jq -r '"  \(.jobIndex) \(.name)"'
+    echo ""
+    echo "$failed" | jq -r '.jobIndex' | while read -r idx; do
+        name=$(echo "$failed" | jq -r "select(.jobIndex == $idx) | .name")
+        echo "=== Logs: $name (job $idx) ==="
+        fj-ex actions logs job --run-index "$run" --job-index "$idx"
+        echo ""
+    done

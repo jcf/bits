@@ -1,44 +1,25 @@
 ---
 name: fix-build
 description: Diagnose and fix CI build failures
-allowed-tools: Bash(just ci-status, just ci-failures, just ci-jobs*, just ci-logs*, just check, just fmt, just test*, just deps-lock, just, git diff*, git status, git log*), Read, Grep, Glob, Edit, Write, ToolSearch, Task, mcp__clojure-mcp__*
+allowed-tools: Bash(just ci-diagnose, just ci-status, just ci-failures, just ci-jobs*, just ci-logs*, just check, just fmt, just test*, just deps-lock, just, git diff*, git status, git log*), Read, Grep, Glob, Edit, Write, ToolSearch, Task, mcp__clojure-mcp__*
 ---
 
 # Fix Build
 
 Diagnose and fix CI build failures on Forgejo.
 
-## Step 1: Check CI Status
+## Step 1: Diagnose
 
-Run both of these commands to get the current CI status:
-
-```bash
-just ci-status
-```
+Get failed jobs and their logs in one shot:
 
 ```bash
-just ci-failures
+just ci-diagnose
 ```
 
-## Step 2: Fetch Logs for Failed Jobs
+This shows the latest run's status, which jobs failed, and the full logs for
+each failed job. No further fetching needed — proceed to analysis.
 
-From the ci-status output, note the run number (e.g., "Run #437").
-
-Get the job list to find indices:
-
-```bash
-just ci-jobs <run-number>
-```
-
-Fetch logs for a specific job (job-index is **0-based**):
-
-```bash
-just ci-logs <run-number> <job-index>
-```
-
-Test job is usually index 2.
-
-## Step 3: Analyze the Failure
+## Step 2: Analyze
 
 Based on which job(s) failed, investigate:
 
@@ -67,7 +48,7 @@ Based on which job(s) failed, investigate:
 
 - Check if the form submission flow is broken
 - Look at the failing test line to understand what it's waiting for
-- Browser screenshots are uploaded as artifacts (see Step 4)
+- Browser screenshots are uploaded as artifacts (see Step 3)
 
 **Generative test failures:**
 
@@ -92,7 +73,7 @@ just test :generative    # Run only generative tests
 - **Cause**: Container registry or SSH issues
 - **Fix**: Check secrets and SSH connectivity to compute
 
-## Step 4: Download Browser Artifacts
+## Step 3: Download Browser Artifacts
 
 CI uploads browser screenshots on E2E failures. Download and examine:
 
@@ -108,7 +89,7 @@ unzip screenshots.zip -d target/ci-screenshots
 The artifact download URL appears in test logs as:
 `Artifact download URL: https://code.invetica.team/jcf/bits/actions/runs/.../artifacts/...`
 
-## Step 5: REPL-Based Debugging
+## Step 4: REPL-Based Debugging
 
 For complex test failures, use the REPL (requires nREPL on port 9999):
 
@@ -123,7 +104,7 @@ For complex test failures, use the REPL (requires nREPL on port 9999):
 ;; Execute the shrunk failing actions manually
 ```
 
-## Step 6: Fix and Verify
+## Step 5: Fix and Verify
 
 1. Make the necessary fixes locally
 2. Run `just` to verify all checks pass
