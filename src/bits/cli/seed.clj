@@ -1,7 +1,7 @@
 (ns bits.cli.seed
   (:require
    [bits.datomic :as datomic]
-   [bits.dev.realm :as realm]
+   [bits.seed :as seed]
    [datomic.api :as d]
    [java-time.api :as time]))
 
@@ -10,8 +10,8 @@
 
 (defn run
   [datomic _ctx]
-  (let [seeder (realm/make-seeder (time/java-date))]
-    @(d/transact (datomic/conn datomic) (realm/seed-txes seeder))
+  (let [seeder (seed/make-seeder (time/java-date))]
+    @(d/transact (datomic/conn datomic) (seed/seed-txes seeder))
     (println "Seed data applied.")))
 
 (def command
