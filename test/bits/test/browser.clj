@@ -191,6 +191,17 @@
   (span/with-span! {:name ::wait-for-form}
     (e/wait-predicate #(nil? (e/get-element-attr (->etaoin driver) {:css "form"} "aria-busy")))))
 
+(defn wait-for-form-idle
+  "Wait until the form is fully idle. Beyond an in-flight validation
+   (signalled by aria-busy), a debounced input timer (300ms in bits.js)
+   may be scheduled and not yet fired — sleep past the debounce window
+   and wait again so we observe the post-timer steady state."
+  [driver]
+  (span/with-span! {:name ::wait-for-form-idle}
+    (wait-for-form driver)
+    (Thread/sleep 350)
+    (wait-for-form driver)))
+
 ;;; ----------------------------------------------------------------------------
 ;;; Debug
 

@@ -169,7 +169,7 @@
 
 (defn form-not-stuck?
   [driver]
-  (browser/wait-for-form driver)
+  (browser/wait-for-form-idle driver)
   (nil? (browser/attr driver {:css "form"} "aria-busy")))
 
 (defn aria-invalid-consistent?
