@@ -4,7 +4,6 @@
  :remove-trailing-whitespace?     true
  :remove-surrounding-whitespace?  true
  :function-arguments-indentation  :community
- :parallel?                       true
  :paths                           ["dev" "src" "test"]
  :sort-ns-references?             true
 
@@ -15,5 +14,5 @@
   bits.ui/page-center                     [[:block 1]]
   bits.ui/page-title                      [[:block 1]]
   bits.ui/text-muted                      [[:block 1]]
-  clojure.test.check.clojure-test/defspec [[:block 1]]
+  clojure.test.check.clojure-test/defspec [[:block 2]]
   clojure.test.check.properties/for-all   [[:block 1]]}}
