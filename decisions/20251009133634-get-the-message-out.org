@@ -8,7 +8,7 @@ journey. Already I've made the following decisions:
 - Use Emacs and Org-mode for documentation
 - Git for version control
 - GitHub for sharing code publicly (mirrored from my Forgejo instance)
-- Use devenv for managing local development environment
+- Use Nix flakes for managing local development environment
 - Build on macOS; deploy to Linux
 - Web before mobile
 - Terraform for infrastructure

@@ -48,7 +48,7 @@ Single-file fix, typo, config tweak, no coordination needed.
 
 - Fix a typo in documentation
 - Update a dependency version in deps.edn
-- Add a missing environment variable to devenv.nix
+- Add a missing environment variable to shell.nix
 - Suppress a logging warning in configuration
 
 *** 2 Points --- Small

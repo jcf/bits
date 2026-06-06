@@ -33,10 +33,9 @@ Reference docs (read when working in these areas):
 | Server      | Purpose                      |
 | ----------- | ---------------------------- |
 | clojure-mcp | REPL integration (port 9999) |
-| devenv      | Packages and scripts         |
 | linear      | Issue tracking               |
 
-If clojure-mcp fails to connect, ask the user to start the REPL (`devenv up`).
+If clojure-mcp fails to connect, ask the user to start the REPL (`just dev`).
 
 ### clojure-mcp Tools
 

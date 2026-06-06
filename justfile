@@ -95,7 +95,6 @@ setup:
     @just mkcert
     @just cluster-certs
     @just build-containers
-    devenv shell true
     @echo -e "\n✅ {{ BOLD }}Setup complete!{{ NORMAL }}"
 
 # Build and install container images (skips unchanged)

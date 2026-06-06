@@ -1,8 +1,6 @@
 .claude/
 .clj-kondo/.cache/
 .cpcache/
-.devenv/
-.devenv.flake.nix
 .direnv/
 .git/
 .github/

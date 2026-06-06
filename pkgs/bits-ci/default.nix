@@ -4,7 +4,7 @@
   nix2container,
   pkgs,
 }: let
-  # Shared CI packages (keep in sync with devenv.nix)
+  # Shared CI packages (keep in sync with the flake dev shell)
   ci = import ../../nix/ci.nix {inherit pkgs;};
 
   inherit
@@ -15,7 +15,6 @@
     cacert
     coreutils
     curl
-    devenv
     firefox
     geckodriver
     git
@@ -45,7 +44,6 @@
       cacert
       coreutils
       curl
-      devenv
       firefox
       geckodriver
       git

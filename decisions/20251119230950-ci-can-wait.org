@@ -13,7 +13,7 @@ any mistakes can speed up the process of extending a system.
 I could investigate why this is taking so long on GitHub, because locally:
 
 #+begin_src sh :results output verbatim
-/usr/bin/time devenv shell --quiet -- just test 2>&1
+/usr/bin/time nix develop --command just test 2>&1
 #+end_src
 
 #+results:

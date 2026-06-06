@@ -24,17 +24,15 @@ with a hash mismatch error containing the correct hash.
    depsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
    ```
 
-3. Clear devenv cache: `rm -f .devenv/nix-eval-cache.db`
-
-4. Run: `devenv build outputs.bits-uberjar`
+3. Run: `nix build .#bits-uberjar`
 
    The build fails with a hash mismatch. Find the `got:` line containing the
    correct hash (format: `sha256-...=`).
 
-5. Edit `depsHash` with the correct hash from the error output.
+4. Edit `depsHash` with the correct hash from the error output.
 
-6. Verify: `devenv build outputs.bits-uberjar`
+5. Verify: `nix build .#bits-uberjar`
 
-7. If verification fails, restore: `git checkout pkgs/bits-uberjar/default.nix`
+6. If verification fails, restore: `git checkout pkgs/bits-uberjar/default.nix`
 
 $ARGUMENTS
