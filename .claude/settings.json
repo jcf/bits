@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "file_path=$(jq -r '.tool_input.file_path // empty')\nif [[ -n \"$file_path\" && -f \"$file_path\" ]]; then\n  case \"$file_path\" in\n    *.clj|*.cljc|*.cljs|*.edn)\n      cljfmt fix \"$file_path\" 2>/dev/null || true\n      ;;\n  esac\nfi\n",
+            "type": "command"
+          }
+        ],
+        "matcher": "^(Edit|Write)$"
+      },
+      {
+        "hooks": [
+          {
+            "command": "file_path=$(jq -r '.tool_input.file_path // empty')\nif [[ -n \"$file_path\" && -f \"$file_path\" ]]; then\n  case \"$file_path\" in\n    *.clj|*.cljc|*.cljs)\n      result=$(clj-kondo --lint \"$file_path\" 2>&1)\n      exit_code=$?\n      if [[ $exit_code -ne 0 ]]; then\n        echo \"$result\"\n        exit $exit_code\n      fi\n      ;;\n  esac\nfi\n",
+            "type": "command"
+          }
+        ],
+        "matcher": "^(Edit|Write)$"
+      }
+    ]
+  }
+}

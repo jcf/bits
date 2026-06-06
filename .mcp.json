@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "clojure-mcp": {
+      "args": [":port", "9999", ":config-profile", ":cli-assist"],
+      "command": "clojure-mcp",
+      "type": "stdio"
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    },
+    "linear": {
+      "type": "http",
+      "url": "https://mcp.linear.app/mcp"
+    }
+  }
+}
