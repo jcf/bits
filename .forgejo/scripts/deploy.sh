@@ -35,31 +35,45 @@ say() { echo >&2 "${cyan}→${reset} ${bold}$*${reset}"; }
 ok() { echo >&2 "${green}ok:${reset} $*"; }
 err() { echo >&2 "${red}error:${reset} $*"; }
 
-quadlet_dir="/var/lib/ci/.config/containers/systemd/bits"
+target_user="bits"
+xdg_runtime="/run/user/$(id -u "$target_user")"
+quadlet_dir="/var/lib/${target_user}/.config/containers/systemd/${service}"
 
-say "Installing quadlet files..."
-mkdir -p "$quadlet_dir"
-rm -f "$quadlet_dir"/*.container "$quadlet_dir"/*.network "$quadlet_dir"/*.volume "$quadlet_dir"/*.sql
-cp deploy/*.container deploy/*.network deploy/*.volume deploy/*.sql "$quadlet_dir/"
+# NixOS setuid wrapper. The Forgejo runner's PATH excludes
+# /run/wrappers/bin, so `sudo` isn't found without the absolute path.
+sudo=/run/wrappers/bin/sudo
+
+# Run a command as the target user with their systemd-user runtime
+# directory in scope, so rootless podman finds its socket and
+# systemctl --user talks to the right instance.
+as_target() {
+  $sudo -u "$target_user" XDG_RUNTIME_DIR="$xdg_runtime" "$@"
+}
 
 say "Pinning image to $image..."
-sed -i "s|Image=code.invetica.team/jcf/bits:.*|Image=$image|" "$quadlet_dir/bits.container"
+sed -i "s|Image=code.invetica.team/jcf/bits:.*|Image=$image|" deploy/bits.container
+
+say "Installing quadlet files to $quadlet_dir..."
+as_target install -d -m 0755 "$quadlet_dir"
+as_target install -m 0644 \
+  deploy/*.container deploy/*.network deploy/*.volume deploy/*.sql \
+  "$quadlet_dir/"
 
 say "Logging in to $registry..."
-podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
+as_target podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
 
 say "Pulling $image..."
-podman pull "$image"
+as_target podman pull "$image"
 
 say "Pruning unused images..."
-podman image prune -af
+as_target podman image prune -af
 
 say "Waiting for service to start..."
 max_attempts=12
 delay=5
 
 for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-  if systemctl --user is-active --quiet "$service.service"; then
+  if as_target systemctl --user is-active --quiet "$service.service"; then
     ok "Service running"
     exit 0
   fi
@@ -70,5 +84,5 @@ for ((attempt = 1; attempt <= max_attempts; attempt++)); do
 done
 
 err "Service not running after $max_attempts attempts"
-systemctl --user status "$service.service" || true
+as_target systemctl --user status "$service.service" || true
 exit 1
