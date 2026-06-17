@@ -22,6 +22,12 @@ Environment=JAVA_TOOL_OPTIONS=-Xmx4g
 Environment=DATOMIC_MEMORY_INDEX_MAX=2g
 Environment=DATOMIC_OBJECT_CACHE_MAX=1g
 
+# Address peers use to reach this transactor. The transactor advertises
+# host/alt-host into datomic_kvs on startup; peers read it from there.
+# Without alt-host set, host=0.0.0.0 alone isn't routable from the peer
+# container. dev's compose.yml sets the same thing (ALT_HOST: transactor).
+Environment=ALT_HOST=bits-transactor
+
 # Security hardening
 NoNewPrivileges=true
 ReadOnly=true
