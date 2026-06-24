@@ -16,7 +16,7 @@
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (io.opentelemetry.api GlobalOpenTelemetry)
-   (io.opentelemetry.instrumentation.httpclient JavaHttpClientTelemetry)
+   (io.opentelemetry.instrumentation.javahttpclient JavaHttpClientTelemetry)
    (java.net CookieManager CookiePolicy)))
 
 (defn- system-ex-info
