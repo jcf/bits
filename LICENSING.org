@@ -1,23 +1,50 @@
 #+title: Licensing
 
-* Open Source License
-Bits is licensed under the GNU Affero General Public License version 3 (AGPL-3.0).
-See the [[file:LICENSE][LICENSE]] file for the complete terms.
+* Source-Available License
+Bits is licensed under the Business Source License 1.1 (BUSL-1.1). See the
+[[file:LICENSE][LICENSE]] file for the complete terms.
 
-Under the AGPL, you may freely use, modify, and distribute this software provided
-that:
+Under BUSL-1.1 you may freely copy, modify, redistribute, and make production
+use of Bits, provided that you do *not* include Bits, or a substantial portion
+of its functionality, in a product or service offered to third parties on a
+hosted or embedded basis in competition with Invetica Ltd's paid version(s)
+of Bits.
 
-- You license your modifications under the AGPL
-- Users interacting with your modified version over a network can obtain the
-  complete source code
+Four years after the date a given version of Bits is first publicly
+distributed, that version becomes available to you under the GNU Affero
+General Public License v3.0 or later. This conversion is per-version and
+automatic.
+
+** Why BUSL and not AGPL
+BUSL gives Bits the protection AGPL does not: a time-limited non-compete on
+hosted services. AGPL only requires that you share your source if you modify
+Bits and run it as a service — it does not prevent a competitor from doing
+exactly that. BUSL preserves the copyleft endgame (each version converts to
+AGPL after four years) while restricting hosted competition during the
+protection window.
+
+BUSL is not OSI-approved and is not "open source" under the OSI's definition.
+It is source-available.
 
 * Commercial License
-A commercial license is available for organisations that cannot comply with the
-AGPL. This includes:
+A commercial license is available for organisations that cannot comply with
+BUSL-1.1. A commercial license lifts both restrictions:
 
-- Proprietary products or services that incorporate Bits
-- SaaS offerings where you cannot disclose your source code
-- Situations where AGPL obligations conflict with your business requirements
+- The SaaS non-compete that applies before the Change Date
+- The AGPL-style copyleft that applies on or after the Change Date
 
-Commercial licenses are negotiated individually. Contact [[mailto:jcf@bits.page][jcf@bits.page]] to discuss
-your needs.
+Typical reasons to buy:
+
+- You want to offer Bits (or build a service substantially based on Bits) to
+  third parties on a hosted or embedded basis
+- You incorporate Bits into a proprietary product or service and cannot meet
+  AGPL's source-disclosure obligations
+- Your legal or compliance posture requires terms that BUSL does not provide
+
+Commercial licenses are negotiated individually. Contact [[mailto:jcf@bits.page][jcf@bits.page]] to
+discuss your needs.
+
+* Pre-Relicense Releases
+Versions of Bits distributed before the BUSL relicensing commit remain
+available under the GNU Affero General Public License v3.0 or later. Rights
+granted under prior licenses are not revoked by this change.

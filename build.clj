@@ -94,8 +94,8 @@
                    [HeaderFields/KEY_ContentTransferEncoding "8bit"]]]
       (.setValue hf k v))
     (let [msg (.unwrap hf)]
-      (doseq [comment ["Copyright (C) 2026 Invetica"
-                       "SPDX-License-Identifier: AGPL-3.0-or-later"]]
+      (doseq [comment ["Copyright (C) 2026 Invetica Ltd"
+                       "SPDX-License-Identifier: BUSL-1.1"]]
         (.addComment msg comment))
       msg)))
 

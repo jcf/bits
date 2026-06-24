@@ -18,7 +18,7 @@ gives you both back.
 - Self-host on a $5/month VPS or use managed hosting
 - Single binary deployment - no complex setup
 - Built with care to minimize resource usage and maximize reliability
-- Open source - audit the code, modify what you need, contribute back
+- Source-available - audit the code, modify what you need, contribute back
 
 *The model:* Like WordPress.org - free to self-host, managed option available.
 You're never locked in.
@@ -168,6 +168,15 @@ echo "$(git describe --always --dirty --abbrev=7) @ $(date +"%Y/%m/%d %H:%M")"
 
 83a623b @ 2026/02/26 23:46
 #+end_example
+
+* License
+Bits is source-available under the Business Source License 1.1 (BUSL-1.1) and
+converts to the GNU Affero General Public License v3.0 or later four years
+after each version's first public distribution. A commercial license is
+available for organisations that cannot comply with BUSL.
+
+See [[file:LICENSING.org][LICENSING.org]] for terms, rationale, and how to obtain a commercial
+license.
 
 * TODOs
 #+begin_src sh :results output verbatim :exports results

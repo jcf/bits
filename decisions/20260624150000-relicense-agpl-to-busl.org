@@ -1,0 +1,120 @@
+#+title:  Relicense from AGPL-3.0 to BUSL-1.1 (converting to AGPL after 4 years)
+#+author: James Conroy-Finn <james@invetica.co.uk>
+#+date:   2026-06-24
+#+status: decided
+
+* Context
+Bits ships under AGPL-3.0-or-later with a parallel commercial license available
+on request. The AGPL's network-use clause forces anyone running a modified Bits
+as a service to publish their source. In practice this has not been a strong
+deterrent against the failure mode I care about: a well-resourced competitor
+taking the codebase, running it as a managed service competitive with the
+hosted Bits offering, and competing with Invetica on infrastructure scale
+rather than on product or community contribution.
+
+AGPL is a /copyleft/ license. It does not restrict commercial use, hosting, or
+direct competition. The "share-alike" obligation is the only friction, and
+sophisticated competitors are happy to satisfy it. The protection I actually
+want is a /non-compete/ on hosted services — orthogonal to AGPL's design.
+
+The pattern adopted by Sentry, MariaDB, HashiCorp, CockroachDB, and Elastic
+addresses this directly: a source-available license with a time-limited
+non-compete that converts to a recognised open-source license after a defined
+period.
+
+* Decision
+Relicense Bits from AGPL-3.0-or-later to the Business Source License 1.1
+(BUSL-1.1) with the following parameters:
+
+- *Licensor*: Invetica Ltd
+- *Change License*: GNU Affero General Public License v3.0 or later
+- *Change Date*: four years after each version's first publicly available
+  distribution (per-version, as encoded in BUSL's standard "whichever comes
+  first" clause)
+- *Additional Use Grant*: production use is permitted except where Bits (or a
+  substantial portion of its functionality) is offered to third parties on a
+  hosted or embedded basis in competition with Invetica Ltd's paid version(s)
+  of Bits
+
+* Why BUSL and not FSL or stock AGPL
+** Why not stock AGPL
+AGPL gives no protection against hosted competition. The copyleft obligation
+is satisfiable and does not restrain a determined competitor. The threat model
+is hosted extraction, and AGPL is the wrong instrument for that threat.
+
+** Why not FSL
+The Functional Source License (Sentry's current license) is structurally
+similar to BUSL but only converts to Apache 2.0 or MIT. Converting from a
+source-available license to a permissive license discards copyleft entirely
+when the protection window expires. BUSL allows AGPL as the Change License,
+which preserves the copyleft endgame: when the four-year window closes on a
+given version, that version becomes available under terms that still prevent
+proprietary capture downstream.
+
+** Why BUSL
+BUSL is the most established source-available license with a configurable
+Change License. The legal text is mature, the per-version Change Date is baked
+into the standard terms, and SPDX recognises ~BUSL-1.1~ as an identifier so
+tooling does not break.
+
+* Parameters in detail
+** Change Date — four years per version
+BUSL's standard terms state that the license effectively converts on "the
+Change Date, or the fourth anniversary of the first publicly available
+distribution of a specific version of the Licensed Work under this License,
+whichever comes first." This makes the per-version four-year cap automatic.
+
+The =LICENSE= file on =main= uses relative phrasing ("four years from the date
+this version is first publicly distributed") to mirror this. No release tooling
+needs to substitute a concrete date — the per-version semantics are encoded in
+the license text itself.
+
+** Additional Use Grant — non-compete SaaS
+Production use is explicitly permitted for everyone. The grant only restricts
+offering Bits as a hosted or embedded service in competition with Invetica
+Ltd's paid offering. Self-hosting, internal use, modifications, contributions,
+forks for non-competing use, and audits remain unrestricted.
+
+This intentionally matches the Sentry / FSL non-compete wording, which has
+been tested in the wild and is well-understood by both contributors and
+counsel.
+
+** Change License — AGPL-3.0-or-later
+On the Change Date for a given version, that version becomes available under
+AGPL-3.0-or-later. The copyleft endgame is preserved: anyone running an
+AGPL-converted version as a service must publish their source.
+
+* Implications
+** Pre-relicense releases stay AGPL
+Anyone who pulled Bits from a commit prior to the relicensing commit holds
+AGPL-3.0-or-later rights to that snapshot in perpetuity. The new license only
+binds people who take code after the switch. This is a property of how
+licensing works — you cannot retroactively revoke rights you have already
+granted.
+
+** Loss of OSI / FSF status
+BUSL is not an OSI-approved open-source license and is not a free-software
+license under the FSF's definition. The repository and marketing material
+should use "source-available" rather than "open source" when describing Bits.
+
+** Commercial license value
+The existing commercial license offer continues to apply. Under BUSL it lifts
+two distinct restrictions: (1) the AGPL-style copyleft that takes effect on
+the Change Date, and (2) the SaaS non-compete that applies before the Change
+Date. The commercial pitch sharpens because the SaaS-competition case is now
+the canonical reason to buy.
+
+** Contributor authority
+James Conroy-Finn is the sole copyright contributor across all commits in this
+repository. No CLA outreach is required to relicense. When the work is
+formally assigned to Invetica Ltd (or eventually to a separate Bits entity),
+the Licensor field is updated accordingly.
+
+* References
+- BUSL-1.1 canonical text: https://mariadb.com/bsl11/
+- SPDX identifier: https://spdx.org/licenses/BUSL-1.1.html
+- Sentry's FSL announcement and rationale:
+  https://blog.sentry.io/introducing-the-functional-source-license-freedom-without-free-riding/
+- HashiCorp's BUSL adoption (for AGPL-style copyleft via Change License,
+  though HashiCorp converted to MPL-2.0):
+  https://www.hashicorp.com/license-faq
