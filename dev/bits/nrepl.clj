@@ -8,12 +8,18 @@
    [nrepl.server :as nrepl]
    [refactor-nrepl.middleware]))
 
+(defn- must-resolve
+  [sym]
+  (or (requiring-resolve sym)
+      (throw (ex-info (str "Cannot resolve middleware: " sym) {:symbol sym}))))
+
 (defn- make-nrepl-handler
   "Please don't refactor production."
   []
   (apply nrepl/default-handler
-         (conj cider.nrepl.middleware/cider-middleware
-               'refactor-nrepl.middleware/wrap-refactor)))
+         (mapv must-resolve
+               (conj cider.nrepl.middleware/cider-middleware
+                     'refactor-nrepl.middleware/wrap-refactor))))
 
 (defn- nrepl-port-file
   []
