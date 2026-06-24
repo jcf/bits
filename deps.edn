@@ -108,6 +108,7 @@
   {:jvm-opts ["-Dotel.java.global-autoconfigure.enabled=true"]
    :extra-deps
    {com.github.steffan-westcott/clj-otel-sdk-extension-autoconfigure {:mvn/version "0.2.10"}
+    io.opentelemetry/opentelemetry-sdk-extension-autoconfigure       {:mvn/version "1.63.0"}
     io.opentelemetry/opentelemetry-exporter-otlp                     {:mvn/version "1.63.0"}}}
 
   :build
