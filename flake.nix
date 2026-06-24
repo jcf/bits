@@ -5,8 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     nix2container = {
-      url = "git+https://code.invetica.team/jcf/nix2container";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "git+ssh://git@code.invetica.team/mirrors/nix2container";
+      flake = false;
     };
 
     clj-nix = {
@@ -55,8 +55,16 @@
 
       otel-agent = pkgs.callPackage ./pkgs/opentelemetry-javaagent {};
 
-      # nix2container for the HOST system — copyTo must run on macOS
-      n2cHost = nix2container.packages.${system};
+      # nix2container for the HOST system — copyTo must run on macOS.
+      # We import a vendored copy of nix2container's default.nix rather
+      # than its flake output, because the upstream `sed -i $out` in
+      # fetchgitpatch's postFetch (in ./nix/nix2container.nix) is fixed
+      # to write through $TMPDIR. Patching the mirrored input via
+      # applyPatches would work but requires IFD.
+      n2cHost = import ./nix/nix2container.nix {
+        inherit pkgs;
+        src = nix2container;
+      };
 
       # Container builder for a Linux system
       mkContainer = targetSystem: let

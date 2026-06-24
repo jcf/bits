@@ -97,11 +97,7 @@
       }
     },
     "nix2container": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
+      "flake": false,
       "locked": {
         "lastModified": 1775487831,
         "narHash": "sha256-2lguQpLPQaxpQCJjXhmEEAfabwsAhkP29Z7fgLzHARA=",
@@ -109,11 +105,11 @@
         "rev": "76be9608a7f4d6c985d28b0e7be903ae2547df3e",
         "revCount": 226,
         "type": "git",
-        "url": "https://code.invetica.team/jcf/nix2container"
+        "url": "ssh://git@code.invetica.team/mirrors/nix2container"
       },
       "original": {
         "type": "git",
-        "url": "https://code.invetica.team/jcf/nix2container"
+        "url": "ssh://git@code.invetica.team/mirrors/nix2container"
       }
     },
     "nixpkgs": {
