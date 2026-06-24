@@ -131,10 +131,11 @@
                     (cond-> cookie-handler (.cookieHandler cookie-handler))
                     (.build))]
      (-> (JavaHttpClientTelemetry/builder (GlobalOpenTelemetry/get))
-         (.setSpanNameExtractor (reify java.util.function.Function
-                                  (apply [_ _default] (span-name-extractor))))
+         (.setSpanNameExtractorCustomizer
+          (reify java.util.function.UnaryOperator
+            (apply [_ _default] (span-name-extractor))))
          (.build)
-         (.newHttpClient client)))))
+         (.wrap client)))))
 
 (defn- cleanup-hato-response
   [response]
