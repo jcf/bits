@@ -136,6 +136,11 @@ docker *args:
 dev *args:
     @just docker up {{ args }}
 
+# Remove stale containers and networks left behind by other Compose stacks
+[group('dev')]
+reset:
+    @just docker down --remove-orphans
+
 # Run a one-shot command inside a throwaway nrepl container
 [group('dev')]
 run *args:
