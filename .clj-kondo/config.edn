@@ -1,7 +1,13 @@
-{:lint-as {bits.test.app/with-system               clojure.core/let
+{:lint-as {bits.plane/with-db                      clj-kondo.lint-as/def-catch-all
+           bits.test.app/with-system               clojure.core/let
            bits.test.browser/with-driver           clojure.core/with-open
            clojure.test.check.clojure-test/defspec clojure.test/deftest
            clojure.test.check.properties/for-all   clojure.core/let}
+
+ :config-in-ns
+ {bits.bench.tenancy {:linters {:discouraged-var {:level :off}}}
+  bits.datomic       {:linters {:discouraged-var {:level :off}}}
+  bits.plane         {:linters {:discouraged-var {:level :off}}}}
 
  :linters
  {:consistent-alias
@@ -16,4 +22,9 @@
   {:exclude {com.stuartsierra.component.repl [system]}}
 
   :unresolved-symbol
-  {:exclude [(clojure.test/is [match?])]}}}
+  {:exclude [(clojure.test/is [match?])]}
+
+  :discouraged-var
+  {datomic.api/connect         {:message "Connection lifecycle belongs to bits.plane; borrow via with-db or transact!."}
+   datomic.api/create-database {:message "Database creation belongs to bits.plane/provision!."}
+   datomic.api/release         {:message "Connection lifecycle belongs to bits.plane; the lender releases."}}}}

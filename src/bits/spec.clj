@@ -1,5 +1,6 @@
 (ns bits.spec
   (:require
+   [bits.cryptex :as cryptex]
    [clojure.spec.alpha :as s]
    [ring.core.spec]))
 
@@ -126,6 +127,26 @@
                    :bits.service/routes
                    :bits.service/server-name
                    :bits.service/sse-reconnect-ms]))
+
+;;; ----------------------------------------------------------------------------
+;;; Plane
+
+(s/def :domain/name string?)
+
+(s/def :bits.plane/control-uri (cryptex/spec :bits.datomic/uri))
+(s/def :bits.plane/max-conns pos-int?)
+(s/def :bits.plane/release-timeout-ms pos-int?)
+(s/def :bits.plane/tenant-uri-template (cryptex/spec string?))
+
+(s/def :bits.plane/config
+  (s/keys :req-un [:bits.plane/control-uri
+                   :bits.plane/max-conns
+                   :bits.plane/release-timeout-ms
+                   :bits.plane/tenant-uri-template]))
+
+(s/def :bits.plane/realm
+  (s/keys :req [:domain/name
+                :tenant/id]))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Lender
