@@ -57,6 +57,14 @@
   (s/with-gen cryptex?
     (fn [] (sgen/fmap ->Cryptex (sgen/string)))))
 
+(defn spec
+  "Returns a spec for a cryptex whose revealed value conforms to `inner`.
+  Validation reveals inside a predicate so conform and explain only ever see
+  the opaque wrapper."
+  [inner]
+  (s/with-gen (s/and ::cryptex #(s/valid? inner (reveal %)))
+    (fn [] (sgen/fmap ->Cryptex (s/gen inner)))))
+
 (s/fdef cryptex
   :args (s/cat :s string?)
   :ret  ::cryptex)
