@@ -128,6 +128,14 @@
                    :bits.service/sse-reconnect-ms]))
 
 ;;; ----------------------------------------------------------------------------
+;;; Lender
+
+(s/def :bits.lender/max-size pos-int?)
+
+(s/def :bits.lender/config
+  (s/keys :req-un [:bits.lender/max-size]))
+
+;;; ----------------------------------------------------------------------------
 ;;; Datomic
 
 (s/def :bits.datomic/uri string?)

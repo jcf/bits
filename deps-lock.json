@@ -1116,6 +1116,16 @@
       "hash": "sha256-whYb5FSVohS6vzms1BgK7TuT8gXMCM62FFDdyf0ay80="
     },
     {
+      "mvn-path": "criterium/criterium/0.4.6/criterium-0.4.6.jar",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-r14UbxCZd9XNA1vAzjlOySebIySQBp8ErsaO5Mi8FY4="
+    },
+    {
+      "mvn-path": "criterium/criterium/0.4.6/criterium-0.4.6.pom",
+      "mvn-repo": "https://repo.clojars.org/",
+      "hash": "sha256-Lb9Ysv6gyT1w02RS6Rf+soFUNpnPGzs+IrGl6cpol0k="
+    },
+    {
       "mvn-path": "crypto-equality/crypto-equality/1.0.0/crypto-equality-1.0.0.jar",
       "mvn-repo": "https://repo.clojars.org/",
       "hash": "sha256-fdGcgcHmPXaIY2DtqYI8cefkaA5KJKgNHJvYQsRGOPk="
