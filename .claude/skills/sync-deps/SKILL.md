@@ -1,38 +1,31 @@
 ---
 name: sync-deps
-description: Synchronise Nix deps hash after changing deps.edn
+description: Regenerate deps-lock.json after changing deps.edn
 ---
 
-# Sync Dependencies Hash
+# Sync Dependencies Lock File
 
-Update the fixed-output derivation hash in `pkgs/bits-uberjar/default.nix` after
-changing `deps.edn`.
+Regenerate `deps-lock.json` after changing `deps.edn`.
 
 ## Background
 
-The uberjar build uses a fixed-output derivation (FOD) to cache Maven/Clojure
-dependencies. When `deps.edn` changes, the hash becomes stale and builds fail
-with a hash mismatch error containing the correct hash.
+The uberjar build consumes `deps-lock.json` (a clj-nix lock file, wired in as a
+flake input) to cache Maven/Clojure dependencies. When `deps.edn` changes, the
+lock file must be regenerated or the uberjar build resolves stale dependencies.
 
 ## Process
 
-1. Read `pkgs/bits-uberjar/default.nix`
+1. Run: `just deps-lock`
 
-2. Edit `depsHash` to an invalid value to force recomputation:
+2. Check the result: `git diff --stat deps-lock.json`
 
-   ```nix
-   depsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-   ```
+   An unchanged lock file is fine — it means the resolved artifact set did not
+   change (e.g. a dependency was promoted from transitive to explicit at the
+   same version).
 
-3. Run: `nix build .#bits-uberjar`
+3. If the lock file changed, verify the uberjar still builds:
+   `nix build .#bits-uberjar`
 
-   The build fails with a hash mismatch. Find the `got:` line containing the
-   correct hash (format: `sha256-...=`).
-
-4. Edit `depsHash` with the correct hash from the error output.
-
-5. Verify: `nix build .#bits-uberjar`
-
-6. If verification fails, restore: `git checkout pkgs/bits-uberjar/default.nix`
+4. Commit `deps.edn` and `deps-lock.json` together.
 
 $ARGUMENTS
