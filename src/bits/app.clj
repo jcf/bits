@@ -4,9 +4,11 @@
    [bits.auth.rate-limit :as rate-limit]
    [bits.boot :as boot]
    [bits.cluster :as cluster]
+   [bits.cryptex :as cryptex]
    [bits.crypto :as crypto]
    [bits.datomic :as datomic]
    [bits.module :as module]
+   [bits.plane :as plane]
    [bits.postgres :as postgres]
    [bits.reaper :as reaper]
    [bits.service :as service]
@@ -62,7 +64,13 @@
 ;; TODO Use Malli (or clojure.spec) to coerce and parse/validate configuration.
 (defn read-config
   []
-  (let [database-url (-> :database-url env normalize-database-url)]
+  (let [database-url       (-> :database-url env normalize-database-url)
+        datomic-uri        (env :datomic-uri)
+        release-timeout-ms 5000
+        control-uri        (env-or :datomic-control-uri
+                                   (some-> datomic-uri (datomic/with-db-name "bits-control")))
+        tenant-template    (env-or :datomic-tenant-uri-template
+                                   (some-> datomic-uri (datomic/with-db-name "bits-tenant-%s")))]
     {:buster        {:resources #{"public/apple-touch-icon.png"
                                   "public/app.css"
                                   "public/bits.js"
@@ -79,11 +87,15 @@
                      :initial-hosts     (parse-hosts (env-or :cluster-initial-hosts "127.0.0.1:7800"))
                      :keystore-password (env :cluster-keystore-password)
                      :keystore-path     (env-or :cluster-keystore-path "certs/cluster-keystore.p12")}
-     :datomic       {:uri (env :datomic-uri)}
+     :datomic       {:uri datomic-uri}
      :keymaster     {:argon {:alg         :argon2id
                              :iterations  3
                              :memory      (* 64 1024)
                              :parallelism 1}}
+     :plane         {:control-uri         (some-> control-uri cryptex/cryptex)
+                     :max-conns           (parse-long (env-or :plane-max-conns "64"))
+                     :release-timeout-ms  release-timeout-ms
+                     :tenant-uri-template (some-> tenant-template cryptex/cryptex)}
      :postgres      {:database-url database-url}
      :rate-limiter  {:email-window-minutes 15
                      :email-max-attempts   5
@@ -114,6 +126,7 @@
    :datomic       (datomic/make-datomic       (:datomic config))
    :keymaster     (crypto/make-keymaster      (:keymaster config))
    :migrator      (postgres/make-migrator     (:postgres config))
+   :plane         (plane/make-plane           (:plane config))
    :postgres      (postgres/make-postgres     (:postgres config))
    :randomizer    (crypto/make-randomizer     (:randomizer config))
    :rate-limiter  (rate-limit/make-limiter    (:rate-limiter config))
@@ -130,6 +143,7 @@
                    :buster
                    :datomic
                    :keymaster
+                   :plane
                    :postgres
                    :randomizer
                    :rate-limiter

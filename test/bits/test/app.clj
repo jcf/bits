@@ -54,8 +54,14 @@
                                  (get-in config [:postgres :database-url]) "bits_test")
         {:keys [ephemeral-url
                 template-name]} (test.postgres/ephemerize database-url)
+        uuid                    (random-uuid)
+        datomic-uri             (str "datomic:mem://bits-test-" uuid)
+        control-uri             (cryptex/cryptex (str "datomic:mem://bits-test-control-" uuid))
+        tenant-uri-template     (cryptex/cryptex (str "datomic:mem://bits-test-" uuid "-tenant-%s"))
         config                  (-> config
-                                    (assoc-in [:datomic :uri] (str "datomic:mem://bits-test-" (random-uuid)))
+                                    (assoc-in [:datomic :uri] datomic-uri)
+                                    (assoc-in [:plane :control-uri] control-uri)
+                                    (assoc-in [:plane :tenant-uri-template] tenant-uri-template)
                                     (assoc-in [:postgres :database-url] ephemeral-url)
                                     (assoc-in [:service :cookie-name] "bits")
                                     (assoc-in [:service :cookie-secure] false)
