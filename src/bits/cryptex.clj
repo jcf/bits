@@ -1,5 +1,6 @@
 (ns bits.cryptex
   (:require
+   [clojure.pprint :as pprint]
    [clojure.spec.alpha :as s]
    [clojure.spec.gen.alpha :as sgen]
    [steffan-westcott.clj-otel.api.trace.span :as span])
@@ -69,6 +70,16 @@
 (defmethod print-method Cryptex
   [_ ^java.io.Writer w]
   (.write w placeholder))
+
+;; pprint dispatches IDeref types itself, bypassing print-method and printing
+;; the wrapped value; route both dispatch tables through the opaque rendering.
+(defmethod pprint/simple-dispatch Cryptex
+  [cryptex]
+  (pr cryptex))
+
+(defmethod pprint/code-dispatch Cryptex
+  [cryptex]
+  (pr cryptex))
 
 (comment
   (sgen/generate (sgen/fmap #(vector % (reveal %)) (s/gen ::cryptex))))
