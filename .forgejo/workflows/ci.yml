@@ -23,9 +23,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  packages: read
-
 env:
   CI: true
   IMAGE: code.invetica.team/jcf/bits-ci:20260226-bc992f8
