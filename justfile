@@ -303,23 +303,23 @@ output dir *args:
 # ------------------------------------------------------------------------------
 # Operations
 
-# Interactive shell on compute as the ci user
+# Interactive shell on compute as the bits user
 [group('ops')]
 [no-exit-message]
 ssh:
-    @exec ssh -tt compute "cd /tmp && exec sudo -Hu ci XDG_RUNTIME_DIR=/run/user/\$(id -u ci) TERM=$TERM bash -c 'cd && exec bash'"
+    @exec ssh -tt compute "cd /tmp && exec sudo -Hu bits XDG_RUNTIME_DIR=/run/user/\$(id -u bits) TERM=$TERM bash -c 'cd && exec bash'"
 
-# Run podman commands on compute as the ci user
+# Run podman commands on compute as the bits user
 [group('ops')]
 [no-exit-message]
 podman *args:
-    @exec ssh -tt compute "cd /tmp && exec sudo -Hu ci TERM=$TERM XDG_RUNTIME_DIR=/run/user/\$(id -u ci) podman {{ args }}"
+    @exec ssh -tt compute "cd /tmp && exec sudo -Hu bits TERM=$TERM XDG_RUNTIME_DIR=/run/user/\$(id -u bits) podman {{ args }}"
 
-# Run systemctl commands on compute as the ci user
+# Run systemctl commands on compute as the bits user
 [group('ops')]
 [no-exit-message]
 systemctl *args:
-    @exec ssh -tt compute "cd /tmp && exec sudo -Hu ci TERM=$TERM XDG_RUNTIME_DIR=/run/user/\$(id -u ci) systemctl --user {{ args }}"
+    @exec ssh -tt compute "cd /tmp && exec sudo -Hu bits TERM=$TERM XDG_RUNTIME_DIR=/run/user/\$(id -u bits) systemctl --user {{ args }}"
 
 # View logs for a container
 [group('ops')]

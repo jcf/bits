@@ -4,7 +4,7 @@
 * Overview
 
 Bits runs on =compute= as rootless Podman containers managed by systemd
-(Quadlet). The =ci= user owns the containers.
+(Quadlet). The =bits= user owns the containers; CI deploys as =ci= through sudo.
 
 * Quick Reference
 
@@ -17,7 +17,7 @@ ssh compute
 ** Service Status
 
 #+begin_src sh
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user status bits.service
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user status bits.service
 #+end_src
 
 ** View Logs
@@ -40,23 +40,23 @@ sudo journalctl -n 100 CONTAINER_NAME=bits-postgres
 
 #+begin_src sh
 # Restart bits app
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits.service
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits.service
 
 # Restart transactor
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits-transactor.service
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits-transactor.service
 
 # Restart all bits services
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits-postgres.service bits-transactor.service bits.service
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits-postgres.service bits-transactor.service bits.service
 #+end_src
 
 ** Pull New Image
 
 #+begin_src sh
 # Pull latest bits app image
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman pull code.invetica.team/jcf/bits:latest
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) podman pull code.invetica.team/jcf/bits:latest
 
 # Pull latest transactor image
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman pull code.invetica.team/jcf/datomic-transactor:latest
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) podman pull code.invetica.team/invetica/datomic-transactor:1.0.7187
 #+end_src
 
 ** Shell Alias
@@ -64,8 +64,8 @@ sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman pull code.invetica.team/
 Add to =~/.zshrc= on compute for convenience:
 
 #+begin_src sh
-alias pci='sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) podman'
-alias sci='sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user'
+alias pci='sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) podman'
+alias sci='sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user'
 #+end_src
 
 Then:
@@ -142,12 +142,12 @@ To deploy without CI:
 
 #+begin_src sh
 # On compute
-cd /var/lib/ci/.config/containers/systemd/bits
+cd /var/lib/bits/.config/containers/systemd/bits
 
 # Copy updated quadlet files (from bits/deploy/)
 # Then reload
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user daemon-reload
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) systemctl --user restart bits.service
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user daemon-reload
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits.service
 #+end_src
 
 * Secrets
@@ -191,7 +191,7 @@ pci pull code.invetica.team/jcf/bits:latest
 Check quadlet generation:
 
 #+begin_src sh
-sudo -u ci XDG_RUNTIME_DIR=/run/user/$(id -u ci) \
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) \
   /nix/store/*-podman-*/bin/podman system connection list
 #+end_src
 
