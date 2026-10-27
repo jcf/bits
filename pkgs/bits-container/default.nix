@@ -57,6 +57,39 @@
   # ---------------------------------------------------------------------------
   # Build components
 
+  # Temurin's bundled cacerts still trusts the roots hit by the 2026-10-17
+  # eMudhra compromise (https://emudhra.we-have-a-problem.com), so build the
+  # JRE trust store from nixpkgs cacert with those roots blacklisted. keytool
+  # cannot import the TRUSTED CERTIFICATE blocks the blacklist leaves behind,
+  # and skipping them is the point: distrust by omission.
+  caBundle = pkgs.cacert.override {
+    blacklist = [
+      "Comodo AAA Services root"
+      "emSign ECC Root CA - C3"
+      "emSign ECC Root CA - G3"
+      "emSign Root CA - C1"
+    ];
+  };
+
+  cacerts =
+    runCommand "bits-cacerts" {
+      nativeBuildInputs = [jdk];
+    } ''
+      awk '
+        /-----BEGIN CERTIFICATE-----/ {n++; keep=1}
+        keep {print > sprintf("cert-%03d.pem", n)}
+        /-----END CERTIFICATE-----/ {keep=0}
+      ' ${caBundle}/etc/ssl/certs/ca-bundle.crt
+
+      for pem in cert-*.pem; do
+        keytool -importcert -noprompt \
+          -keystore $out \
+          -storepass changeit \
+          -alias "''${pem%.pem}" \
+          -file "$pem"
+      done
+    '';
+
   # Minimal JRE via jlink with only required modules
   customJre =
     runCommand "bits-jre" {
@@ -80,6 +113,9 @@
         --no-header-files \
         --compress zip-6 \
         --output $out
+
+      cp ${cacerts} $out/lib/security/cacerts
+      chmod 644 $out/lib/security/cacerts
     '';
 
   # AppCDS archive for faster startup (~20-30% improvement)
