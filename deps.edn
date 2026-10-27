@@ -11,7 +11,7 @@
   camel-snake-kebab/camel-snake-kebab                             {:mvn/version "0.4.3"}
   ch.qos.logback/logback-classic                                  {:mvn/version "1.5.35"}
   clojure.java-time/clojure.java-time                             {:mvn/version "1.4.3"}
-  com.aayushatharva.brotli4j/brotli4j                             {:mvn/version "1.23.0"}
+  com.aayushatharva.brotli4j/brotli4j                             {:mvn/version "1.24.0"}
   com.cnuernber/charred                                           {:mvn/version "1.039"}
   com.datomic/peer                                                {:mvn/version "1.0.7622"}
   com.github.ben-manes.caffeine/caffeine                          {:mvn/version "3.1.5"}
@@ -59,15 +59,15 @@
 
   :darwin-aarch64
   {:extra-deps
-   {com.aayushatharva.brotli4j/native-osx-aarch64 {:mvn/version "1.23.0"}}}
+   {com.aayushatharva.brotli4j/native-osx-aarch64 {:mvn/version "1.24.0"}}}
 
   :linux-aarch64
   {:extra-deps
-   {com.aayushatharva.brotli4j/native-linux-aarch64 {:mvn/version "1.23.0"}}}
+   {com.aayushatharva.brotli4j/native-linux-aarch64 {:mvn/version "1.24.0"}}}
 
   :linux-x86_64
   {:extra-deps
-   {com.aayushatharva.brotli4j/native-linux-x86_64 {:mvn/version "1.23.0"}}}
+   {com.aayushatharva.brotli4j/native-linux-x86_64 {:mvn/version "1.24.0"}}}
 
   :dev
   {:jvm-opts    ["-XX:+UseG1GC"

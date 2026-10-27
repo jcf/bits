@@ -246,64 +246,64 @@
       "hash": "sha256-5jscaPbkfo230knyPvy1KxbPuxRHMymu+IAM3H3qB9U="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/brotli4j-parent/1.23.0/brotli4j-parent-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/brotli4j-parent/1.24.0/brotli4j-parent-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-5TlsKNdKDCcmKur845HDWh5CD6FdbrpqKrQmn0Azzyk="
+      "hash": "sha256-f08d+gvXDSah7O5jOFlXCLDW8XEcK7gVINPUyUY0928="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/brotli4j/1.23.0/brotli4j-1.23.0.jar",
+      "mvn-path": "com/aayushatharva/brotli4j/brotli4j/1.24.0/brotli4j-1.24.0.jar",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-X88TrXjQcxnMUHRl3PYcvD7+6fRcmuHEKpkCQUaWvAs="
+      "hash": "sha256-zQrEQl0shElyPJPWbsQ3n68Qk+tmCe3oPkmUf5Cncug="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/brotli4j/1.23.0/brotli4j-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/brotli4j/1.24.0/brotli4j-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-/Y9R1jfLNL7YG4lY8m5cQdy+TInwctkd68LsDayglb8="
+      "hash": "sha256-msKU6bJFpjAwe7RnjYysVP1jSObFJinqyNgzThw1UOo="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/native-linux-aarch64/1.23.0/native-linux-aarch64-1.23.0.jar",
+      "mvn-path": "com/aayushatharva/brotli4j/native-linux-aarch64/1.24.0/native-linux-aarch64-1.24.0.jar",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-kAxz2sczDr6WYHHHcNLUNXxN4/lBcmLtRAjcCPK1c7Y="
+      "hash": "sha256-JaA+k5q6cCN1VjySSHl8ycdkgLkdvZLf5KIfxRzg/98="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/native-linux-aarch64/1.23.0/native-linux-aarch64-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/native-linux-aarch64/1.24.0/native-linux-aarch64-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-REg3iDYyDFCQnHdwQ1wMO9r7YLt9JVNZ5GgQSln2lfw="
+      "hash": "sha256-kK+l5/fB+ZH/VeYzyRJsZ8ZQnoowQul82jfLdm9W8bU="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/native-linux-x86_64/1.23.0/native-linux-x86_64-1.23.0.jar",
+      "mvn-path": "com/aayushatharva/brotli4j/native-linux-x86_64/1.24.0/native-linux-x86_64-1.24.0.jar",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-xQTiQ5YcQinY5IbKj4e3V62aAz3aRxBhwBNMBQ3cqnw="
+      "hash": "sha256-SeXFvO+y1CR9OihZ0VrpAIa0xAieCPKlYLisAR5hqwY="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/native-linux-x86_64/1.23.0/native-linux-x86_64-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/native-linux-x86_64/1.24.0/native-linux-x86_64-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-fUnHI0n4drP5lbeHj966Irb7wwSRkI9rrn19igSRtKg="
+      "hash": "sha256-VEd6tZDRSqcs/E3vnZhZZrM4XU7wn73hrhntYCFsY9E="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/native-osx-aarch64/1.23.0/native-osx-aarch64-1.23.0.jar",
+      "mvn-path": "com/aayushatharva/brotli4j/native-osx-aarch64/1.24.0/native-osx-aarch64-1.24.0.jar",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-vjvFNojbr/JtnVVDAYN94r+p7AkJC2TR6/H7ayPCjmE="
+      "hash": "sha256-4AVmjar236odI7aWCrAlbKmJ5TbBklxOZHh2mEH4mq0="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/native-osx-aarch64/1.23.0/native-osx-aarch64-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/native-osx-aarch64/1.24.0/native-osx-aarch64-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-FVJqHzboCO0nQNTUtD0DjivZnT0PqYq4VuZWMCdDXpI="
+      "hash": "sha256-a9Z+hnwLkrtSvQItp0BKO0zMzQNV5hDhhN1bhpS1iEg="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/natives/1.23.0/natives-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/natives/1.24.0/natives-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-I4mJeVVthNz5Kkl5EcmFyOb4dWxrM7eka+mrAOjOE9E="
+      "hash": "sha256-+5+5/bQgboD+wiwbWhAfnwmjsv6idjbyf4bKqjLv/To="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/service/1.23.0/service-1.23.0.jar",
+      "mvn-path": "com/aayushatharva/brotli4j/service/1.24.0/service-1.24.0.jar",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-fymNRNu3aIQZ8Bee4d+g5ENmMycrBdOKX686K40IaXs="
+      "hash": "sha256-L+6Kl31hfEkE8yYOyoopSSfsU2QCZHj4IBRITpbov6U="
     },
     {
-      "mvn-path": "com/aayushatharva/brotli4j/service/1.23.0/service-1.23.0.pom",
+      "mvn-path": "com/aayushatharva/brotli4j/service/1.24.0/service-1.24.0.pom",
       "mvn-repo": "https://repo1.maven.org/maven2/",
-      "hash": "sha256-ayiyQncMtQgQOoVWFbsflqD8Y5iMJqFrlhVglqXZCi4="
+      "hash": "sha256-H0xZOCGAPH/Ku4yFITrIsK4SwpyO8/40MDMCqmDSycw="
     },
     {
       "mvn-path": "com/bhauman/spell-spec/0.1.2/spell-spec-0.1.2.jar",
