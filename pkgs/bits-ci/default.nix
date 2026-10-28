@@ -105,23 +105,19 @@
     chmod 1777 $out/tmp
   '';
 
-  # Config files layer
-  configLayer = buildEnv {
-    name = "ci-config";
-    paths = [containersPolicy nixConf nsswitch passwd group usrBinEnv];
-  };
-
-  # Packages layer
-  packagesLayer = buildEnv {
-    name = "ci-packages";
-    paths = packages;
+  # Config files and packages in one environment, so directories both
+  # provide merge rather than one hiding the other: skopeo ships
+  # etc/containers/default-policy.json beside our policy.json.
+  rootEnv = buildEnv {
+    name = "ci-root";
+    paths = [containersPolicy nixConf nsswitch passwd group usrBinEnv] ++ packages;
   };
 in
   nix2container.buildImage {
     name = "bits-ci";
     maxLayers = 2;
 
-    copyToRoot = [dirsLayer configLayer packagesLayer];
+    copyToRoot = [dirsLayer rootEnv];
 
     config = {
       Env = [
