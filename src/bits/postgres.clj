@@ -1,6 +1,7 @@
 (ns bits.postgres
   (:require
    [babashka.process :as proc]
+   [bits.health :as health]
    [bits.spec]
    [camel-snake-kebab.core :as csk]
    [charred.api :as json]
@@ -452,7 +453,14 @@
 
   next.jdbc.protocols/Connectable
   (get-connection [this opts]
-    (jdbc/get-connection (:datasource this) opts)))
+    (jdbc/get-connection (:datasource this) opts))
+
+  health/Health
+  (alive? [_]
+    (and (some? pool) (not (.isClosed ^HikariDataSource pool))))
+  (ready? [_]
+    (with-open [conn (jdbc/get-connection datasource)]
+      (.isValid ^java.sql.Connection conn 2))))
 
 (defn make-postgres
   [config]

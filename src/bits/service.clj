@@ -2,6 +2,7 @@
   (:require
    [bits.coerce :as coerce]
    [bits.form :as form]
+   [bits.health :as health]
    [bits.html :as html]
    [bits.locale :refer [tru]]
    [bits.middleware :as mw]
@@ -29,6 +30,21 @@
    [steffan-westcott.clj-otel.api.trace.span :as span])
   (:import
    (java.util.concurrent Executors)))
+
+;;; ----------------------------------------------------------------------------
+;;; Health
+
+;; Answered ahead of every other middleware, so a probe needs no session, realm
+;; or CSRF token. /healthz asks whether every component can reach its
+;; dependencies; deploys wait for it before sending traffic to a new instance.
+;; /livez asks only whether each component's own state is intact.
+(defn- wrap-health
+  [handler components]
+  (fn [request]
+    (case (:uri request)
+      "/healthz" (health/response (health/report health/ready? components))
+      "/livez"   (health/response (health/report health/alive? components))
+      (handler request))))
 
 ;;; ----------------------------------------------------------------------------
 ;;; Exception handling
@@ -224,7 +240,7 @@
                                 :refresh-mult refresh-mult)]
         (set-agent-send-executor! (Executors/newVirtualThreadPerTaskExecutor))
         (set-agent-send-off-executor! (Executors/newVirtualThreadPerTaskExecutor))
-        (assoc this :stop-fn (server/run-server (make-app this)
+        (assoc this :stop-fn (server/run-server (wrap-health (make-app this) (select-keys this [:datomic :postgres]))
                                                 {:host                       http-host
                                                  :legacy-unsafe-remote-addr? false
                                                  :port                       http-port

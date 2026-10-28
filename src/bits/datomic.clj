@@ -2,6 +2,7 @@
   (:require
    [bits.async :as async]
    [bits.cryptex :as cryptex]
+   [bits.health :as health]
    [bits.schema :as schema]
    [bits.spec]
    [clojure.spec.alpha :as s]
@@ -139,7 +140,16 @@
   (stop [this]
     (span/with-span! {:name ::stop-database}
       (some-> conn disconnect)
-      (assoc this :conn nil))))
+      (assoc this :conn nil)))
+
+  ;; Ready once the transactor confirms the latest basis; a cached database
+  ;; value would answer without it. Bounded, because sync waits as long as the
+  ;; transactor stays away.
+  health/Health
+  (alive? [_]
+    (some? conn))
+  (ready? [_]
+    (some? (deref (d/sync conn) 2000 nil))))
 
 (defmethod print-method Datomic
   [_ ^java.io.Writer w]
