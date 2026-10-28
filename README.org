@@ -50,6 +50,15 @@ All infrastructure runs in Docker containers (built with Nix). The =just dev=
 command starts PostgreSQL, Datomic transactor, Jaeger, Traefik, the Clojure
 nREPL, and Tailwind CSS watcher.
 
+The flake fetches nix2container from a private Invetica mirror. Outside
+Invetica, point the lock file at upstream once before =just setup=; the pinned
+commit is the same, so the images are too:
+
+#+begin_src sh :eval never
+nix flake lock --override-input nix2container \
+  github:nlewo/nix2container/76be9608a7f4d6c985d28b0e7be903ae2547df3e
+#+end_src
+
 ** HTTPS and =*.localhost= URLs
 Subdomains of =localhost= automatically resolve to =127.0.0.1= per RFC 6761 —
 no custom DNS resolver needed. Traefik terminates TLS with mkcert certificates.

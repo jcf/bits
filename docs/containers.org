@@ -1,7 +1,7 @@
 #+title: Containers
 
 * Overview
-We build all container images with Nix using [[https://code.invetica.team/jcf/nix2container][nix2container]]. This produces
+We build all container images with Nix using [[https://github.com/nlewo/nix2container][nix2container]]. This produces
 OCI-compliant images — not Docker-specific — that any container runtime
 supporting the OCI image specification can load (Docker, Podman, containerd,
 etc.).
@@ -41,6 +41,9 @@ done
 | =bits-tailwind=    | =pkgs/tailwind-container/default.nix=           |                              |
 | =bits-traefik=     | =pkgs/traefik-container/default.nix=            | =docker/traefik/dynamic.yml= |
 | =bits-transactor=  | =pkgs/datomic-transactor-container/default.nix= |                              |
+
+The =pkgs/= images are for local development. On =compute=, =bits-transactor=
+runs the shared image from =invetica/datomic=.
 
 * Building
 #+begin_src sh :eval never

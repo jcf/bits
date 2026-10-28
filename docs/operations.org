@@ -49,15 +49,21 @@ sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bi
 sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits-postgres.service bits-transactor.service bits.service
 #+end_src
 
-** Pull New Image
+** Run Another Image
+
+The quadlets name exact image tags, so pulling =latest= changes nothing on its
+own. To run another build, set =Image== in the installed quadlet and restart;
+Podman pulls the image if it is missing.
 
 #+begin_src sh
-# Pull latest bits app image
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) podman pull code.invetica.team/jcf/bits:latest
-
-# Pull latest transactor image
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) podman pull code.invetica.team/invetica/datomic-transactor:1.0.7187
+cd /var/lib/bits/.config/containers/systemd/bits
+sudo -u bits sed -i 's|^Image=.*|Image=code.invetica.team/jcf/bits:20261028-abc1234|' bits.container
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user daemon-reload
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits.service
 #+end_src
+
+The registry refuses anonymous pulls. The =bits= user stays signed in from CI
+deploys; if a pull fails with =unauthorized=, the next deploy logs it in again.
 
 ** Shell Alias
 
@@ -73,7 +79,7 @@ Then:
 #+begin_src sh
 sci status bits.service
 sci restart bits.service
-pci pull code.invetica.team/jcf/bits:latest
+pci images
 pci logs bits
 #+end_src
 
@@ -129,12 +135,20 @@ Systemd manages dependencies:
 
 * Deployment
 
-CI automatically deploys on push to =main=:
+CI deploys every push to =main= that passes its tests:
 
-1. Builds container image
-2. Pushes to =code.invetica.team/jcf/bits:latest=
-3. Copies quadlet files to compute
-4. Systemd path watcher triggers service reload
+1. Builds the image and pushes it as =<date>-<sha>= and =latest=
+2. =deploy.sh= pins =bits.container= to the dated tag, pulls it, and installs
+   the quadlet files
+3. Reloads systemd and restarts every service itself; the quadlet path watcher
+   fires on the first file written, too early to trust
+4. Waits until the =bits= container runs the pinned image, then prunes unused
+   images
+5. Deletes registry tags older than the newest deploy
+
+The transactor is pinned separately, in =deploy/bits-transactor.container=, to a
+dated build of =invetica/datomic-transactor=. Change it on purpose; the
+=1.0.7187= and =latest= tags move with every Datomic build.
 
 ** Manual Deployment
 
