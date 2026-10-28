@@ -62,7 +62,7 @@ versions=$(
 
 # One deploy pushes <tag>-amd64 and the <tag> index, so count deploys by
 # their base tag, newest first by creation time.
-deploys=$(sort -r <<<"$versions" | awk '{print $2}' | sed -E 's/-(amd64|arm64)$//' | grep -vx latest | awk '!seen[$0]++')
+deploys=$(sort -r <<<"$versions" | cut -d' ' -f2 | sed -E 's/-(amd64|arm64)$//' | grep -vx latest | uniq)
 
 count=$(grep -c . <<<"$deploys" || true)
 say "Found $count deploys"
@@ -73,7 +73,7 @@ if [[ $count -le $keep ]]; then
 fi
 
 kept=$(head -n "$keep" <<<"$deploys")
-to_delete=$(awk '{print $2}' <<<"$versions" | grep -vx latest | while read -r version; do
+to_delete=$(cut -d' ' -f2 <<<"$versions" | grep -vx latest | while read -r version; do
   grep -qx "$(sed -E 's/-(amd64|arm64)$//' <<<"$version")" <<<"$kept" || echo "$version"
 done)
 
