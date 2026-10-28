@@ -1,0 +1,15 @@
+# Forwards Bits's public port to the live colour. deploy.sh renders this with
+# the colour and port it has just health-checked, then restarts it to switch.
+# Wanting the colour means a boot brings back whichever colour last served.
+
+[Unit]
+Description=Bits proxy to the @COLOUR@ colour
+Requires=bits-proxy.socket
+After=bits-proxy.socket bits-@COLOUR@.service
+Wants=bits-@COLOUR@.service
+
+[Service]
+ExecStart=/run/current-system/systemd/lib/systemd/systemd-socket-proxyd 127.0.0.1:@PORT@
+
+[Install]
+WantedBy=default.target

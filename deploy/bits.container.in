@@ -1,19 +1,22 @@
-# Bits application container
-# Security: Read-only rootfs, minimal capabilities, resource limits
+# Bits application, one colour of a blue/green pair.
+#
+# deploy.sh renders this into bits-blue.container or bits-green.container,
+# filling in the colour, its port and the image. bits-proxy picks which colour
+# serves port 3000, and starts it at boot.
 
 [Unit]
-Description=Bits application
+Description=Bits application (@COLOUR@)
 After=network-online.target bits-postgres.service bits-transactor.service bits-jaeger.service
 Requires=bits-postgres.service bits-transactor.service
 Wants=bits-jaeger.service
 
 [Container]
-Image=code.invetica.team/jcf/bits:latest
-ContainerName=bits
+Image=@IMAGE@
+ContainerName=bits-@COLOUR@
 
-# Network: internal for postgres, published port for HTTP
+# Network: internal for postgres; HTTP on the colour's own port
 Network=bits.network
-PublishPort=127.0.0.1:3000:3000
+PublishPort=127.0.0.1:@PORT@:3000
 
 # Environment: ragenix secrets (configured in setup project)
 EnvironmentFile=/run/agenix/bits-environment-file
@@ -23,10 +26,6 @@ Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://bits-jaeger:4317
 
 # JVM memory (JAVA_TOOL_OPTIONS is picked up automatically by the JVM)
 Environment=JAVA_TOOL_OPTIONS=-Xms512m -Xmx2g
-
-# Auto-update when new image is pushed
-AutoUpdate=registry
-Label=io.containers.autoupdate=registry
 
 # Security hardening
 ReadOnly=true
@@ -40,13 +39,9 @@ Tmpfs=/tmp:size=128m,mode=1777
 Memory=4G
 PidsLimit=256
 
-# Health: Cloudflare Tunnel checks /healthz externally
-# No container-level health check (minimal image, no curl)
-
 [Service]
 Restart=always
+# The JVM exits 143 on SIGTERM; a deploy stopping the old colour is not a failure.
+SuccessExitStatus=143
 TimeoutStartSec=180
 TimeoutStopSec=30
-
-[Install]
-WantedBy=default.target

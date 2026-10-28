@@ -1,0 +1,12 @@
+# Bits's public port. systemd holds it open while the proxy behind it
+# restarts, so switching colours queues new connections instead of refusing
+# them.
+
+[Unit]
+Description=Bits public port
+
+[Socket]
+ListenStream=127.0.0.1:3000
+
+[Install]
+WantedBy=sockets.target
