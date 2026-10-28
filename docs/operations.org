@@ -16,18 +16,27 @@ ssh compute
 
 ** Service Status
 
+=bits-proxy= holds port 3000 and forwards it to the live colour, =blue= or
+=green=.
+
 #+begin_src sh
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user status bits.service
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user status bits-proxy.service bits-blue.service bits-green.service
+
+# Which colour is live
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user cat bits-proxy.service | grep ExecStart
+
+# Health through the public port
+curl -s http://127.0.0.1:3000/healthz
 #+end_src
 
 ** View Logs
 
 #+begin_src sh
-# Recent logs
-sudo journalctl -n 100 CONTAINER_NAME=bits
+# Recent app logs, whichever colour wrote them
+sudo journalctl -n 100 CONTAINER_NAME=bits-blue CONTAINER_NAME=bits-green
 
-# Follow logs
-sudo journalctl -f CONTAINER_NAME=bits
+# Follow app logs
+sudo journalctl -f CONTAINER_NAME=bits-blue CONTAINER_NAME=bits-green
 
 # Transactor logs
 sudo journalctl -n 100 CONTAINER_NAME=bits-transactor
@@ -38,29 +47,21 @@ sudo journalctl -n 100 CONTAINER_NAME=bits-postgres
 
 ** Restart Services
 
+Restarting the live colour drops traffic until it starts again; a deploy swaps
+colours without that.
+
 #+begin_src sh
-# Restart bits app
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits.service
+# Restart the live colour (blue here)
+sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits-blue.service
 
 # Restart transactor
 sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits-transactor.service
-
-# Restart all bits services
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits-postgres.service bits-transactor.service bits.service
 #+end_src
 
-** Run Another Image
+** Roll Back
 
-The quadlets name exact image tags, so pulling =latest= changes nothing on its
-own. To run another build, set =Image== in the installed quadlet and restart;
-Podman pulls the image if it is missing.
-
-#+begin_src sh
-cd /var/lib/bits/.config/containers/systemd/bits
-sudo -u bits sed -i 's|^Image=.*|Image=code.invetica.team/jcf/bits:20261028-abc1234|' bits.container
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user daemon-reload
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits.service
-#+end_src
+The registry keeps only the newest deploy's tags. To roll back, revert the
+change and push; CI builds and deploys it like any other commit.
 
 The registry refuses anonymous pulls. The =bits= user stays signed in from CI
 deploys; if a pull fails with =unauthorized=, the next deploy logs it in again.
@@ -77,52 +78,59 @@ alias sci='sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user
 Then:
 
 #+begin_src sh
-sci status bits.service
-sci restart bits.service
+sci status bits-proxy.service
+sci restart bits-transactor.service
 pci images
-pci logs bits
+pci logs bits-blue
 #+end_src
 
 * Architecture
 
 #+begin_example
                     Internet
-                       │
-                       ▼
-              ┌─────────────────┐
-              │ Cloudflare CDN  │
-              │   bits.page     │
-              └────────┬────────┘
-                       │
-              ┌────────▼────────┐
-              │   cloudflared   │
-              │ (tunnel daemon) │
-              └────────┬────────┘
-                       │ localhost:3000
-              ┌────────▼────────┐
-              │      bits       │
-              │  (application)  │
-              └────────┬────────┘
-                       │ bits-transactor:4334
-              ┌────────▼────────┐
-              │ bits-transactor │
-              │    (Datomic)    │
-              └────────┬────────┘
-                       │ bits-postgres:5432
-              ┌────────▼────────┐
-              │  bits-postgres  │
-              │  (PostgreSQL)   │
-              └─────────────────┘
+                        │
+                        ▼
+            ┌───────────────────────┐
+            │     Cloudflare CDN    │
+            │       bits.page       │
+            └───────────┬───────────┘
+                        │
+            ┌───────────▼───────────┐
+            │      cloudflared      │
+            │    (tunnel daemon)    │
+            └───────────┬───────────┘
+                        │ localhost:3000
+            ┌───────────▼───────────┐
+            │       bits-proxy      │
+            │    (systemd socket)   │
+            └───────────┬───────────┘
+                        │ localhost:3001 or 3002
+            ┌───────────▼───────────┐
+            │   bits-blue / -green  │
+            │     (application)     │
+            └───────────┬───────────┘
+                        │ bits-transactor:4334
+            ┌───────────▼───────────┐
+            │    bits-transactor    │
+            │       (Datomic)       │
+            └───────────┬───────────┘
+                        │ bits-postgres:5432
+            ┌───────────▼───────────┐
+            │     bits-postgres     │
+            │      (PostgreSQL)     │
+            └───────────────────────┘
 #+end_example
 
 * Services
 
-| Service          | Port | Description               |
-|------------------+------+---------------------------|
-| bits             | 3000 | Application server        |
-| bits-transactor  | 4334 | Datomic transactor        |
-| bits-postgres    | 5432 | PostgreSQL (internal)     |
-| bits-jaeger      | 16686| Jaeger UI (localhost)     |
+| Service         | Port  | Description              |
+|-----------------+-------+--------------------------|
+| bits-proxy      | 3000  | Public port, live colour |
+| bits-blue       | 3001  | Application server       |
+| bits-green      | 3002  | Application server       |
+| bits-transactor | 4334  | Datomic transactor       |
+| bits-postgres   | 5432  | PostgreSQL (internal)    |
+| bits-jaeger     | 16686 | Jaeger UI (localhost)    |
 
 * Startup Order
 
@@ -130,39 +138,37 @@ Systemd manages dependencies:
 
 1. =bits-postgres.service= starts first
 2. =bits-transactor.service= waits for postgres
-3. =bits.service= waits for transactor
+3. =bits-proxy.service= wants the live colour, so a boot starts whichever colour
+   last served; that colour waits for the transactor
 4. =bits-jaeger.service= starts independently (optional)
+
+* Health
+
+=/healthz= asks every component whether it can reach its dependencies: Datomic
+once the transactor confirms a sync, Postgres once the pool hands out a valid
+connection. =/livez= asks only whether each component's own state is intact.
+Both answer 200 or 503 with one line per component, and give up on a check
+after two seconds. Neither needs a session or a known host.
 
 * Deployment
 
-CI deploys every push to =main= that passes its tests:
+CI deploys every push to =main= that passes its tests, blue/green:
 
 1. Builds the image and pushes it as =<date>-<sha>= and =latest=
-2. =deploy.sh= pins =bits.container= to the dated tag, pulls it, and installs
-   the quadlet files
-3. Reloads systemd and restarts every service itself; the quadlet path watcher
-   fires on the first file written, too early to trust
-4. Waits until the =bits= container runs the pinned image, then prunes unused
-   images
-5. Deletes registry tags older than the newest deploy
+2. =deploy.sh= renders the idle colour's quadlet with the new image, pulls it,
+   and installs the quadlet files; the live colour's file is left alone
+3. Restarts postgres, the transactor or jaeger only if their definitions changed
+4. Starts the idle colour and waits for its =/healthz=; if it never answers 200,
+   the deploy stops it and fails, and traffic stays where it was
+5. Points =bits-proxy= at the new colour and restarts it. The socket stays open,
+   so new connections wait rather than fail; connections already open through
+   the old proxy close
+6. Stops the old colour, prunes unused images, and deletes registry tags older
+   than the newest deploy
 
 The transactor is pinned separately, in =deploy/bits-transactor.container=, to a
 dated build of =invetica/datomic-transactor=. Change it on purpose; the
 =1.0.7187= and =latest= tags move with every Datomic build.
-
-** Manual Deployment
-
-To deploy without CI:
-
-#+begin_src sh
-# On compute
-cd /var/lib/bits/.config/containers/systemd/bits
-
-# Copy updated quadlet files (from bits/deploy/)
-# Then reload
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user daemon-reload
-sudo -u bits XDG_RUNTIME_DIR=/run/user/$(id -u bits) systemctl --user restart bits.service
-#+end_src
 
 * Secrets
 
@@ -188,11 +194,11 @@ ssh compute "sudo nixos-rebuild switch --flake ~/.config/setup"
 
 ** 502 Bad Gateway
 
-Cloudflare can reach the tunnel but bits isn't responding on port 3000.
+Cloudflare can reach the tunnel but nothing answers on port 3000.
 
-1. Check if bits is running: =sci status bits.service=
-2. Check logs: =sudo journalctl -n 50 CONTAINER_NAME=bits=
-3. Check dependencies: =sci status bits-transactor.service bits-postgres.service=
+1. Check the proxy and colours: =sci status bits-proxy.service bits-blue.service bits-green.service=
+2. Check health: =curl -s http://127.0.0.1:3000/healthz=
+3. Check logs: =sudo journalctl -n 50 CONTAINER_NAME=bits-blue CONTAINER_NAME=bits-green=
 
 ** Container Won't Start
 
@@ -243,5 +249,5 @@ Then open http://localhost:16686
 All container logs go to journald. Query by container name:
 
 #+begin_src sh
-sudo journalctl CONTAINER_NAME=bits --since "1 hour ago"
+sudo journalctl CONTAINER_NAME=bits-blue CONTAINER_NAME=bits-green --since "1 hour ago"
 #+end_src
