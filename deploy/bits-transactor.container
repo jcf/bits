@@ -7,7 +7,7 @@ After=network-online.target bits-postgres.service
 Requires=bits-postgres.service
 
 [Container]
-Image=code.invetica.team/invetica/datomic-transactor:1.0.7187
+Image=code.invetica.team/invetica/datomic-transactor:20261027-f78fb25
 ContainerName=bits-transactor
 
 Network=bits.network
