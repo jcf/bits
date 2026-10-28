@@ -53,17 +53,26 @@ as_target() {
 say "Pinning image to $image..."
 sed -i "s|Image=code.invetica.team/jcf/bits:.*|Image=$image|" deploy/bits.container
 
+say "Logging in to $registry..."
+as_target podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
+
+say "Pulling $image..."
+as_target podman pull "$image"
+
 say "Installing quadlet files to $quadlet_dir..."
 as_target install -d -m 0755 "$quadlet_dir"
 as_target install -m 0644 \
   deploy/*.container deploy/*.network deploy/*.volume deploy/*.sql \
   "$quadlet_dir/"
 
-say "Logging in to $registry..."
-as_target podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
-
-say "Pulling $image..."
-as_target podman pull "$image"
+# The quadlet path unit fires on the first file written and can reload
+# before the rest arrive, so reload and restart once all are in place.
+say "Restarting services..."
+as_target systemctl --user daemon-reload
+for f in deploy/*.container; do
+  name=$(basename "$f" .container)
+  as_target systemctl --user restart "$name.service" || err "$name failed to restart"
+done
 
 say "Waiting for $service to run $image..."
 max_attempts=12
