@@ -65,16 +65,19 @@ as_target podman login -u "$REGISTRY_USER" -p "$REGISTRY_TOKEN" "$registry"
 say "Pulling $image..."
 as_target podman pull "$image"
 
-say "Pruning unused images..."
-as_target podman image prune -af
-
-say "Waiting for service to start..."
+say "Waiting for $service to run $image..."
 max_attempts=12
 delay=5
 
 for ((attempt = 1; attempt <= max_attempts; attempt++)); do
-  if as_target systemctl --user is-active --quiet "$service.service"; then
+  running=$(as_target podman inspect --format '{{.ImageName}}' "$service" 2>/dev/null || true)
+  if [[ $running == "$image" ]] && as_target systemctl --user is-active --quiet "$service.service"; then
     ok "Service running"
+
+    # Prune only once the new container holds its image, or the
+    # restart has to pull it again.
+    say "Pruning unused images..."
+    as_target podman image prune -af
     exit 0
   fi
   if ((attempt < max_attempts)); then
