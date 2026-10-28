@@ -23,7 +23,7 @@ concurrency:
 
 env:
   CI: true
-  IMAGE: code.invetica.team/jcf/bits-ci:20260226-bc992f8
+  IMAGE: code.invetica.team/jcf/bits-ci:20261028-7b7fb17
   TERM: xterm
 
   # Set to 'true' when ready to publish container images to registries
